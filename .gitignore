@@ -6,6 +6,9 @@ docs/site/
 Manifest.toml
 .DS_Store
 
+scratch/
+examples/
+
 ### VisualStudioCode ###
 .vscode
 .vscode/*
