@@ -178,8 +178,8 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
     k_out ./= c_0
 
-    S_out_p = real( 0.5 * E_out_p × conj(k_out[1, :] × E_out_p) )
-    S_out_s = real( 0.5 * E_out_s × conj(k_out[2, :] × E_out_s) )
+    S_out_p  = real( 0.5 * E_out_p × conj(k_out[1, :] × E_out_p) )
+    S_out_s  = real( 0.5 * E_out_s × conj(k_out[2, :] × E_out_s) )
     S_refl_p = real( 0.5 * E_ref_p × conj(k_out[3, :] × E_ref_p) )
     S_refl_s = real( 0.5 * E_ref_s × conj(k_out[4, :] × E_ref_s) )
 
@@ -190,7 +190,7 @@ end
 """
 NOT YET IMPLEMENTED
 """
-function electric_field(γ, T)
+function electric_field(γ, T, P)
     E_t_po = γ[1, :]
     E_t_se = γ[2, :]
     E_r_po = γ[3, :]
@@ -421,11 +421,11 @@ function interp_data(layer::Layer, λs)
 
         return Layer(layer.material, layer.thickness, λs, n, κ)
     else
-        interp_n = LinearInterpolation(layer.λ, layer.n)
-        interp_κ = LinearInterpolation(layer.λ, layer.κ)
+        interp_n = LinearInterpolation(layer.n, layer.λ)
+        interp_κ = LinearInterpolation(layer.κ, layer.λ)
 
-        n = interp_n(λs)
-        κ = interp_κ(λs)
+        n = interp_n.(λs)
+        κ = interp_κ.(λs)
 
         return Layer(layer.material, layer.thickness, λs, n, κ)
     end

@@ -14,7 +14,7 @@ export Layer, Structure, Poynting,
        delete_layer!
 
 using CSV
-using Interpolations
+using DataInterpolations
 using LinearAlgebra
 
 include("types.jl")

@@ -1,5 +1,5 @@
 using Test
-using Interpolations
+using DataInterpolations
 using LinearAlgebra
 using TransferMatrix
 
