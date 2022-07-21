@@ -375,8 +375,8 @@ function dynamical_matrix(ξ, q, γ, μ)
     return A
 end
 
-function propagation_matrix(ω, q, d)
-    return Diagonal(exp.(- ω * q * d * im / c_0))
+function propagation_matrix(ω, q, z)
+    return Diagonal(exp.(-im * ω * q * z / c_0))
 end
 
 function transfermatrix(ω, ξ, q, γ, μ, d)
@@ -476,6 +476,8 @@ function calculate_Γ_S(s::Structure, θ::Float64)
         push!(Γs, Γ)
         push!(Ss, S)
     end
+
+    E = electric_field(γ, T, )
 
     return Γs, Ss
 end
