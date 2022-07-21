@@ -231,9 +231,9 @@ end
     d = π / 2
     ω = c_0
     P_test = Diagonal([-1.0im, -1.0, 1.0im, 1.0])
-    P = TransferMatrix.propagation_matrix(ω, q, d)
+    P = TransferMatrix.propagation_matrix(ω, q)
 
-    @test P ≈ P_test
+    @test P(d) ≈ P_test
 end
 
 @testset "calculate_γ" begin

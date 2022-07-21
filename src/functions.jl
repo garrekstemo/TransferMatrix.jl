@@ -190,10 +190,20 @@ end
 """
 NOT YET IMPLEMENTED
 """
-function electric_field(γ, T, P)
-    E_t_po = γ[1, :]
-    E_t_se = γ[2, :]
-    E_r_po = γ[3, :]
+function electric_field(ω, q, structure::Structure, zs)
+
+    i = 1
+    interface_positions = find_layer_bounds(structure)
+    layer = structure.layers[i]
+
+    for z in zs
+        if z >= interface_positions[i]
+            i += 1
+            layer = structure.layers[i]
+            P_i = propagation_matrix(ω, q)
+            println("new layer $(layer.material) at $z")
+        end
+    end
 
 end
 
@@ -375,15 +385,21 @@ function dynamical_matrix(ξ, q, γ, μ)
     return A
 end
 
-function propagation_matrix(ω, q, z)
-    return Diagonal(exp.(-im * ω * q * z / c_0))
+"""
+    propagation_matrix(ω, q)
+
+Returns a function that propagates the electromagnetic
+field a distance z through a material.
+"""
+function propagation_matrix(ω, q)
+    return z -> Diagonal(exp.(-im * ω * q * z / c_0))
 end
 
 function transfermatrix(ω, ξ, q, γ, μ, d)
 
     A_i = dynamical_matrix(ξ, q, γ, μ)
-    P_i = propagation_matrix(ω, q, d)
-    T_i = A_i * P_i * inv(A_i)
+    P_i = propagation_matrix(ω, q)
+    T_i = A_i * P_i(d) * inv(A_i)
 
     return A_i, P_i, T_i
 end
@@ -476,8 +492,6 @@ function calculate_Γ_S(s::Structure, θ::Float64)
         push!(Γs, Γ)
         push!(Ss, S)
     end
-
-    E = electric_field(γ, T, )
 
     return Γs, Ss
 end
@@ -637,4 +651,22 @@ function printstruct(s::Structure)
 
     end
     print("-"^30, "\n")
+end
+
+"""
+    find_layer_bounds(s::Structure)
+
+Find the unitful z coordinate for all layer-layer interfaces in the structure,
+with the first interface starting at z = 0.
+(negative z corresponds to positions inside the first layer.)
+"""
+function find_layer_bounds(s::Structure)
+    z = 0
+    interface_positions = []
+    for layer in s.layers
+        push!(interface_positions, z + layer.thickness)
+        z += layer.thickness
+    end
+
+    return interface_positions
 end
