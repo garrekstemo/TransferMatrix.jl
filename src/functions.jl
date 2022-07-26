@@ -190,17 +190,16 @@ end
 """
 NOT YET IMPLEMENTED
 """
-function electric_field(ω, q, structure::Structure, zs)
+function electric_field(structure::Structure, zs, propagation_funcs)
 
     i = 1
-    interface_positions = find_layer_bounds(structure)
+    interface_positions, total_thickness = find_layer_bounds(structure)
     layer = structure.layers[i]
 
     for z in zs
         if z >= interface_positions[i]
             i += 1
             layer = structure.layers[i]
-            P_i = propagation_matrix(ω, q)
             println("new layer $(layer.material) at $z")
         end
     end
@@ -319,8 +318,9 @@ function calculate_q(Δ, a)
 end
 
 """
-These are factors that belong to the electric field calculated
+These are vector components that belong to the electric field calculated
 such that singularities are identified and removed.
+
 q[1] and q[2] are forward-traveling modes and
 q[3] and q[4] are backward-traveling modes.
 
@@ -389,7 +389,8 @@ end
     propagation_matrix(ω, q)
 
 Returns a function that propagates the electromagnetic
-field a distance z through a material.
+field a distance z through a material for a frequency ω
+and wavevector q.
 """
 function propagation_matrix(ω, q)
     return z -> Diagonal(exp.(-im * ω * q * z / c_0))
@@ -464,6 +465,7 @@ function calculate_Γ_S(s::Structure, θ::Float64)
 
     Γs = Vector{Matrix{ComplexF64}}([])
     Ss = Vector{Poynting}([])
+    
     γ_0s = []
     γ_fs = []
     q_0s = []
@@ -475,13 +477,24 @@ function calculate_Γ_S(s::Structure, θ::Float64)
 
         Γ = I
 
+        # E_p_in = [t[1], t[2], 0, 0]
+        # E_s_in = [t[3], t[4], 0, 0]
+
         A_0, P_0, T_0, γ_0, q_0 = layer_params(ω, ξs[i], superstrate.n[i] + superstrate.κ[i] * im, μ, superstrate.thickness)
         A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξs[i], substrate.n[i] + substrate.κ[i] * im, μ, substrate.thickness)
+
+        A_prev = A_0
 
         for layer in s.layers[2:end - 1]
 
             n = layer.n[i] + layer.κ[i] * im
+
+            # Recall that P_i are (Julia) functions of z (closures).
             A_i, P_i, T_i, γ_i, q_i = layer_params(ω, ξs[i], n, μ, layer.thickness)
+
+            L_i = inv(A_prev) * A_i
+            A_prev = A_i
+
             Γ *= T_i
         end
 
@@ -491,9 +504,30 @@ function calculate_Γ_S(s::Structure, θ::Float64)
 
         push!(Γs, Γ)
         push!(Ss, S)
-    end
 
-    return Γs, Ss
+
+        # i = 1
+        # interface_positions, t_total = find_layer_bounds(s)
+        # layer = s.layers[i]
+        # zs = range(0, t_total, length = 1000)
+        # P = propagation_funcs[i]
+
+
+
+        # Calculate the electric field at each distance z in the structure
+        # for z in zs
+        #     if z >= interface_positions[i]
+        #         i += 1
+        #         layer = s.layers[i]
+        #         P = propagation_funcs[i]
+        #         P(z)
+
+        #     end
+        # end
+
+    end
+    return TransferMatrixResult(Γs, Ss, ξs)
+    # return Γs, Ss, ξs
 end
 
 """
@@ -586,9 +620,6 @@ function tr_from_poynting(Ss::Vector{Poynting})
 end
 
 
-
-
-
 """
 Iterate through each angle provided in the structure
 to find the reflectance and transmittance.
@@ -600,14 +631,18 @@ function angle_resolved(s::Structure)
     Tpp_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
     Tss_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
     Γs = []
+    ξ = Matrix{ComplexF64}(undef, length(s.θ), length(s.λ))
 
     for (i, θ) in enumerate(s.θ)
 
-        Γs, Ss = calculate_Γ_S(s, θ)
-        rs, Rs, ts, Ts = tr_from_Γ(Γs)
+        # Γs, Ss, ξs = calculate_Γ_S(s, θ)
+        result = calculate_Γ_S(s, θ)
 
+        rs, Rs, ts, Ts = tr_from_Γ(result.tm)
+
+        ξ[i, :] = result.ξ
         #TODO: Reflectivity from the Poynting vector has a bug in it.
-        Tpp, Tss, Rpp, Rss = tr_from_poynting(Ss)
+        Tpp, Tss, Rpp, Rss = tr_from_poynting(result.poynting)
         Rpp_spectrum[i, :] = [R[1] for R in Rs]
         Rss_spectrum[i, :] = [R[2] for R in Rs]
         # Rpp_spectrum[i, :] = Rpp
@@ -616,7 +651,8 @@ function angle_resolved(s::Structure)
         Tss_spectrum[i, :] = Tss
     end
 
-    return Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs
+    # return Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ
+    return AngleResolvedResult(Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ)
 end
 
 
@@ -668,5 +704,5 @@ function find_layer_bounds(s::Structure)
         z += layer.thickness
     end
 
-    return interface_positions
+    return interface_positions, z
 end

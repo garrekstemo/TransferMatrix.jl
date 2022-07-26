@@ -1,7 +1,3 @@
-mutable struct TransferMatrixResult
-    
-end
-
 struct Layer
     material::String
     thickness::Float64
@@ -31,7 +27,6 @@ mutable struct Structure
     layers::Vector{Layer}
     λ::Vector{Float64}
     θ::Vector{Float64}
-    # ξ::Vector{ComplexF64}
 
     function Structure()
         new([], [], [])
@@ -44,9 +39,6 @@ mutable struct Structure
             new_layer = TransferMatrix.interp_data(layer, λs)
             push!(new_layers, new_layer)
         end
-
-        # ε_0in = TransferMatrix.dielectric_constant(layers[1])
-        # ξs = @. √(ε_0in) * sin(θs)
 
         new(new_layers, λs, θs)
     end
@@ -74,4 +66,19 @@ struct Poynting
     function Poynting(out_p::Vector{Float64}, in_p::Vector{Float64}, out_s::Vector{Float64}, in_s::Vector{Float64}, refl_p::Vector{Float64}, refl_s::Vector{Float64})
         new(out_p, in_p, out_s, in_s, refl_p, refl_s)
     end
+end
+
+struct TransferMatrixResult
+    tm::Vector{Matrix{ComplexF64}}
+    poynting::Vector{Poynting}
+    ξ::Vector{Complex}
+end
+
+struct AngleResolvedResult
+    Rpp::Matrix{Float64}
+    Rss::Matrix{Float64}
+    Tpp::Matrix{Float64}
+    Tss::Matrix{Float64}
+    Γ::Vector{Matrix{ComplexF64}}
+    ξ::Matrix{ComplexF64}
 end
