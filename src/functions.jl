@@ -188,22 +188,143 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 end
 
 """
-NOT YET IMPLEMENTED
+    electric_field(s::Structure, θ::Float64)
+
+Calculate the electric field profile for the entire structure
+as a function of z for a given incidence angle θ.
 """
-function electric_field(structure::Structure, zs, propagation_funcs)
+function electric_field(s::Structure, θ::Float64, λ_i)
+    println("START")
+    res = calculate_Γ_S(s, θ)
+    rs, Rs, ts, Ts = tr_from_Γ(res.tm)
 
-    i = 1
-    interface_positions, total_thickness = find_layer_bounds(structure)
-    layer = structure.layers[i]
+    # λ_i = 655
+    # λ_i = 30
+    println(s.λ[λ_i])
+    ω = 2π * c_0 / s.λ[λ_i]
+    μ = 1.0 + 0.0im
 
-    for z in zs
-        if z >= interface_positions[i]
-            i += 1
-            layer = structure.layers[i]
-            println("new layer $(layer.material) at $z")
+    t = ts[λ_i]
+    ξ = res.ξ[λ_i]
+    println("ξ = ", ξ)
+
+    superstrate = s.layers[1]
+    substrate = s.layers[end]
+
+    A_0, P_0, T_0, γ_0, q_0 = layer_params(ω, ξ, superstrate.n[λ_i] + superstrate.κ[λ_i] * im, μ, superstrate.thickness)
+    A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξ, substrate.n[λ_i] + substrate.κ[λ_i] * im, μ, substrate.thickness)
+
+    Eplus_p = zeros(ComplexF64, length(s.layers), 4)
+    Eminus_p = zeros(ComplexF64, length(s.layers), 4)
+    Eplus_s = zeros(ComplexF64, length(s.layers), 4)
+    Eminus_s = zeros(ComplexF64, length(s.layers), 4)
+
+    Eplus_p[end, :] = [t[1], t[2], 0, 0]
+    Eplus_s[end, :] = [t[3], t[4], 0, 0]
+    
+    Eminus_p[end, :] = inv(P_f(substrate.thickness)) * Eplus_p[end, :]
+    Eminus_s[end, :] = inv(P_f(substrate.thickness)) * Eplus_s[end, :]
+
+    propagation_funcs = Function[P_f]
+    γs = [γ_f]
+    A_i = A_f
+
+    for l in reverse(eachindex(s.layers))
+    
+        if l >= 2
+
+            layer = s.layers[l - 1]
+            
+            n = layer.n[λ_i] + layer.κ[λ_i] * im
+            A_prev, P_prev, T_prev, γ_prev, q_prev = layer_params(ω, ξ, n, μ, layer.thickness)
+
+            push!(propagation_funcs, P_prev)
+            push!(γs, γ_prev)
+
+            L_i = inv(A_prev) * A_i
+
+            Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
+            Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
+
+            Eplus_p[l - 1, :] = P_prev(layer.thickness) * Eminus_p[l - 1, :]
+            Eplus_s[l - 1, :] = P_prev(layer.thickness) * Eminus_s[l - 1, :]
+            
+            A_i = A_prev
         end
     end
 
+    reverse!(propagation_funcs)
+    reverse!(γs)
+
+    # println("===== γ ====")
+    # for γ in γs
+    #     display(γ)
+    # end
+    interface_positions, total_thickness = find_layer_bounds(s)
+    interface_positions .-= substrate.thickness
+
+    lenz = 1000
+    zs = range(-superstrate.thickness, interface_positions[end], length = lenz)
+
+    field_p = []
+    field_s = []
+    field_tensor = zeros(ComplexF64, 24, length(zs))
+
+    field = zeros(ComplexF64, 6, length(zs))
+
+    println(" ")
+
+    i = 1
+    p = true
+    currentlayer = s.layers[i]
+    for (j, z) in enumerate(zs)
+        
+        if z > interface_positions[i]
+            i += 1
+            currentlayer = s.layers[i]
+            p = true
+        end
+
+        P_i = propagation_funcs[i]
+
+        field_p = P_i( - (z - interface_positions[i])) * Eminus_p[i, :]
+        field_s = P_i( - (z - interface_positions[i])) * Eminus_s[i, :]
+
+        # field_tensor[1:3, j] = field_p[1] * γs[i][1, :]
+        # field_tensor[4:6, j] = field_p[2] * γs[i][2, :]
+        # field_tensor[7:9, j] = field_p[3] * γs[i][3, :]
+        # field_tensor[10:12, j] = field_p[4] * γs[i][4, :]
+        # field_tensor[13:15, j] = field_s[1] * γs[i][1, :]
+        # field_tensor[16:18, j] = field_s[2] * γs[i][2, :]
+        # field_tensor[19:21, j] = field_s[3] * γs[i][3, :]
+        # field_tensor[22:end, j] = field_s[4] * γs[i][4, :]
+
+        # field[1:3, j] = field_tensor[1:3, j] + field_tensor[4:6, j] + field_tensor[7:9, j] + field_tensor[10:12, j]
+        # field[4:6, j] = field_tensor[13:15, j] + field_tensor[16:18, j] + field_tensor[19:21, j] + field_tensor[22:end, j]
+
+        field[1:3, j] = field_p[1] * γs[i][1, :] + field_p[2] * γs[i][2, :] + field_p[3] * γs[i][3, :] + field_p[4] * γs[i][4, :]
+        field[4:6, j] = field_s[1] * γs[i][1, :] + field_s[2] * γs[i][2, :] + field_s[3] * γs[i][3, :] + field_s[4] * γs[i][4, :]
+      
+        if i == 2
+            if p == true
+                println("\nDown here: ", currentlayer.material)
+                println("z = ", z)
+                println("Propagation: ")
+                # display(P_i(- (z - interface_positions[i])))
+                println("γ check for layer $i")
+                display(γs[i])
+                println("Associated field_p")
+                display(field_p[1])
+                # println("\nSo then these two combined is...")
+                # display(field_p[1] * γs[i][1, :])
+                p = false
+            end
+        end
+    end
+
+    println("\nField Tensor Components: ")
+    display(field_tensor[1:3, 1])
+    return zs, field, interface_positions[1:end - 1]
 end
 
 """
@@ -454,7 +575,6 @@ function calculate_Γ_S(s::Structure, θ::Float64)
     substrate = s.layers[end]
 
     μ = 1.0 + 0.0im
-
     ε_0in = dielectric_constant(superstrate)
     ξs = @. √(ε_0in) * sin(θ)
 
@@ -475,26 +595,16 @@ function calculate_Γ_S(s::Structure, θ::Float64)
 
     for (i, ω) in enumerate(ωs)
 
-        Γ = I
-
-        # E_p_in = [t[1], t[2], 0, 0]
-        # E_s_in = [t[3], t[4], 0, 0]
-
+        
         A_0, P_0, T_0, γ_0, q_0 = layer_params(ω, ξs[i], superstrate.n[i] + superstrate.κ[i] * im, μ, superstrate.thickness)
         A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξs[i], substrate.n[i] + substrate.κ[i] * im, μ, substrate.thickness)
-
-        A_prev = A_0
+        
+        Γ = I
 
         for layer in s.layers[2:end - 1]
 
             n = layer.n[i] + layer.κ[i] * im
-
-            # Recall that P_i are (Julia) functions of z (closures).
             A_i, P_i, T_i, γ_i, q_i = layer_params(ω, ξs[i], n, μ, layer.thickness)
-
-            L_i = inv(A_prev) * A_i
-            A_prev = A_i
-
             Γ *= T_i
         end
 
@@ -505,30 +615,47 @@ function calculate_Γ_S(s::Structure, θ::Float64)
         push!(Γs, Γ)
         push!(Ss, S)
 
-
-        # i = 1
-        # interface_positions, t_total = find_layer_bounds(s)
-        # layer = s.layers[i]
-        # zs = range(0, t_total, length = 1000)
-        # P = propagation_funcs[i]
-
-
-
-        # Calculate the electric field at each distance z in the structure
-        # for z in zs
-        #     if z >= interface_positions[i]
-        #         i += 1
-        #         layer = s.layers[i]
-        #         P = propagation_funcs[i]
-        #         P(z)
-
-        #     end
-        # end
-
     end
     return TransferMatrixResult(Γs, Ss, ξs)
     # return Γs, Ss, ξs
 end
+
+
+"""
+Iterate through each angle provided in the structure
+to find the reflectance and transmittance.
+"""
+function angle_resolved(s::Structure)
+
+    Rpp_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
+    Rss_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
+    Tpp_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
+    Tss_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
+    Γs = []
+    ξ = Matrix{ComplexF64}(undef, length(s.θ), length(s.λ))
+
+    for (i, θ) in enumerate(s.θ)
+
+        # Γs, Ss, ξs = calculate_Γ_S(s, θ)
+        result = calculate_Γ_S(s, θ)
+
+        rs, Rs, ts, Ts = tr_from_Γ(result.tm)
+
+        ξ[i, :] = result.ξ
+        #TODO: Reflectivity from the Poynting vector has a bug in it.
+        Tpp, Tss, Rpp, Rss = tr_from_poynting(result.poynting)
+        Rpp_spectrum[i, :] = [R[1] for R in Rs]
+        Rss_spectrum[i, :] = [R[2] for R in Rs]
+        # Rpp_spectrum[i, :] = Rpp
+        # Rss_spectrum[i, :] = Rss
+        Tpp_spectrum[i, :] = Tpp
+        Tss_spectrum[i, :] = Tss
+    end
+
+    # return Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ
+    return AngleResolvedResult(Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ)
+end
+
 
 """
 Calculate reflectance and transmittance for the total structure.
@@ -620,41 +747,6 @@ function tr_from_poynting(Ss::Vector{Poynting})
 end
 
 
-"""
-Iterate through each angle provided in the structure
-to find the reflectance and transmittance.
-"""
-function angle_resolved(s::Structure)
-
-    Rpp_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
-    Rss_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
-    Tpp_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
-    Tss_spectrum = Matrix{Float64}(undef, length(s.θ), length(s.λ))
-    Γs = []
-    ξ = Matrix{ComplexF64}(undef, length(s.θ), length(s.λ))
-
-    for (i, θ) in enumerate(s.θ)
-
-        # Γs, Ss, ξs = calculate_Γ_S(s, θ)
-        result = calculate_Γ_S(s, θ)
-
-        rs, Rs, ts, Ts = tr_from_Γ(result.tm)
-
-        ξ[i, :] = result.ξ
-        #TODO: Reflectivity from the Poynting vector has a bug in it.
-        Tpp, Tss, Rpp, Rss = tr_from_poynting(result.poynting)
-        Rpp_spectrum[i, :] = [R[1] for R in Rs]
-        Rss_spectrum[i, :] = [R[2] for R in Rs]
-        # Rpp_spectrum[i, :] = Rpp
-        # Rss_spectrum[i, :] = Rss
-        Tpp_spectrum[i, :] = Tpp
-        Tss_spectrum[i, :] = Tss
-    end
-
-    # return Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ
-    return AngleResolvedResult(Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ)
-end
-
 
 
 
@@ -697,8 +789,10 @@ with the first interface starting at z = 0.
 (negative z corresponds to positions inside the first layer.)
 """
 function find_layer_bounds(s::Structure)
-    z = 0
-    interface_positions = []
+
+    z = 0.0
+    interface_positions = Float64[]
+    
     for layer in s.layers
         push!(interface_positions, z + layer.thickness)
         z += layer.thickness
