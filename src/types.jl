@@ -82,3 +82,10 @@ struct AngleResolvedResult
     Γ::Vector{Matrix{ComplexF64}}
     ξ::Matrix{ComplexF64}
 end
+
+struct ElectricFieldProfile
+    z::Vector{Float64}
+    field_p::Vector{Matrix{ComplexF64}}
+    field_s::Vector{Matrix{ComplexF64}}
+
+end
