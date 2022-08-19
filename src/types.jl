@@ -9,7 +9,7 @@ struct Layer
         new("Air", 0.0, [600e-9], [1.0], [0.0])
     end
 
-    function Layer(material::String, thickness::Float64, λ, n, κ)
+    function Layer(material, thickness, λ, n, κ)
 
         if any([i < 0.0 for i in λ]) || thickness < 0.0
             error("Cannot have negative wavelength or layer thickness.")
@@ -84,8 +84,8 @@ struct AngleResolvedResult
 end
 
 struct ElectricFieldProfile
-    z::Vector{Float64}
-    field_p::Vector{Matrix{ComplexF64}}
-    field_s::Vector{Matrix{ComplexF64}}
-
+    z::Array{Float64}
+    p::Matrix{ComplexF64}
+    s::Matrix{ComplexF64}
+    boundaries::Array{Float64}
 end

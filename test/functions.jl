@@ -60,7 +60,7 @@ end
     
 end
 
-@testset "constructΔ" begin
+@testset "construct_Δ" begin
  
     # Continue the test from `construct_a`.
     # For an orthorhombic crystal described above, the only nonzero elements of Δ are
@@ -81,7 +81,7 @@ end
     M[4:6, 4:6] = μ
     
     a = TransferMatrix.construct_a(ξ, M)
-    Δ = TransferMatrix.constructΔ(ξ, M, a)
+    Δ = TransferMatrix.construct_Δ(ξ, M, a)
 
     Δ21 = ε[1,1]
     Δ43 = ε[2,2] - ξ^2 / μ[3,3]
@@ -104,7 +104,7 @@ end
 #     M[4:6, 4:6] = μ
     
 #     a = TransferMatrix.construct_a(0., M)
-#     Δ = TransferMatrix.constructΔ(0., M, a)
+#     Δ = TransferMatrix.construct_Δ(0., M, a)
 #     q, Ψ = eigen(Δ)
 
 #     # This just makes the elements of Ψ all 1 or -1
@@ -348,6 +348,7 @@ end
 
     λ_bounds = range(1.0, 2.0, length = 20)
 
-    @test_throws BoundsError TransferMatrix.interp_data(l2, λ_bounds)
+    # LinearInterpolation from DataInterpolations.jl does not error for extrapolation.
+    # @test_throws BoundsError TransferMatrix.interp_data(l2, λ_bounds)
 
 end
