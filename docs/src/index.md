@@ -1,8 +1,8 @@
-# TransferMatrix.jl Documentation
+# TransferMatrix.jl
 
-This is some documentation for a Julia implementation of the 4x4 transfer matrix.
+The 4x4 transfer matrix method implemented in Julia.
 
 ```@autodocs
 Modules = [TransferMatrix]
-Pages = ["functions.jl", "types.jl"]
+Pages = ["functions.jl"]
 ```

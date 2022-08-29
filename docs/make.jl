@@ -1,9 +1,8 @@
 push!(LOAD_PATH, "../src/")
 
-using Documenter
-using TransferMatrix
+using Documenter, TransferMatrix
 
 makedocs(
     sitename = "TransferMatrix.jl",
-    modules = [TransferMatrix]
+    modules = [TransferMatrix],
 )
