@@ -5,6 +5,5 @@ using TransferMatrix
 
 makedocs(
     sitename = "TransferMatrix.jl",
-    author = "Garrek Stemo",
     modules = [TransferMatrix]
 )

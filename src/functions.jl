@@ -10,7 +10,7 @@ The complex index of refraction, given by
     
 (in terms of n and \\kappa), can be used to
 obtain the frequency-dependent complex dielectric function
-    
+
         ε_r(ω) = ε' + iε''
 
 via the relation
@@ -46,8 +46,8 @@ end
 
 Return the diagonal complex dielectric tensor
 
-     [ε1 0  0
-ε =   0  ε2 0
+     [ε1 0  0 ;
+ε =   0  ε2 0 ;
       0  0  ε3]
 """
 function dielectric_tensor(ε1, ε2, ε3)
@@ -170,6 +170,7 @@ q[1] and q[2] are forward-traveling modes and
 q[3] and q[4] are backward-traveling modes.
 
 This is based on the work in:
+
 Xu et al. Optical degeneracies in anisotropic layered media:
 Treatment of singularities in a 4x4 matrix formalism, 2000.
 DOI: 10.1103/PhysRevB.61.1740
@@ -259,10 +260,8 @@ end
 """
 From Berreman, 1972, Ψ is the column matrix:
 
-    [ Ex
-Ψ =   Hy
-      Ey
-     -Hx ]
+    
+Ψ = [ Ex  Hy  Ey  -Hx ]
 
 for a right-handed Cartesian coordinate system with
 the z-axis along the normal to the multilayer structure.
@@ -346,13 +345,16 @@ If the layer material is birefringent, there will be anisotropy in the
 dielectric tensor. If this is the case, the x and y components of the 
 Poynting vector needs to be analyzed (eqn 15 in Passler et al., 2017):
 
-        C = |Sₓ|^2 / (|S_x|^2 + |S_y|^2).
+        C = |S_x|^2 / (|S_x|^2 + |S_y|^2).
 
 If there is no birefringence, then the electric field is analyzed.
-This analysis follows Li et al., 1988.
+This analysis follows
+
+Li et al., 1988.
 DOI: 10.1364/AO.27.001334
 
 and the use of the Poynting vector is from Passler et al., 2017, 2019
+
 DOI: 10.1364/JOSAB.34.002128
 DOI: 10.1364/JOSAB.36.003246
 """
@@ -403,7 +405,7 @@ function abs_ratio(a, b)
 end
 
 """
-    electric_field(s::Structure, λ, θ; numpoints::Int)
+    electric_field(s::Structure, λ, θ; numpoints)
 
 Calculate the electric field profile for the entire structure
 as a function of z for a given incidence angle θ.
@@ -583,7 +585,9 @@ Calculate reflectance and transmittance for the total structure.
 This takes the matrix Γ*, but for brevity we call it Γ in this function.
 
 This follows the formalism in:
+
 Yeh, Electromagnetic propagation in birefringent layered media, 1979.
+
 DOI: 10.1364/JOSA.69.000742
 """
 function tr_from_Γ(Γ::Matrix)
@@ -798,7 +802,7 @@ end
 """
     printstruct(s::Structure)
 
-Print each layer and it's thickness in a somewhat 
+Print each layer and its thickness in a somewhat 
 visually useful way.
 """
 function printstruct(s::Structure)
@@ -810,61 +814,4 @@ function printstruct(s::Structure)
 
     end
     print("-"^30, "\n")
-end
-
-"""
-    angle_resolved(s::Structure)
-
-Iterate through each angle provided in the structure
-to find the reflectance and transmittance spectra from
-the calculated transfer matrices and Poynting vectors.
-"""
-function angle_resolved(s::Structure)
-
-    Rpp_spectrum = Matrix{Real}(undef, length(s.θ), length(s.λ))
-    Rss_spectrum = Matrix{Real}(undef, length(s.θ), length(s.λ))
-    Tpp_spectrum = Matrix{Real}(undef, length(s.θ), length(s.λ))
-    Tss_spectrum = Matrix{Real}(undef, length(s.θ), length(s.λ))
-    Γs = []
-    ξ = Matrix{ComplexF64}(undef, length(s.θ), length(s.λ))
-
-    for (i, θ) in enumerate(s.θ)
-
-        result = calculate_Γ_S(s, θ)
-
-        rs, Rs, ts, Ts = tr_from_Γ(result.tm)
-
-        ξ[i, :] = result.ξ
-        #TODO: Reflectivity from the Poynting vector has a bug in it.
-        Tpp, Tss, Rpp, Rss = tr_from_poynting(result.poynting)
-        Rpp_spectrum[i, :] = [R[1] for R in Rs]
-        Rss_spectrum[i, :] = [R[2] for R in Rs]
-        # Rpp_spectrum[i, :] = Rpp
-        # Rss_spectrum[i, :] = Rss
-        Tpp_spectrum[i, :] = Tpp
-        Tss_spectrum[i, :] = Tss
-    end
-
-    return AngleResolvedResult(Rpp_spectrum, Rss_spectrum, Tpp_spectrum, Tss_spectrum, Γs, ξ)
-end
-
-"""
-    calculate_tr(s::Structure, θ)
-
-Calculate the transmittance and reflectance spectrum
-of the structure at a single incidence angle θ.
-Accurate transmittance must be calculated via the Poynting
-vector. Reflectance is calculated directly from the transfer matrix elements.
-"""
-function calculate_tr(s::Structure, θ=0.0)
-    
-    result = calculate_Γ_S(s, θ)
-    rs, Rs, ts, Ts = tr_from_Γ(result.tm)
-    ξ = result.ξ
-    Tpp, Tss, Rpp, Rss = tr_from_poynting(result.poynting)
-
-    Rpp = [R[1] for R in Rs]
-    Rss = [R[2] for R in Rs]
-
-    return Tpp, Tss, Rpp, Rss
 end
