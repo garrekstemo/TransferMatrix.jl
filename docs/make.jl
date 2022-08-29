@@ -1,4 +1,10 @@
-using Documenter, Example
-# using TransferMatrix
+push!(LOAD_PATH, "../src/")
 
-makedocs(sitename="TransferMatrix.jl")
+using Documenter
+using TransferMatrix
+
+makedocs(
+    sitename = "TransferMatrix.jl",
+    author = "Garrek Stemo",
+    modules = [TransferMatrix]
+)

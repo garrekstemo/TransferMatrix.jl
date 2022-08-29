@@ -2,6 +2,7 @@
 
 This is some documentation for a Julia implementation of the 4x4 transfer matrix.
 
-```@docs
-TransferMatrix.calculate_γ(ξ, q, ε, μ)
+```@autodocs
+Modules = [TransferMatrix]
+Pages = [functions.jl]
 ```
