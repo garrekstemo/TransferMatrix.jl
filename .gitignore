@@ -25,3 +25,5 @@ examples/
 # Ignore all local history of files
 .history
 .ionide
+
+untracked_refractiveindex/
