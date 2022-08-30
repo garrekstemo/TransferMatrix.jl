@@ -7,7 +7,7 @@ Manifest.toml
 .DS_Store
 
 scratch/
-examples/
+untracked_refractiveindex/
 
 ### VisualStudioCode ###
 .vscode
@@ -26,4 +26,3 @@ examples/
 .history
 .ionide
 
-untracked_refractiveindex/
