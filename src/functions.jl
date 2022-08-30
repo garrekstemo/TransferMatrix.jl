@@ -8,7 +8,7 @@ The complex index of refraction, given by
 
         n' = n + iκ
     
-(in terms of n and \\kappa), can be used to
+(in terms of n and κ), can be used to
 obtain the frequency-dependent complex dielectric function
 
         ε_r(ω) = ε' + iε''
@@ -46,9 +46,8 @@ end
 
 Return the diagonal complex dielectric tensor
 
-     [ε1 0  0 ;
-ε =   0  ε2 0 ;
-      0  0  ε3]
+    ε = [ε1 0  0 ; 0  ε2 0 ; 0  0  ε3]
+
 """
 function dielectric_tensor(ε1, ε2, ε3)
     return [ε1 0 0 ; 0 ε2 0 ; 0 0 ε3]
@@ -356,6 +355,7 @@ DOI: 10.1364/AO.27.001334
 and the use of the Poynting vector is from Passler et al., 2017, 2019
 
 DOI: 10.1364/JOSAB.34.002128
+
 DOI: 10.1364/JOSAB.36.003246
 """
 function evaluate_birefringence(Ψ, S, t_modes, r_modes)
@@ -470,7 +470,7 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
     reverse!(γs)
 
     interface_positions, total_thickness = find_layerbounds(s)
-    interface_positions .-= substrate.thickness
+    interface_positions .-= superstrate.thickness
 
     zs = range(-superstrate.thickness, interface_positions[end], length = numpoints)
 
