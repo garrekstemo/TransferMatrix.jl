@@ -6,7 +6,7 @@ struct Layer
     κ::Vector{Float64}
 
     function Layer()
-        new("Air", 0.0, [600e-9], [1.0], [0.0])
+        new("Air", 0.0, [1e-6], [1.0], [0.0])
     end
 
     function Layer(material, thickness, λ, n, κ)
