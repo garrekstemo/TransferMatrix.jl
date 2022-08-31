@@ -22,7 +22,7 @@ available for Julia.
 ## API
 
 Only exported (i.e. can be used without the `TransferMatrix.` qualifier after loading the TransferMatrix.jl package with `using TransferMatrix`) types and functions are considered part of the public API of the TransferMatrix.jl package.
-All of these objects are documented in this manual. If not, please open an issue here.
+All of these objects are documented in this manual. If not, please [open an issue](https://github.com/garrekstemo/TransferMatrix.jl/issues/new).
 The advanced user is encouraged, however, to access the guts of TransferMatrix.jl and modify portions to achieve a desired outcome or test 
 a different approach to the algorithm.
 This implementation is as modular as possible to maximize flexibility;
