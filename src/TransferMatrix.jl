@@ -19,7 +19,7 @@ import YAML
 
 include("types.jl")
 include("dataio.jl")
-include("functions.jl")
+include("core.jl")
 
 const ε_0 = 8.8541878128e-12
 const μ_0 = 1.25663706212e-6
