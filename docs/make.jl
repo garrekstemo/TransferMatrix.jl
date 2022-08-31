@@ -12,3 +12,7 @@ makedocs(
         "References" => "bibliography.md"
     ]
 )
+
+deploydocs(
+    repo = "github.com/garrekstemo/TransferMatrix.jl.git",
+)
