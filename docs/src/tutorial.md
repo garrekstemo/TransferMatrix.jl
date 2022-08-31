@@ -169,7 +169,7 @@ Tpp, Tss, Rpp, Rss = calculate_tr(s)
 
 ```@raw html
 <p align="center">
-    <img src="/assets/fabry-perot_example.svg">
+    <img src="/assets/fabry-perot_example.png">
 </p>
 ```
 
