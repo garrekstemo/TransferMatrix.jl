@@ -39,7 +39,7 @@ ax1 = Axis(f[1, 1], xlabel = "Wavelength (μm)", ylabel = "Transmittance", title
 lines!(ax1, λs .* 1e6, res.Tss[i1, :], label = "$(round(θs[i1] * 180/π, digits=1))°")
 lines!(ax1, λs .* 1e6, res.Tss[i2, :], label = "$(round(θs[i2] * 180/π, digits=1))°")
 vlines!(ax1, λ * 1e6, color = :orangered, linestyle = :dash)
-axislegend(ax2, position = :lt)
+axislegend(ax1, position = :lt)
 
 ax2 = Axis(f[2, 1], title = "Field at λ = $(round(λ * 1e6, digits=2)) μm", xlabel = "Position within cavity (μm)", ylabel = "Electric field (a. u.)",
         xticks = LinearTicks(5))

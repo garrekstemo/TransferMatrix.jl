@@ -278,35 +278,21 @@ f
 
 The electric field can be calculated as a function of position within the
 layered structure using the `electric_field()` function, which takes
-the `Structure` and desired wavelength `λ`, as well as optional argument angle of incidence `θ` and optional keyword argument for the number of data points `numpoints`. We can plot the field profile for the distributed bragg reflector (DBR) we constructed in the previous section. Let's do this for `λ` = 1 μm.
+the `Structure` and desired wavelength `λ`, as well as optional argument angle of incidence `θ` and optional keyword argument for the number of data points `numpoints`. We can plot the field profile for the [distributed bragg reflector](https://www.rp-photonics.com/bragg_mirrors.html) (DBR) we constructed in the previous section. Let's do this for `λ` = 1 μm.
 
 ```julia
 λ_field = 1e-6
 field = electric_field(s, λ_field)
 
 f = Figure()
-ax = Axis(f[1, 1], title = "Electric Field Profile at λ = $(Int(λ_field * 1e9)) nm", xlabel = "z position (nm)", ylabel = "Field (a.u.)")
+ax = Axis(f[1, 1], title = "Electric Field Profile at λ = $(Int(λ_field * 1e9)) nm", xlabel = "z position (nm)", ylabel = "Field intensity (a.u.)")
 
-lines!(field.z .* 1e9, real(field.p[1, :]))
+lines!(field.z .* 1e9, real(field.p[1, :]).^2)
 
-vlines!(field.boundaries[1] * 1e9, color = :black)
-vlines!(field.boundaries[2] * 1e9, color = :firebrick4, linestyle = :dash)
-vlines!(field.boundaries[3] * 1e9, color = :steelblue4, linestyle = :dash)
-vlines!(field.boundaries[4] * 1e9, color = :firebrick4, linestyle = :dash)
-vlines!(field.boundaries[5] * 1e9, color = :steelblue4, linestyle = :dash)
-vlines!(field.boundaries[6] * 1e9, color = :firebrick4, linestyle = :dash)
+vlines!(field.boundaries[1], color = :black)
 vlines!(field.boundaries[end] * 1e9, color = :black)
 
-text!("ZnS", position = (110, 0.12), rotation = π/2, color = :firebrick4, textsize = 30)
-text!("MgF₂", position = (250, 0.12), rotation = π/2, color = :steelblue4, textsize = 30)
-text!("ZnS", position = (400, 0.12), rotation = π/2, color = :firebrick4, textsize = 30)
-text!("MgF₂", position = (540, 0.12), rotation = π/2, color = :steelblue4, textsize = 30)
-text!("ZnS", position = (690, 0.12), rotation = π/2, color = :firebrick4, textsize = 30)
-text!("MgF₂", position = (830, 0.12), rotation = π/2, color = :steelblue4, textsize = 30)
-text!("ZnS", position = (0.87, 0.7), space = :relative, textsize = 40)
-text!("Air", position = (0.1, 0.7), space = :relative, textsize = 40)
 f
-
 ```
 
 ```@raw html

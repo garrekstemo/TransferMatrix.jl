@@ -32,5 +32,5 @@ layers:
 
     layer3: 
         material: "ZnS n=2.32"
-        thickness: 0.1838
+        thickness: 0.5
         refractive_filename: ZnS_n_0.4-14um_Amotchkina2020.csv
