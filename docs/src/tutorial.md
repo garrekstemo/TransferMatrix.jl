@@ -169,7 +169,7 @@ Tpp, Tss, Rpp, Rss = calculate_tr(s)
 
 ```@raw html
 <p align="center">
-    <img src="/assets/fabry-perot_example.pdf">
+    <img src="/assets/fabry-perot_example.svg">
 </p>
 ```
 
@@ -270,7 +270,7 @@ f
 
 ```@raw html
 <p align = "center">
-    <img src = "/assets/quarter-wave_plot.pdf">
+    <img src = "/assets/quarter-wave_example.svg">
 </p>
 ```
 
@@ -297,7 +297,7 @@ f
 
 ```@raw html
 <p align = "center">
-    <img src = "/assets/dbr_field.pdf">
+    <img src = "/assets/dbr-field_example.svg">
 </p>
 ```
 
