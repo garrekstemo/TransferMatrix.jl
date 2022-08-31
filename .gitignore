@@ -2,7 +2,6 @@
 *.jl.*.cov
 *.jl.mem
 docs/build/
-docs/site/
 Manifest.toml
 .DS_Store
 
