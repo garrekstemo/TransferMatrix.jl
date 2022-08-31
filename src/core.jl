@@ -497,7 +497,7 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
      
     end
 
-    return ElectricFieldProfile(zs, field[1:3, :], field[4:6, :], interface_positions[1:end - 1])
+    return ElectricField(zs, field[1:3, :], field[4:6, :], interface_positions[1:end - 1])
 end
 
 
