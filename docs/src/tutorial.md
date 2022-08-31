@@ -79,7 +79,7 @@ f
 ```
 ```@raw html
 <p align="center">
-    <img src="/assets/getting_started_plot.pdf">
+    <img src="/assets/air-glass_example.svg">
 </p>
 ```
 
