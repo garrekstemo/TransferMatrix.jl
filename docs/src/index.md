@@ -1,3 +1,29 @@
 # TransferMatrix.jl
 
-The 4x4 transfer matrix method implemented in Julia.
+TransferMatrix.jl provides a general 4x4 transfer matrix method for optical waves propagating in layered media implemented in Julia.
+The core is an electrodynamics simulation based on Pochi Yeh's 4x4 transfer matrix method.
+Recent corrections and improvements are incorporated to deal with singularities and numerical instabilities for some types of multi-layered structures.
+The algorithms implemented are based on the efforts of others and
+sources are cited both in the documentation and docstrings where appropriate.
+A comprehensive bibliography is also available as part of the documentation.
+
+## Why make another transfer matrix program?
+
+There are a lot of transfer matrix programs out there. Many are
+proprietary and some are part of graduate theses and papers. The problem
+with the proprietary ones are that the source code cannot be examined 
+nor modified (and are not free). The problem with programs 
+written for papers are that they are rarely maintained, are not
+well documented, are not well tested, and are poorly organized.
+This makes it very difficult to use them. TransferMatrix.jl 
+solves these problems and provides the first transfer matrix algorithm
+available for Julia.
+
+## API
+
+Only exported (i.e. can be used without the `TransferMatrix.` qualifier after loading the TransferMatrix.jl package with `using TransferMatrix`) types and functions are considered part of the public API of the TransferMatrix.jl package.
+All of these objects are documented in this manual. If not, please open an issue here.
+The advanced user is encouraged, however, to access the guts of TransferMatrix.jl and modify portions to achieve a desired outcome or test 
+a different approach to the algorithm.
+This implementation is as modular as possible to maximize flexibility;
+each function is as small as possible so that the user may easily change any step along the way in calculating the transfer matrix, relfection or transmission spectrum, electric field profile, etc.

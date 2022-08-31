@@ -1,3 +1,14 @@
+"""
+    Layer
+
+A `Layer` stores information about a single layer,
+including its material name, thickness, a list of electric field wavelengths,
+and the real and imaginary parts of the refractive index
+associated with these wavelengths.
+
+Initializing a `Layer` with no arguments makes a 1 μm thick
+layer of Air.
+"""
 struct Layer
     material::String
     thickness::Float64
@@ -23,6 +34,13 @@ struct Layer
     end
 end
 
+
+"""
+    Structure
+
+The `Structure` is a mutable type that stores a Vector of `Layer` types, along with
+a list of field wavelengths and incident angles to calculate on.
+"""
 mutable struct Structure
     layers::Vector{Layer}
     λ::Vector{Float64}
@@ -83,7 +101,8 @@ struct AngleResolvedResult
     ξ::Matrix{ComplexF64}
 end
 
-struct ElectricFieldProfile
+
+struct ElectricField
     z::Array{Float64}
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}

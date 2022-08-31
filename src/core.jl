@@ -677,10 +677,6 @@ function tr_from_poynting(Ss::Vector{Poynting})
     return Tpps, Tsss, Rpps, Rsss
 end
 
-
-function transmitted_power() end
-
-
 """
     angle_resolved(s::Structure)
 
