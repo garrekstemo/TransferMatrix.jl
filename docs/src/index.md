@@ -16,7 +16,7 @@ nor modified (and are not free). The problem with programs
 written for papers are that they are rarely maintained, are not
 well documented, are not well tested, and are poorly organized.
 This makes it very difficult to use them. TransferMatrix.jl 
-solves these problems and provides the first transfer matrix algorithm
+solves these problems and provides the first generalized 4x4 transfer matrix algorithm
 available for Julia.
 
 ## API
@@ -28,6 +28,6 @@ a different approach to the algorithm.
 This implementation is as modular as possible to maximize flexibility;
 each function is as small as possible so that the user may easily change any step along the way in calculating the transfer matrix, reflection or transmission spectra, electric field profile, etc.
 
-## Issues and making contributions
+## Issues and contributions
 
 If you spot any errors or improvements to make, please [open an issue](https://github.com/garrekstemo/TransferMatrix.jl/issues/new) and if you want to contribute consider making a [pull request](https://github.com/garrekstemo/TransferMatrix.jl/pulls).

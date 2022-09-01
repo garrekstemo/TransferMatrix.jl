@@ -29,7 +29,13 @@ for our glass and air layers. From the examples below, you can see that there ar
 
 Details about different ways to make a layer are further on in the tutorial.
 
-```julia
+```@setup tutorial
+using Pkg
+Pkg.add(url="https://github.com/garrekstemo/TransferMatrix.jl.git")
+Pkg.add("CairoMakie")
+```
+
+```@example tutorial
 using TransferMatrix
 
 air = Layer("Air", 0.0, [1.0e-6], [1.0], [0.0])
@@ -41,7 +47,7 @@ Now that we have our glass and air layers, we need to assemble them into a struc
 and provide the angles of the field with respect to the surface of the structure. We
 do this with the `Structure` type.
 
-```julia
+```@example tutorial
 θs = collect(range(0., 80., length = 500)) .* π/180
 s = Structure([air, glass], [1.0e-6], θs)
 ```
@@ -56,11 +62,12 @@ provide goes beyond the range of the data that you have!)
 Now we can evaluate the angle-resolved spectrum using the function
 `angle_resolved()`.
 
-```julia
+```@example tutorial
 res = angle_resolved(s)
 ```
 Let's also plot the result using the [Makie.jl](https://makie.juliaplots.org/) data visualization package.
-```julia
+
+```@example tutorial
 using CairoMakie
 
 f = Figure()
@@ -72,13 +79,7 @@ lines!(s.θ .* 180/π, res.Tss[:, 1], color = :firebrick4, label = "Tss")
 lines!(s.θ .* 180/π, res.Tpp[:, 1], color = :orangered3, label = "Tpp")
 
 axislegend(ax)
-
 f
-```
-```@raw html
-<p align="center">
-    <img src="../../assets/air-glass_example.svg">
-</p>
 ```
 
 We can see that the result of the angle-resolved calculation is Julia type
