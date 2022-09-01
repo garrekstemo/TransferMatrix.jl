@@ -270,7 +270,7 @@ f
 
 ```@raw html
 <p align = "center">
-    <img src = "/assets/quarter-wave_example.svg">
+    <img src = "../assets/quarter-wave_example.svg">
 </p>
 ```
 
@@ -297,7 +297,7 @@ f
 
 ```@raw html
 <p align = "center">
-    <img src = "/assets/dbr-field_example.svg">
+    <img src = "../assets/dbr-field_example.svg">
 </p>
 ```
 
