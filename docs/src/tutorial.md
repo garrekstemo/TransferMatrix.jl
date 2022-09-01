@@ -79,7 +79,7 @@ f
 ```
 ```@raw html
 <p align="center">
-    <img src="/assets/air-glass_example.svg">
+    <img src="../assets/air-glass_example.svg">
 </p>
 ```
 
@@ -169,7 +169,7 @@ Tpp, Tss, Rpp, Rss = calculate_tr(s)
 
 ```@raw html
 <p align="center">
-    <img src="../assets/fabry-perot_example.png">
+    <img src="../assets/fabry-perot_example.svg">
 </p>
 ```
 
