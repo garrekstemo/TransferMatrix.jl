@@ -1,10 +1,20 @@
-# API Reference
+# Public Documentation
+
+These functions and types are to be used for transfer matrix calculation
+based on the sources used. If you wish to modify any of the steps in the 
+calculation, refer to the private API.
+
+## Index
+
+```@index
+Pages = ["public.md"]
+```
 
 ## Transfer Matrix Functions
 
 ```@autodocs
 Modules = [TransferMatrix]
-Pages = ["functions.jl"]
+Pages = ["core.jl"]
 Private = false
 ```
 

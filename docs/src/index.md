@@ -26,4 +26,4 @@ All of these objects are documented in this manual. If not, please [open an issu
 The advanced user is encouraged, however, to access the guts of TransferMatrix.jl and modify portions to achieve a desired outcome or test 
 a different approach to the algorithm.
 This implementation is as modular as possible to maximize flexibility;
-each function is as small as possible so that the user may easily change any step along the way in calculating the transfer matrix, relfection or transmission spectrum, electric field profile, etc.
+each function is as small as possible so that the user may easily change any step along the way in calculating the transfer matrix, reflection or transmission spectra, electric field profile, etc.
