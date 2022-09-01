@@ -109,7 +109,7 @@ function load_from_yaml(yamlfile::String, unitconvert = 1.0)
     s.θ = θs
     new_λs = range(λ_min, λ_max, length = n_λ)
 
-    return TransferMatrix.initialize(new_λs, s)
+    return TransferMatrix.initialize(s, new_λs)
 end
 
 """

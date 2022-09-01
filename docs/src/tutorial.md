@@ -173,8 +173,8 @@ Tpp, Tss, Rpp, Rss = calculate_tr(s)
 </p>
 ```
 
-![](/docs/src/assets/fabry-perot_example.svg)
-![](/docs/src/assets/fabry-perot_example.png)
+![](/assets/fabry-perot_example.svg)
+![](/assets/fabry-perot_example.png)
 
 It is easy to combine manually-generated data and experimental data
 to calculate the global transfer matrix.

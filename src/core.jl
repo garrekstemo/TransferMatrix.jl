@@ -35,7 +35,7 @@ end
     dielectric_constant(layer::Layer)
 
 Return a complex dielectric function from
-the index of refraction in a Layer type.
+the index of refraction in a `Layer`` type.
 """
 function dielectric_constant(layer::Layer)
     return @. (layer.n + layer.κ * im)^2
@@ -53,6 +53,14 @@ function dielectric_tensor(ε1, ε2, ε3)
     return [ε1 0 0 ; 0 ε2 0 ; 0 0 ε3]
 end
 
+"""
+    dielectric_tensor(layer::Layer)
+
+This version of `dielectric_tensor` takes a `Layer` type
+and makes a simple tensor by repeating the dielectric
+constant on the diagonals for all of the refractive index
+data stored in the `Layer`.
+"""
 function dielectric_tensor(layer::Layer)
     
     εs = dielectric_constant(layer)
@@ -65,21 +73,41 @@ function dielectric_tensor(layer::Layer)
     return ε_tensor
 end
 
+"""
+    permeability_tensor(μ1, μ2, μ3)
+
+This produces the diagonal permeability tensor, 
+which is identical to the way we build the `dielectric_tensor`,
+and we include this function simply for completeness.
+"""
+function permeability_tensor(μ1, μ2, μ3)
+    return [μ1 0 0 ; 0 μ2 0 ; 0 0 μ3]
+end
+
+"""
+    construct_a(ξ, M)
+
+Construct the elements of the intermediate 6x6 matrix `a` in terms of the
+elements of matrix `M` (the 6x6 matrix holding the material dielectric and permeability tensors)
+and propagation vector `ξ`. This is implemented as described in 
+
+Berreman, 1972, DOI: 10.1364/JOSA.62.000502
+"""
 function construct_a(ξ, M)
 
     a = zeros(ComplexF64, 6, 6)
 
-    b = M[3,3] * M[6,6] - M[3,6] * M[6,3]
+    d = M[3,3] * M[6,6] - M[3,6] * M[6,3]
 
-    a[3,1] = (M[6,1] * M[3,6] - M[3,1] * M[6,6]) / b
-    a[3,2] =((M[6,2] - ξ) * M[3,6] - M[3,2] * M[6,6]) / b
-    a[3,4] = (M[6,4] * M[3,6] -  M[3,4] * M[6,6]) / b
-    a[3,5] = (M[6,5] * M[3,6] - (M[3,5] + ξ) * M[6,6]) / b
+    a[3,1] = (M[6,1] * M[3,6] - M[3,1] * M[6,6]) / d
+    a[3,2] =((M[6,2] - ξ) * M[3,6] - M[3,2] * M[6,6]) / d
+    a[3,4] = (M[6,4] * M[3,6] -  M[3,4] * M[6,6]) / d
+    a[3,5] = (M[6,5] * M[3,6] - (M[3,5] + ξ) * M[6,6]) / d
 
-    a[6,1] = (M[6,3] * M[3,1] - M[3,3] * M[6,1]) / b
-    a[6,2] = (M[6,3] * M[3,2] - M[3,3] * (M[6,2] - ξ)) / b
-    a[6,4] = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / b
-    a[6,5] = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / b
+    a[6,1] = (M[6,3] * M[3,1] - M[3,3] * M[6,1]) / d
+    a[6,2] = (M[6,3] * M[3,2] - M[3,3] * (M[6,2] - ξ)) / d
+    a[6,4] = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / d
+    a[6,5] = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / d
     
     return a
 end
@@ -89,6 +117,13 @@ end
 
 Construct the reordered matrix Δ in terms of the elements of
 the two matrices, M and a, and the in-plane reduced wavevector ξ = k_x / k_0.
+The matrix Δ is involved in the relation
+
+``\\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi``
+
+and Δ is the reordered S matrix in Berreman's formulation.
+
+Berreman, 1972, DOI: 10.1364/JOSA.62.000502
 """
 function construct_Δ(ξ, M, a)
 
@@ -117,7 +152,17 @@ function construct_Δ(ξ, M, a)
     return Δ
 end
 
+"""
+    calculate_q(Δ, a)
 
+The four eigenvalues of `q` may be obtained from the 
+4x4 matrix Δ and then eigenvectors may be found for each eigenvalue.
+Here the eigenvalues must be sorted appropriately to avoid 
+potentially discontinuous solutions. This extends from the work in
+
+Li et al, 1988,
+DOI: 10.1364/AO.27.001334
+"""
 function calculate_q(Δ, a)
 
     q_unsorted, Ψ_unsorted = eigen(Δ)
@@ -218,6 +263,18 @@ function calculate_γ(ξ, q, ε, μ)
     return γ
 end
 
+"""
+    dynamical_matrix(ξ, q, γ, μ)
+
+The dynamical matrix relating two layers at the interface
+where matrix A_i for layer i relates the field E_i to
+the field in the previous layer i - 1 via
+
+``A_{i-1}E_{i-1} = A_{i}E_{i}``
+
+Xu et al., 2000,
+DOI: 10.1103/PhysRevB.61.1740
+"""
 function dynamical_matrix(ξ, q, γ, μ)
 
     A = Matrix{ComplexF64}(undef, 4, 4)
@@ -264,6 +321,9 @@ From Berreman, 1972, Ψ is the column matrix:
 
 for a right-handed Cartesian coordinate system with
 the z-axis along the normal to the multilayer structure.
+
+Berreman, 1972,
+DOI: 10.1364/JOSA.62.000502
 """
 function poynting(Ψ, a)
 
@@ -285,6 +345,13 @@ function poynting(Ψ, a)
     return S
 end
 
+"""
+    poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
+
+Calculate the Poynting vector from wavevectors `q`,
+componments of the electric field `γ`, and transmission
+and reflection coefficients.
+"""
 function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
     # create the wavevector in the first layer
@@ -349,13 +416,17 @@ Poynting vector needs to be analyzed (eqn 15 in Passler et al., 2017):
 If there is no birefringence, then the electric field is analyzed.
 This analysis follows
 
-Li et al., 1988.
+Li et al., 1988,
 DOI: 10.1364/AO.27.001334
 
-and the use of the Poynting vector is from Passler et al., 2017, 2019
+and the use of the Poynting vector is from
 
+Passler et al., 2017,
 DOI: 10.1364/JOSAB.34.002128
 
+and
+
+Passler et al., 2019,
 DOI: 10.1364/JOSAB.36.003246
 """
 function evaluate_birefringence(Ψ, S, t_modes, r_modes)
@@ -527,7 +598,7 @@ function layer_params(ω, ξ, n, μ, d)
 end
 
 """
-    calculate_Γ_S(s::Structure, θ)
+    calculate_Γ_S(s::Structure, θ=0.0)
 
 Calculate the total structure transfer matrix Γ
 and the Poynting vector S for all
@@ -581,13 +652,14 @@ function calculate_Γ_S(s::Structure, θ=0.0)
 end
 
 """
+    tr_from_Γ(Γ::Matrix)
+
 Calculate reflectance and transmittance for the total structure.
 This takes the matrix Γ*, but for brevity we call it Γ in this function.
 
 This follows the formalism in:
 
-Yeh, Electromagnetic propagation in birefringent layered media, 1979.
-
+Yeh, Electromagnetic propagation in birefringent layered media, 1979,
 DOI: 10.1364/JOSA.69.000742
 """
 function tr_from_Γ(Γ::Matrix)
@@ -623,6 +695,12 @@ function tr_from_Γ(Γ::Matrix)
     return r, R, t, T
 end
 
+"""
+    tr_from_Γ(Γs::Vector)
+
+Calculate reflectance and transmittance for the total structure for
+each `Γ` in the Vector of `Γs`.
+"""
 function tr_from_Γ(Γs::Vector)
 
     rs = []
@@ -659,6 +737,12 @@ function tr_from_poynting(S::Poynting)
     return Tpp, Tss, Rpp, Rss
 end
 
+"""
+    tr_from_poynting(Ss::Vector{Poynting})
+
+Calculate transmission and reflection spectra from a Vector
+of `Poynting` types.
+"""
 function tr_from_poynting(Ss::Vector{Poynting})
 
     Tpps = Float64[]
@@ -714,7 +798,7 @@ function angle_resolved(s::Structure)
 end
 
 """
-    calculate_tr(s::Structure, θ)
+    calculate_tr(s::Structure, θ=0.0)
 
 Calculate the transmittance and reflectance spectrum
 of the structure at a single incidence angle θ.
@@ -735,9 +819,13 @@ function calculate_tr(s::Structure, θ=0.0)
 end
 
 """
-Initialize the structure after all layers have been added.
+    initialize(structure::Structure, λs)
+
+Initializing a `Structure` interpolates the wavelength-dependent
+refractive index data using the given `λs` Vector for all `Layer`s
+in the `Structure`, returning a new structure with the interpolated data.
 """
-function initialize(λs, structure::Structure)
+function initialize(structure::Structure, λs)
     layers = Layer[]
     for layer in structure.layers
         new_layer = interp_data(layer, λs)
@@ -784,29 +872,37 @@ with the first interface starting at z = 0.
 """
 function find_layerbounds(s::Structure)
 
-    z = 0.0
+    total_thickness = 0.0
     interface_positions = Float64[]
     
     for layer in s.layers
-        push!(interface_positions, z + layer.thickness)
-        z += layer.thickness
+        push!(interface_positions, total_thickness + layer.thickness)
+        total_thickness += layer.thickness
     end
 
-    return interface_positions, z
+    return interface_positions, total_thickness
 end
 
 """
-    printstruct(s::Structure)
+    printstruct(s::Structure, unit=1e9)
 
 Print each layer and its thickness in a somewhat 
-visually useful way.
+visually useful way. Change the default unit multiplier to switch
+from nanometers to micrometers. This does not affect any calculations,
+only what is printed to the command line when using `printstruct`.
 """
-function printstruct(s::Structure)
+function printstruct(s::Structure, unit=1e9)
+
+    unitstring = "nm"
+    if unit == 1e6
+        unitstring = "μm"
+    end
+
     print("\n")
     for layer in s.layers
 
         print("-"^30, "\n")
-        print("    $(layer.material), d = $(layer.thickness * 10^6) μm\n")
+        print("    $(layer.material), d = $(layer.thickness * unit) $(unitstring)\n")
 
     end
     print("-"^30, "\n")
