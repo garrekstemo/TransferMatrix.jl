@@ -1,8 +1,6 @@
 # Tutorial
 
-## Getting started
-
-### Installation
+## Installation
 
 TransferMatrix.jl is not a part of Julia's general registry, but can be found at <https://github.com/garrekstemo/TransferMatrix.jl>. Julia makes it easy to 
 install unregistered packages. From the [Julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/), enter the Pkg REPL (package manager) mode by typing `]` and then use `add` to add the GitHub URL to TransferMatrix.jl.
@@ -11,7 +9,7 @@ install unregistered packages. From the [Julia REPL](https://docs.julialang.org/
 pkg> add https://github.com/garrekstemo/TransferMatrix.jl
 ```
 
-### A simple calculation
+## A simple calculation
 
 To get you up and running, let's build a simple two-layer structure of air and glass
 and calculate the reflectance and transmittance spectrum while changing the
@@ -37,7 +35,7 @@ using TransferMatrix
 air = Layer("Air", 0.0, [1.0e-6], [1.0], [0.0])
 glass = Layer("Glass", 0.0, [1.0e-6], [1.5], [0.0])
 ```
-#### Assembling layers into a structure
+### Assembling layers into a structure
 
 Now that we have our glass and air layers, we need to assemble them into a structure
 and provide the angles of the field with respect to the surface of the structure. We
@@ -309,5 +307,5 @@ The layer `boundaries` is useful for plotting (as shown in the figure above) and
 
 ### Minor implementation details
 
-Behind the scenes, a new `Structure` is actually being created and initialized for the user-supplied wavelength. The transfer matrix is again calculated for the provided wavelength and light incidence angle.
+Behind the scenes of the electric field calculation, a new `Structure` is actually being created and initialized for the user-supplied wavelength. The transfer matrix is again calculated for the provided wavelength and light incidence angle.
 Some solution of this sort is necessary because the *exact* wavelength that you may wish to calculate for may not be part of the original `Structure`.

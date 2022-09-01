@@ -7,10 +7,13 @@ makedocs(
     modules = [TransferMatrix],
     pages = [
         "Introduction" => "index.md",
-        "Tutorial" => "tutorial.md",
+        "Tutorial" => Any[
+                    "Quick Start" => "guide/quickstart.md",
+                    "Tutorial" => "guide/tutorial.md"
+        ],
         "Library" => Any[
-                        "Public" => "lib/public.md",
-                        "Internals" => "lib/internals.md"
+                    "Public" => "lib/public.md",
+                    "Internals" => "lib/internals.md"
         ],
         "References" => "bibliography.md"
     ]
