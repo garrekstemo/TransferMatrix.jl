@@ -169,12 +169,9 @@ Tpp, Tss, Rpp, Rss = calculate_tr(s)
 
 ```@raw html
 <p align="center">
-    <img src="/docs/src/assets/fabry-perot_example.png">
+    <img src="../assets/fabry-perot_example.png">
 </p>
 ```
-
-![](/assets/fabry-perot_example.svg)
-![](/assets/fabry-perot_example.png)
 
 It is easy to combine manually-generated data and experimental data
 to calculate the global transfer matrix.
