@@ -16,6 +16,8 @@ using `normalizednames = true` in `CSV.File`, so the header is skipped.
 function read_refractive(f::String, material::String, thickness; div=1.0, freq=false)
     if !(isfile(f))
         f = abspath("./refractive_index_data/$(f)")
+    else
+        f = abspath(f)
     end
     ndata = CSV.File(f, skipto = 2, header = false, types = Float64)
     if freq == true

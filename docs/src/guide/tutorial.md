@@ -151,12 +151,13 @@ chosen wavelength range. The gap will simply be 20 μm of air.
 We will scan in the mid infrared between 4 and 6 μm and use data generated
 via the [Lorentz-Drude model](https://en.wikipedia.org/wiki/Lorentz_oscillator_model) for each 10 nm-thick gold layer and experimental data
 from Malitson, 1963 for the windows.
+(Some example refractive index data are in the `refractive_index_data` folder in the simulation `src` directory.
+The `../` syntax denotes a relative file path one level up from the current folder.)
 
-
-```julia
+```@example tutorial
 λs = range(4.0, 6.0, length = 1000) .* 1e-6
-aufile = abspath("./refractive_index_data/Au_nk_0.248-6.20um_Lorentz-Drude_Rakic1998.csv")
-caf2file = abspath("./refractive_index_data/CaF2_n_0.23-9.7um_Malitson.csv")
+aufile = "../../../../refractive_index_data/Au_nk_0.248-6.20um_Lorentz-Drude_Rakic1998.csv"
+caf2file = "../../../../refractive_index_data/CaF2_n_0.23-9.7um_Malitson.csv"
 
 air = Layer("Air", 20e-6, collect(λs), fill(1.0, length(λs)), zeros(length(λs)))
 au = read_refractive(aufile, "Au", 10e-9, div=1e6)
@@ -164,12 +165,11 @@ caf2 = read_refractive(caf2file, "CaF2", 5.0e-6, div=1e6)
 
 s = Structure([caf2, au, air, au, caf2], collect(λs), [0.0])
 Tpp, Tss, Rpp, Rss = calculate_tr(s)
-```
 
-```@raw html
-<p align="center">
-    <img src="../../assets/fabry-perot_example.svg">
-</p>
+f, ax, l = lines(λs .* 1e6, Tss)
+ax.xlabel = "Wavelength"
+ax.ylabel = "Transmittance"
+f
 ```
 
 It is easy to combine manually-generated data and experimental data
@@ -247,14 +247,14 @@ the first layer `layer1` is zinc sulfide and the second layer `layer2` is magnes
 To load the YAML config file into a `Structure`, we use the `load_from_yaml()` function. You can find this example in the `default_config` folder
 in the `quarter-wave.yaml` file.
 
-```julia
-s = load_from_yaml(".../default_config/quarter-wave.yaml")
+```@example tutorial
+s = load_from_yaml("../../../default_config/quarter-wave.yaml", 1e-6)
 Tpp, Tss, Rpp, Rss = calculate_tr(s)
 ```
 
 This particular example is taken from Pochi Yeh's [*Optical Waves in Layered Media*](https://www.wiley.com/en-us/Optical+Waves+in+Layered+Media-p-9780471731924) on page 110. You can find the reflectivity of this structure in Table 5.1. The values we have calculated are slightly different since the data used here is slightly dispersive with wavelength, but the example in the book takes flat refractive index values. You can try plotting this structure for an increasing number of periods and observe how the reflectance near ``\lambda`` = 1 μm increases.
 
-```julia
+```@example tutorial
 using CairoMakie
 
 f = Figure()
@@ -267,19 +267,13 @@ axislegend(ax, position = :rc)
 f
 ```
 
-```@raw html
-<p align = "center">
-    <img src = "../../assets/quarter-wave_example.svg">
-</p>
-```
-
 ## Electric field
 
 The electric field can be calculated as a function of position within the
 layered structure using the `electric_field()` function, which takes
 the `Structure` and desired wavelength `λ`, as well as optional argument angle of incidence `θ` and optional keyword argument for the number of data points `numpoints`. We can plot the field profile for the [distributed bragg reflector](https://www.rp-photonics.com/bragg_mirrors.html) (DBR) we constructed in the previous section. Let's do this for `λ` = 1 μm.
 
-```julia
+```@example tutorial
 λ_field = 1e-6
 field = electric_field(s, λ_field)
 
@@ -288,16 +282,10 @@ ax = Axis(f[1, 1], title = "Electric Field Profile at λ = $(Int(λ_field * 1e9)
 
 lines!(field.z .* 1e9, real(field.p[1, :]).^2)
 
-vlines!(field.boundaries[1], color = :black)
-vlines!(field.boundaries[end] * 1e9, color = :black)
+vlines!(field.boundaries[1], color = :gray30, linestyle = :dash)
+vlines!(field.boundaries[end] * 1e9, color = :gray30, linestyle = :dash)
 
 f
-```
-
-```@raw html
-<p align = "center">
-    <img src = "../../assets/dbr-field_example.svg">
-</p>
 ```
 
 The electric field result contains the position `z` within the structure,
@@ -305,6 +293,7 @@ the (x, y, z) components (corresponding to the first, second, and third componen
 layer interfaces. So for example, to get the x-component of the p-polarized field along all of `z`, we would call `field.p[1, :]`, as we have done above.
 
 The layer `boundaries` is useful for plotting (as shown in the figure above) and checking that the in-plane components are continuous throughout the structure, as required by [Maxwell's interface conditions](https://en.wikipedia.org/wiki/Interface_conditions_for_electromagnetic_fields).
+
 
 ### Minor implementation details
 
