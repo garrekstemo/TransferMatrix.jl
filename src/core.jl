@@ -46,7 +46,12 @@ end
 
 Return the diagonal complex dielectric tensor
 
-    ε = [ε1 0  0 ; 0  ε2 0 ; 0  0  ε3]
+    ``\\varepsilon = 
+        \\begin{pmatrix}\\
+            varepsilon_1 & 0 & 0 \\
+            0 & \\varepsilon_2  & 0 \\
+            0 & 0 & \\varepsilon_3
+        \\end{pmatrix}``
 
 """
 function dielectric_tensor(ε1, ε2, ε3)
@@ -116,10 +121,10 @@ end
     construct_Δ(ξ, M, a)
 
 Construct the reordered matrix Δ in terms of the elements of
-the two matrices, M and a, and the in-plane reduced wavevector ξ = k_x / k_0.
+the two matrices, M and a, and the in-plane reduced wavevector ξ = ``k_x / k_0``.
 The matrix Δ is involved in the relation
 
-``\\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi``
+        ``\\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi``
 
 and Δ is the reordered S matrix in Berreman's formulation.
 
@@ -210,8 +215,8 @@ end
 The 4 x 3 matrix γ contains vector components that belong 
 to the electric field calculated such that singularities are identified and removed.
 
-q[1] and q[2] are forward-traveling modes and
-q[3] and q[4] are backward-traveling modes.
+`q[1]` and `q[2]` are forward-traveling modes and
+`q[3]` and `q[4]` are backward-traveling modes.
 
 This is based on the work in:
 
@@ -267,10 +272,10 @@ end
     dynamical_matrix(ξ, q, γ, μ)
 
 The dynamical matrix relating two layers at the interface
-where matrix A_i for layer i relates the field E_i to
-the field in the previous layer i - 1 via
+where matrix ``A_i`` for layer i relates the field ``E_i`` to
+the field in the previous layer ``i - 1`` via
 
-``A_{i-1}E_{i-1} = A_{i}E_{i}``
+        ``A_{i-1}E_{i-1} = A_{i}E_{i}``
 
 Xu et al., 2000,
 DOI: 10.1103/PhysRevB.61.1740
@@ -316,8 +321,13 @@ end
 """
 From Berreman, 1972, Ψ is the column matrix:
 
-    
-Ψ = [ Ex  Hy  Ey  -Hx ]
+        ``\\Psi = 
+            \\begin{pmatrix}
+                Ex \\
+                Hy \\
+                Ey \\
+               -Hx
+            \\end{pmatrix}``
 
 for a right-handed Cartesian coordinate system with
 the z-axis along the normal to the multilayer structure.
@@ -400,9 +410,9 @@ end
 
 For the four modes (two transmitting and two reflecting), the ratio
 
-        C = |E_x|^2 / (|E_x|^2 + |E_y|^2)
+        ``C = |E_x|^2 / (|E_x|^2 + |E_y|^2)
 
-          = |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2)
+          = |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2)``
 
 is evaluated. Recall that the values for the electric field are contained
 in the eigenvector matrix, Ψ.
@@ -411,7 +421,7 @@ If the layer material is birefringent, there will be anisotropy in the
 dielectric tensor. If this is the case, the x and y components of the 
 Poynting vector needs to be analyzed (eqn 15 in Passler et al., 2017):
 
-        C = |S_x|^2 / (|S_x|^2 + |S_y|^2).
+        ``C = |S_x|^2 / (|S_x|^2 + |S_y|^2)``
 
 If there is no birefringence, then the electric field is analyzed.
 This analysis follows
