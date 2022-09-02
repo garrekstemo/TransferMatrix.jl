@@ -1,14 +1,20 @@
 """
     read_refractive(f::String, material::String, thickness; div=1.0, freq=false)
 
-Reads a csv file from refractiveindex.info containing 
-a wavlength column in units of micrometers,
-and two refractive index columns, one for the real part and
+Reads a csv file from the database website refractiveindex.info containing 
+a wavelength column in units of micrometers,
+and two refractive index columns: one for the real part and
 the other for the imaginary part.
 
 The header names are:
 
 "Wavelength, μm", "n", "k"
+
+Note that if you put a file in the `refractive_index_data` folder, then
+this function can automatically find it if you simply put the file name
+(with .csv extension) in the `refractive_filename` field in the yaml file.
+If you put the file somewhere else, you must provide the full path to that file
+(or relative path).
 
 For some reason, the wavelength column cannot be normalized (so as to be a valid Julia identifier)
 using `normalizednames = true` in `CSV.File`, so the header is skipped.
