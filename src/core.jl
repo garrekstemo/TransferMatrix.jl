@@ -46,12 +46,14 @@ end
 
 Return the diagonal complex dielectric tensor
 
-    ``\\varepsilon = 
+    ```math
+    \\varepsilon = 
         \\begin{pmatrix}\\
             varepsilon_1 & 0 & 0 \\
             0 & \\varepsilon_2  & 0 \\
             0 & 0 & \\varepsilon_3
-        \\end{pmatrix}``
+        \\end{pmatrix}
+    ```
 
 """
 function dielectric_tensor(ε1, ε2, ε3)
@@ -92,9 +94,9 @@ end
 """
     construct_a(ξ, M)
 
-Construct the elements of the intermediate 6x6 matrix `a` in terms of the
-elements of matrix `M` (the 6x6 matrix holding the material dielectric and permeability tensors)
-and propagation vector `ξ`. This is implemented as described in 
+Construct the elements of the intermediate 6x6 matrix ``a`` in terms of the
+elements of matrix ``M`` (the 6x6 matrix holding the material dielectric and permeability tensors)
+and propagation vector ξ. This is implemented as described in 
 
 Berreman, 1972, DOI: 10.1364/JOSA.62.000502
 """
@@ -124,7 +126,9 @@ Construct the reordered matrix Δ in terms of the elements of
 the two matrices, M and a, and the in-plane reduced wavevector ξ = ``k_x / k_0``.
 The matrix Δ is involved in the relation
 
-        ``\\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi``
+    ```math
+    \\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi
+    ```
 
 and Δ is the reordered S matrix in Berreman's formulation.
 
@@ -160,7 +164,7 @@ end
 """
     calculate_q(Δ, a)
 
-The four eigenvalues of `q` may be obtained from the 
+The four eigenvalues of ``q`` may be obtained from the 
 4x4 matrix Δ and then eigenvectors may be found for each eigenvalue.
 Here the eigenvalues must be sorted appropriately to avoid 
 potentially discontinuous solutions. This extends from the work in
@@ -272,10 +276,12 @@ end
     dynamical_matrix(ξ, q, γ, μ)
 
 The dynamical matrix relating two layers at the interface
-where matrix ``A_i`` for layer i relates the field ``E_i`` to
+where matrix ``A_i`` for layer ``i`` relates the field ``E_i`` to
 the field in the previous layer ``i - 1`` via
 
-        ``A_{i-1}E_{i-1} = A_{i}E_{i}``
+    ```math
+    A_{i-1}E_{i-1} = A_{i}E_{i}
+    ```
 
 Xu et al., 2000,
 DOI: 10.1103/PhysRevB.61.1740
@@ -297,7 +303,7 @@ end
 
 Returns a function that propagates the electromagnetic
 field a distance z through a material for a frequency ω
-and wavevector q.
+and wavevector ``q``.
 """
 function propagation_matrix(ω, q)
     return z -> Diagonal(exp.(-im * ω * q * z / c_0))
@@ -321,13 +327,15 @@ end
 """
 From Berreman, 1972, Ψ is the column matrix:
 
-        ``\\Psi = 
-            \\begin{pmatrix}
-                Ex \\
-                Hy \\
-                Ey \\
-               -Hx
-            \\end{pmatrix}``
+    ```math
+    \\Psi = 
+        \\begin{pmatrix}
+            Ex \\
+            Hy \\
+            Ey \\
+           -Hx
+        \\end{pmatrix}
+    ```
 
 for a right-handed Cartesian coordinate system with
 the z-axis along the normal to the multilayer structure.
@@ -358,8 +366,8 @@ end
 """
     poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
-Calculate the Poynting vector from wavevectors `q`,
-componments of the electric field `γ`, and transmission
+Calculate the Poynting vector from wavevectors ``q``,
+componments of the electric field γ, and transmission
 and reflection coefficients.
 """
 function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
@@ -410,9 +418,12 @@ end
 
 For the four modes (two transmitting and two reflecting), the ratio
 
-        ``C = |E_x|^2 / (|E_x|^2 + |E_y|^2)
-
-          = |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2)``
+        ```math
+        \\begin{aligned}
+        C &= |E_x|^2 / (|E_x|^2 + |E_y|^2) \\
+          &= |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2)
+        \\end{aligned}
+        ```
 
 is evaluated. Recall that the values for the electric field are contained
 in the eigenvector matrix, Ψ.
@@ -421,7 +432,9 @@ If the layer material is birefringent, there will be anisotropy in the
 dielectric tensor. If this is the case, the x and y components of the 
 Poynting vector needs to be analyzed (eqn 15 in Passler et al., 2017):
 
-        ``C = |S_x|^2 / (|S_x|^2 + |S_y|^2)``
+        ```math
+        C = |S_x|^2 / (|S_x|^2 + |S_y|^2)
+        ```
 
 If there is no birefringence, then the electric field is analyzed.
 This analysis follows
