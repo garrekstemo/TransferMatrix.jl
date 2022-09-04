@@ -321,15 +321,20 @@ function transfermatrix(ω, ξ, q, γ, μ, d)
 end
 
 """
+    poynting(Ψ, a)
+
+Calculates the Poynting vector for the structure
+from Ψ and matrix ``a``.
+
 From Berreman, 1972, Ψ is the column matrix:
 
 ```math
 \\Psi = 
     \\begin{pmatrix}
-        Ex \\
-        Hy \\
-        Ey \\
-        -Hx
+        Ex \\\\\
+        Hy \\\\\
+        Ey \\\\\
+       -Hx
     \\end{pmatrix}
 ```
 
@@ -416,7 +421,7 @@ For the four modes (two transmitting and two reflecting), the ratio
 
 ```math
 \\begin{aligned}
-    C &= |E_x|^2 / (|E_x|^2 + |E_y|^2) \\
+    C &= |E_x|^2 / (|E_x|^2 + |E_y|^2) \\\\\
       &= |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2)
 \\end{aligned}
 ```
