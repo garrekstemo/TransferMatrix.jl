@@ -14,14 +14,14 @@ pkg> add https://github.com/garrekstemo/TransferMatrix.jl.git
 ## Quarter-wave mirror
 
 Let's make a simple quarter-wave mirror, or
-distributed bragg reflector (DBR). We will do this via alternating
+[distributed bragg reflector](https://en.wikipedia.org/wiki/Distributed_Bragg_reflector) (DBR). We will do this via alternating
 layers of titanium dioxide (n = 2.13) and silica (n = 1.46) optimized
 for a wavelength of 630 nm.
 We'll make three periods of these two layers and and layer of air.
 This 4x4 transfer matrix method simultaneously calculates
 the transmittance and reflectance for s-polarized and p-polarized 
 radiation.
-(We are using the powerful plotting library [Makie](https://makie.juliaplots.org/) to produce the figures.)
+(We are using the powerful plotting library [Makie.jl](https://makie.juliaplots.org/) to produce the figures.)
 
 ```@setup dbr
 using Pkg
@@ -44,9 +44,9 @@ sio2 = Layer("SiO2", 0.108e-6, λs, n_sio2, zeros(length(λs)))
 layers = [air, tio2, sio2, tio2, sio2, tio2, sio2]
 
 s = Structure(layers, λs, [0.0])
-Tpp, Tss, Rpp, Rss = calculate_tr(s)
+Tp, Ts, Rp, Rs = calculate_tr(s)
 
-fig, ax, l = lines(λs .* 1e9, Rpp, label = "3 periods")
+fig, ax, l = lines(λs .* 1e9, Rp, label = "3 periods")
 
 ax.xlabel = "Wavelength (nm)"
 ax.ylabel = "Reflectance"
@@ -66,8 +66,8 @@ for i in 1:nperiods
     push!(s.layers, tio2)
     push!(s.layers, sio2)
     if i%3 == 0
-        Tpp, Tss, Rpp, Rss = calculate_tr(s)
-        lines!(ax, λs .* 1e9, Rpp, label = "$(i + 3) periods")
+        Tp, Ts, Rp, Rs = calculate_tr(s)
+        lines!(ax, λs .* 1e9, Rp, label = "$(i + 3) periods")
     end
 end
 

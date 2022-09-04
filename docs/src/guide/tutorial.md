@@ -12,9 +12,10 @@ pkg> add https://github.com/garrekstemo/TransferMatrix.jl
 ## A simple calculation
 
 To get you up and running, let's build a simple two-layer structure of air and glass
-and calculate the reflectance and transmittance spectrum while changing the
-angle of incidence for the incoming electromagnetic field. It is just as simple to
-fix the incidence angle and calculate the transfer matrix as a function of the field wavelength.
+and calculate the reflectance and transmittance to visualize the [Brewster angle](https://en.wikipedia.org/wiki/Brewster%27s_angle) for p-polarized light.
+We fix the wavelength of incident light and vary the angle of incidence when setting up
+our `Structure`.
+(It is just as simple to fix the incidence angle and calculate the transfer matrix as a function of the field wavelength.)
 
 We start by making a `Layer` type of air and a `Layer` of glass. We'll do this for 
 a wavelength of 1 μm. Since there are only two layers and the transfer matrix method
@@ -48,8 +49,8 @@ and provide the angles of the field with respect to the surface of the structure
 do this with the `Structure` type.
 
 ```@example tutorial
-θs = collect(range(0., 80., length = 500)) .* π/180
-s = Structure([air, glass], [1.0e-6], θs)
+θs = range(0., 85., length = 500)
+s = Structure([air, glass], [1.0e-6], collect(θs) .* π/180)
 ```
 
 The first argument is just a list of layers. The second argument is a list
@@ -70,24 +71,28 @@ Let's also plot the result using the [Makie.jl](https://makie.juliaplots.org/) d
 ```@example tutorial
 using CairoMakie
 
+brewster = atan(1.5) * 180 / π
+
 f = Figure()
 ax = Axis(f[1, 1], xlabel = "Incidence Angle (°)", ylabel = "Reflectance / Transmittance")
 
-lines!(s.θ .* 180/π, res.Rss[:, 1], color = :dodgerblue4, label = "Rss")
-lines!(s.θ .* 180/π, res.Rpp[:, 1], color = :dodgerblue1, label = "Rpp")
-lines!(s.θ .* 180/π, res.Tss[:, 1], color = :firebrick4, label = "Tss")
-lines!(s.θ .* 180/π, res.Tpp[:, 1], color = :orangered3, label = "Tpp")
+lines!(θs, res.Tss[:, 1], color = :firebrick4, label = "Ts")
+lines!(θs, res.Tpp[:, 1], color = :orangered3, label = "Tp")
+lines!(θs, res.Rss[:, 1], color = :dodgerblue4, label = "Rs")
+lines!(θs, res.Rpp[:, 1], color = :dodgerblue1, label = "Rp")
+vlines!(brewster, color = :dodgerblue1, linestyle = :dash)
+text!("Brewster angle\n(Rp = 0)", position = (35, 0.6))
 
 axislegend(ax)
 f
 ```
 
-We can see that the result of the angle-resolved calculation is Julia type
-with four solutions: the s-wave and p-wave for both the reflected and transmitted waves.
-Simultaneous calculation of s- and p- incident waves is a feature of the 
+We can see that the result of the angle-resolved calculation has four solutions: the s-wave and p-wave for both the reflected and transmitted waves. And we see that the Brewster angle
+is ``\arctan\left( n_\text{glass} /n_\text{air} \right) \approx 56^{\circ}``, as expected.
+Simultaneous calculation of s- and p-polarized incident waves is a feature of the 
 general 4x4 transfer matrix method being used. The `angle_resolved` function
-will also loop through all wavelengths provided so that you can plot
-a heatmap of wavelength and angle versus transmittance (or reflectance).
+will also loop through all wavelengths so that you can plot
+a color plot of wavelength and angle versus transmittance (or reflectance).
 
 ## Defining a Layer
 
@@ -164,9 +169,9 @@ au = read_refractive(aufile, "Au", 10e-9, div=1e6)
 caf2 = read_refractive(caf2file, "CaF2", 5.0e-6, div=1e6)
 
 s = Structure([caf2, au, air, au, caf2], collect(λs), [0.0])
-Tpp, Tss, Rpp, Rss = calculate_tr(s)
+Tp, Ts, Rp, Rs = calculate_tr(s)
 
-f, ax, l = lines(λs .* 1e6, Tss)
+f, ax, l = lines(λs .* 1e6, Ts)
 ax.xlabel = "Wavelength"
 ax.ylabel = "Transmittance"
 f
@@ -249,7 +254,7 @@ in the `quarter-wave.yaml` file.
 
 ```@example tutorial
 s = load_from_yaml("../../../default_config/quarter-wave.yaml", 1e-6)
-Tpp, Tss, Rpp, Rss = calculate_tr(s)
+Tp, Ts, Rp, Rs = calculate_tr(s)
 ```
 
 This particular example is taken from Pochi Yeh's [*Optical Waves in Layered Media*](https://www.wiley.com/en-us/Optical+Waves+in+Layered+Media-p-9780471731924) on page 110. You can find the reflectivity of this structure in Table 5.1. The values we have calculated are slightly different since the data used here is slightly dispersive with wavelength, but the example in the book takes flat refractive index values. You can try plotting this structure for an increasing number of periods and observe how the reflectance near ``\lambda`` = 1 μm increases.
@@ -260,8 +265,8 @@ using CairoMakie
 f = Figure()
 ax = Axis(f[1, 1], title = "ZnS / MgF quarter-wave with 3 layers", xlabel = "Wavelength (nm)", ylabel = "Transmittance / Reflectance")
 
-lines!(s.λ .* 1e9, Tpp, label = "T")
-lines!(s.λ .* 1e9, Rpp, label = "R")
+lines!(s.λ .* 1e9, Tp, label = "T")
+lines!(s.λ .* 1e9, Rp, label = "R")
 axislegend(ax, position = :rc)
 
 f
