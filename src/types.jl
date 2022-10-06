@@ -1,5 +1,5 @@
 """
-    Layer
+    Layer(material::String, thickness::Float64, λ::Vector{Float64}, n::Vector{Float64}, κ::Vector{Float64})
 
 A `Layer` stores information about a single layer,
 including its material name, thickness, a list of electric field wavelengths,
