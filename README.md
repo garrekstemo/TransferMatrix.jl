@@ -14,3 +14,7 @@ Start using TransferMatrix.jl
 ```
 using TransferMatrix
 ```
+
+## Documentation
+
+For more details, including a comprehensive tutorial, see the [documentation website](https://garrek.org/TransferMatrix.jl).
