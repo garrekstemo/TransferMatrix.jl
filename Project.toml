@@ -1,6 +1,6 @@
 name = "TransferMatrix"
 uuid = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
-authors = ["Garrek Stemo <8449000+garrekds@users.noreply.github.com>"]
+authors = ["Garrek Stemo <8449000+garrekstemo@users.noreply.github.com>"]
 version = "0.1.7"
 
 [deps]
