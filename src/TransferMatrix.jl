@@ -16,6 +16,7 @@ export Layer, Structure, Poynting,
 using CSV
 using DataInterpolations
 using LinearAlgebra
+using StaticArrays
 import YAML
 
 include("types.jl")
