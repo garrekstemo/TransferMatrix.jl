@@ -240,11 +240,11 @@ function calculate_γ(ξ, q, ε, μ)
         γ[1,2] = 0
         γ[2,1] = 0
     else
-        γ[1,2] = ( μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1])  -  μ * ε[2,1] * (μ * ε[3,3] - ξ^2)) / ( (μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2] )
-        γ[2,1] = ( μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2])  -  μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ( (μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]) )
+        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1]) - μ * ε[2,1] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]))
     end
 
-    γ[1,3] = ( -μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2] ) / (μ * ε[3,3] - ξ^2)
+    γ[1,3] = (-μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2]) / (μ * ε[3,3] - ξ^2)
     γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / (μ * ε[3,3] - ξ^2)
 
     if isapprox(q[3], q[4])
@@ -252,16 +252,16 @@ function calculate_γ(ξ, q, ε, μ)
         γ[3,2] = 0.0
         γ[4,1] = 0.0
     else
-        γ[3,2] = ( μ * ε[2,1] * (μ * ε[3,3] - ξ^2) - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3]) ) / ( (μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2] )
-        γ[4,1] = ( μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2) ) / ( (μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]) )
+        γ[3,2] = (μ * ε[2,1] * (μ * ε[3,3] - ξ^2) - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3])) / ((μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]))
     end
 
-    γ[3,3] = ( μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2] ) / (μ * ε[3,3] - ξ^2)
-    γ[4,3] = ( -(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / (μ * ε[3,3] - ξ^2)
+    γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / (μ * ε[3,3] - ξ^2)
+    γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / (μ * ε[3,3] - ξ^2)
 
     # normalize γ
     for i in 1:4
-        Z = √( γ[i, :] ⋅ γ[i, :]' )
+        Z = √(γ[i, :] ⋅ γ[i, :]')
         for j in 1:3
             γ[i, j] /= Z
         end
@@ -406,10 +406,10 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
     k_out ./= c_0
 
-    S_out_p  = real( 0.5 * E_out_p × conj(k_out[1, :] × E_out_p) )
-    S_out_s  = real( 0.5 * E_out_s × conj(k_out[2, :] × E_out_s) )
-    S_refl_p = real( 0.5 * E_ref_p × conj(k_out[3, :] × E_ref_p) )
-    S_refl_s = real( 0.5 * E_ref_s × conj(k_out[4, :] × E_ref_s) )
+    S_out_p  = real(0.5 * E_out_p × conj(k_out[1, :] × E_out_p))
+    S_out_s  = real(0.5 * E_out_s × conj(k_out[2, :] × E_out_s))
+    S_refl_p = real(0.5 * E_ref_p × conj(k_out[3, :] × E_ref_p))
+    S_refl_s = real(0.5 * E_ref_s × conj(k_out[4, :] × E_ref_s))
 
     return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s)
 end
@@ -584,8 +584,8 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
         end
 
         P_i = propagation_funcs[i]
-        field_p = P_i( - (z - interface_positions[i]) ) * Eminus_p[i, :]
-        field_s = P_i( - (z - interface_positions[i]) ) * Eminus_s[i, :]
+        field_p = P_i(-(z - interface_positions[i])) * Eminus_p[i, :]
+        field_s = P_i(-(z - interface_positions[i])) * Eminus_s[i, :]
 
         field[1:3, j] = field_p[1] * γs[i][1, :] + field_p[2] * γs[i][2, :] + field_p[3] * γs[i][3, :] + field_p[4] * γs[i][4, :]
         field[4:6, j] = field_s[1] * γs[i][1, :] + field_s[2] * γs[i][2, :] + field_s[3] * γs[i][3, :] + field_s[4] * γs[i][4, :]
@@ -808,7 +808,7 @@ function angle_resolved(s::Structure)
         rs, Rs, ts, Ts = tr_from_Γ(result.tm)
 
         ξ[i, :] = result.ξ
-        #TODO: Reflectivity from the Poynting vector has a bug in it.
+
         Tpp, Tss, Rpp, Rss = tr_from_poynting(result.poynting)
         Rpp_spectrum[i, :] = [R[1] for R in Rs]
         Rss_spectrum[i, :] = [R[2] for R in Rs]
