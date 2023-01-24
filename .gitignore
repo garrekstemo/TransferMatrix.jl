@@ -6,6 +6,7 @@ Manifest.toml
 .DS_Store
 
 scratch/
+benchmarking/
 untracked_refractiveindex/
 
 ### VisualStudioCode ###
