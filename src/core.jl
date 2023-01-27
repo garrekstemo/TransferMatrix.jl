@@ -625,7 +625,7 @@ function calculate_Γ_S(s::Structure, θ=0.0)
                       0 1 0 0;
                       0 0 0 1]
 
-    Γs = AbstractVector{Matrix{ComplexF64}}([])
+    Γs = AbstractVector{SMatrix{4, 4, ComplexF64}}([])
     Ss = AbstractVector{Poynting}([])
 
     ωs = 2π * c_0 ./ s.λ
@@ -647,10 +647,8 @@ function calculate_Γ_S(s::Structure, θ=0.0)
         Γ = inv(Λ_1324) * inv(A_0) * Γ * A_f * Λ_1324
         r, R, t, T = tr_from_Γ(Γ)
         S = poynting(ξs[i], q_0, q_f, γ_0, γ_f, t, r)
-
         push!(Γs, Γ)
         push!(Ss, S)
-
     end
 
     return TransferMatrixResult(Γs, Ss, ξs)

@@ -74,31 +74,31 @@ mutable struct Structure
 end
 
 struct Poynting
-    out_p::SVector{Float64}
-    in_p::SVector{Float64}
-    out_s::SVector{Float64}
-    in_s::SVector{Float64}
-    refl_p::SVector{Float64}
-    refl_s::SVector{Float64}
+    out_p::SVector{3, Float64}
+    in_p::SVector{3, Float64}
+    out_s::SVector{3, Float64}
+    in_s::SVector{3, Float64}
+    refl_p::SVector{3, Float64}
+    refl_s::SVector{3, Float64}
 
-    function Poynting(out_p::SVector{Float64}, in_p::SVector{Float64}, out_s::SVector{Float64}, in_s::SVector{Float64}, refl_p::SVector{Float64}, refl_s::SVector{Float64})
+    function Poynting(out_p::T, in_p::T, out_s::T, in_s::T, refl_p::T, refl_s::T) where {T<:SVector{3, Float64}}
         new(out_p, in_p, out_s, in_s, refl_p, refl_s)
     end
 end
 
 struct TransferMatrixResult
-    tm::Vector{Matrix{ComplexF64}}
-    poynting::Vector{Poynting}
-    ξ::SVector{Complex}
+    tm::AbstractVector{SMatrix{4, 4, ComplexF64}}
+    poynting::AbstractVector{Poynting}
+    ξ::Vector{ComplexF64}
 end
 
 struct AngleResolvedResult
-    Rpp::SMatrix{Float64}
-    Rss::SMatrix{Float64}
-    Tpp::SMatrix{Float64}
-    Tss::SMatrix{Float64}
-    Γ::Vector{SMatrix{ComplexF64}}
-    ξ::SMatrix{ComplexF64}
+    Rpp::Matrix{Float64}
+    Rss::Matrix{Float64}
+    Tpp::Matrix{Float64}
+    Tss::Matrix{Float64}
+    Γ::Vector{Matrix{ComplexF64}}
+    ξ::Matrix{ComplexF64}
 end
 
 
