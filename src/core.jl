@@ -57,27 +57,7 @@ Return the diagonal complex dielectric tensor
 
 """
 function dielectric_tensor(ε1, ε2, ε3)
-    return [ε1 0 0 ; 0 ε2 0 ; 0 0 ε3]
-end
-
-"""
-    dielectric_tensor(layer::Layer)
-
-This version of `dielectric_tensor` takes a `Layer` type
-and makes a simple tensor by repeating the dielectric
-constant on the diagonals for all of the refractive index
-data stored in the `Layer`.
-"""
-function dielectric_tensor(layer::Layer)
-    
-    εs = dielectric_constant(layer)
-    ε_tensor = zeros(ComplexF64, length(εs))
-
-    for (i, ε_i) in enumerate(εs)
-        ε_tensor[i] = dielectric_tensor(ε_i, ε_i, ε_i)
-    end
-
-    return ε_tensor
+    return Diagonal(SVector{3, ComplexF64}(ε1, ε2, ε3))
 end
 
 """
@@ -88,7 +68,7 @@ which is identical to the way we build the `dielectric_tensor`,
 and we include this function simply for completeness.
 """
 function permeability_tensor(μ1, μ2, μ3)
-    return [μ1 0 0 ; 0 μ2 0 ; 0 0 μ3]
+    return Diagonal(SVector{3, ComplexF64}(μ1, μ2, μ3))
 end
 
 """
@@ -102,7 +82,7 @@ Berreman, 1972, DOI: 10.1364/JOSA.62.000502
 """
 function construct_a(ξ, M)
 
-    a = zeros(ComplexF64, 6, 6)
+    a = @MMatrix zeros(ComplexF64, 6, 6)
 
     d = M[3,3] * M[6,6] - M[3,6] * M[6,3]
 
@@ -116,7 +96,7 @@ function construct_a(ξ, M)
     a[6,4] = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / d
     a[6,5] = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / d
     
-    return a
+    return SMatrix(a)
 end
 
 """
@@ -134,7 +114,7 @@ Berreman, 1972, DOI: 10.1364/JOSA.62.000502
 """
 function construct_Δ(ξ, M, a)
 
-    Δ = Matrix{ComplexF64}(undef, 4, 4)
+    Δ = @MMatrix zeros(ComplexF64, 4, 4)
 
     Δ[1,1] =  M[5,1] + (M[5,3] + ξ) * a[3,1] + M[5,6] * a[6,1]
     Δ[1,2] =  M[5,5] + (M[5,3] + ξ) * a[3,5] + M[5,6] * a[6,5]
@@ -156,7 +136,7 @@ function construct_Δ(ξ, M, a)
     Δ[4,3] =  M[2,2] + M[2,3] * a[3,2] + (M[2,6] - ξ) * a[6,2]
     Δ[4,4] = -M[2,4] - M[2,3] * a[3,4] - (M[2,6] - ξ) * a[6,4]
 
-    return Δ
+    return SMatrix(Δ)
 end
 
 """
@@ -174,8 +154,8 @@ function calculate_q(Δ, a)
 
     q_unsorted, Ψ_unsorted = eigen(Δ)
 
-    transmitted_mode = Vector{Int}(undef, 2)
-    reflected_mode = Vector{Int}(undef, 2)
+    transmitted_mode = @MVector zeros(Int, 2)
+    reflected_mode = @MVector zeros(Int, 2)
 
     kt = 1
     kr = 1
@@ -205,8 +185,8 @@ function calculate_q(Δ, a)
     S_unsorted = poynting(Ψ_unsorted, a)
     t, r = evaluate_birefringence(Ψ_unsorted, S_unsorted, transmitted_mode, reflected_mode)
 
-    q = [q_unsorted[t[1]], q_unsorted[t[2]], q_unsorted[r[1]], q_unsorted[r[2]]]
-    S = [S_unsorted[t[1]], S_unsorted[t[2]], S_unsorted[r[1]], S_unsorted[r[2]]]
+    q = SVector(q_unsorted[t[1]], q_unsorted[t[2]], q_unsorted[r[1]], q_unsorted[r[2]])
+    S = SVector(S_unsorted[t[1]], S_unsorted[t[2]], S_unsorted[r[1]], S_unsorted[r[2]])
 
     return q, S
 end
@@ -228,15 +208,14 @@ DOI: 10.1103/PhysRevB.61.1740
 """
 function calculate_γ(ξ, q, ε, μ)
 
-    γ = Matrix{ComplexF64}(undef, 4, 3)
+    γ = @MMatrix zeros(ComplexF64, 4, 3)
 
-    γ[1,1] =  1
-    γ[2,2] =  1
-    γ[4,2] =  1
+    γ[1,1] = 1
+    γ[2,2] = 1
+    γ[4,2] = 1
     γ[3,1] = -1
 
     if isapprox(q[1], q[2])
-
         γ[1,2] = 0
         γ[2,1] = 0
     else
@@ -248,7 +227,6 @@ function calculate_γ(ξ, q, ε, μ)
     γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / (μ * ε[3,3] - ξ^2)
 
     if isapprox(q[3], q[4])
-
         γ[3,2] = 0.0
         γ[4,1] = 0.0
     else
@@ -267,7 +245,7 @@ function calculate_γ(ξ, q, ε, μ)
         end
     end
 
-    return γ
+    return SMatrix(γ)
 end
 
 """
@@ -284,14 +262,14 @@ DOI: 10.1103/PhysRevB.61.1740
 """
 function dynamical_matrix(ξ, q, γ, μ)
 
-    A = Matrix{ComplexF64}(undef, 4, 4)
+    A = @MMatrix zeros(ComplexF64, 4, 4)
 
     A[1, :] =  γ[:, 1]
     A[2, :] =  γ[:, 2]
     A[3, :] = (γ[:, 1] .* q .- ξ * γ[:, 3]) ./ μ
     A[4, :] =  γ[:, 2] .* q ./ μ
 
-    return A
+    return SMatrix(A)
 end
 
 """
@@ -346,7 +324,7 @@ DOI: 10.1364/JOSA.62.000502
 """
 function poynting(Ψ, a)
 
-    S = Matrix{ComplexF64}(undef, 3, 4)
+    S = @MMatrix zeros(ComplexF64, 3, 4)
 
     for m in 1:4
         Ex =  Ψ[1, m]
@@ -361,7 +339,7 @@ function poynting(Ψ, a)
         S[2, m] = Ez * Hx - Ex * Hz
         S[3, m] = Ex * Hy - Ey * Hx
     end
-    return S
+    return SMatrix(S)
 end
 
 """
@@ -374,7 +352,7 @@ and reflection coefficients.
 function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
     # create the wavevector in the first layer
-    k_in = zeros(ComplexF64, 4, 3)
+    k_in = @MMatrix zeros(ComplexF64, 4, 3)
     k_in[:, 1] .= ξ
 
     for (i, q_i) in enumerate(q_in)
@@ -382,6 +360,7 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     end
     
     k_in ./= c_0
+    k_in = SMatrix(k_in)
     
     E_forward_in_p =  γ_in[1, :]  # p-polarized incident electric field
     E_forward_in_s =  γ_in[2, :]  # s-polarized incident electric field
@@ -394,10 +373,10 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     E_ref_p = r_coefs[1] * γ_in[3, :] + r_coefs[2] * γ_in[4, :]
     E_ref_s = r_coefs[3] * γ_in[3, :] + r_coefs[4] * γ_in[4, :]
 
-    S_in_p = real( 0.5 * E_forward_in_p × conj(k_in[1, :] × E_forward_in_p) )
-    S_in_s = real( 0.5 * E_forward_in_s × conj(k_in[2, :] × E_forward_in_s) )
+    S_in_p = real(0.5 * E_forward_in_p × conj(k_in[1, :] × E_forward_in_p))
+    S_in_s = real(0.5 * E_forward_in_s × conj(k_in[2, :] × E_forward_in_s))
 
-    k_out = zeros(ComplexF64, 4, 3)
+    k_out = @MMatrix zeros(ComplexF64, 4, 3)
     k_out[:, 1] .= ξ
 
     for (i, q_i) in enumerate(q_out)
@@ -405,6 +384,7 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     end
 
     k_out ./= c_0
+    k_out = SMatrix(k_out)
 
     S_out_p  = real(0.5 * E_out_p × conj(k_out[1, :] × E_out_p))
     S_out_s  = real(0.5 * E_out_s × conj(k_out[2, :] × E_out_s))
@@ -608,9 +588,10 @@ function layer_params(ω, ξ, n, μ, d)
     ε_i = dielectric_constant(n)
     ε = dielectric_tensor(ε_i, ε_i, ε_i)
 
-    M = zeros(ComplexF64, 6, 6)
+    M = @MMatrix zeros(ComplexF64, 6, 6)
     M[1:3, 1:3] = ε
     M[4:6, 4:6] = Diagonal([μ, μ, μ])
+    M = SMatrix(M)
     
     a = construct_a(ξ, M)
     Δ = construct_Δ(ξ, M, a)
@@ -639,12 +620,12 @@ function calculate_Γ_S(s::Structure, θ=0.0)
     ε_0in = dielectric_constant(superstrate)
     ξs = @. √(ε_0in) * sin(θ)
 
-    Λ_1324 = [1 0 0 0;
-              0 0 1 0;
-              0 1 0 0;
-              0 0 0 1]
+    Λ_1324 = @SMatrix [1 0 0 0;
+                      0 0 1 0;
+                      0 1 0 0;
+                      0 0 0 1]
 
-    Γs = AbstractVector{Matrix{ComplexF64}}([])
+    Γs = AbstractVector{SMatrix{4, 4, ComplexF64}}([])
     Ss = AbstractVector{Poynting}([])
 
     ωs = 2π * c_0 ./ s.λ
@@ -666,10 +647,8 @@ function calculate_Γ_S(s::Structure, θ=0.0)
         Γ = inv(Λ_1324) * inv(A_0) * Γ * A_f * Λ_1324
         r, R, t, T = tr_from_Γ(Γ)
         S = poynting(ξs[i], q_0, q_f, γ_0, γ_f, t, r)
-
         push!(Γs, Γ)
         push!(Ss, S)
-
     end
 
     return TransferMatrixResult(Γs, Ss, ξs)
@@ -686,7 +665,7 @@ This follows the formalism in:
 Yeh, Electromagnetic propagation in birefringent layered media, 1979,
 DOI: 10.1364/JOSA.69.000742
 """
-function tr_from_Γ(Γ::Matrix)
+function tr_from_Γ(Γ::SMatrix)
 
     d = Γ[1,1] * Γ[3,3] - Γ[1,3] * Γ[3,1]
 

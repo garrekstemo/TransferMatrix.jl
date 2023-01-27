@@ -74,22 +74,22 @@ mutable struct Structure
 end
 
 struct Poynting
-    out_p::Vector{Float64}
-    in_p::Vector{Float64}
-    out_s::Vector{Float64}
-    in_s::Vector{Float64}
-    refl_p::Vector{Float64}
-    refl_s::Vector{Float64}
+    out_p::SVector{3, Float64}
+    in_p::SVector{3, Float64}
+    out_s::SVector{3, Float64}
+    in_s::SVector{3, Float64}
+    refl_p::SVector{3, Float64}
+    refl_s::SVector{3, Float64}
 
-    function Poynting(out_p::Vector{Float64}, in_p::Vector{Float64}, out_s::Vector{Float64}, in_s::Vector{Float64}, refl_p::Vector{Float64}, refl_s::Vector{Float64})
+    function Poynting(out_p::T, in_p::T, out_s::T, in_s::T, refl_p::T, refl_s::T) where {T<:SVector{3, Float64}}
         new(out_p, in_p, out_s, in_s, refl_p, refl_s)
     end
 end
 
 struct TransferMatrixResult
-    tm::Vector{Matrix{ComplexF64}}
-    poynting::Vector{Poynting}
-    ξ::Vector{Complex}
+    tm::AbstractVector{SMatrix{4, 4, ComplexF64}}
+    poynting::AbstractVector{Poynting}
+    ξ::Vector{ComplexF64}
 end
 
 struct AngleResolvedResult
