@@ -13,6 +13,6 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
 CSV = "0.10"
-DataInterpolations = "3"
+DataInterpolations = "3, 4"
 StaticArrays = "1"
 YAML = "0.4"
