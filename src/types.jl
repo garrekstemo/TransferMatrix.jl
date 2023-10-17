@@ -1,5 +1,5 @@
 """
-    Layer(material::String, thickness::Float64, λ::Vector{Float64}, n::Vector{Float64}, κ::Vector{Float64})
+    Layer(material, thickness, λ, n, κ)
 
 A `Layer` stores information about a single layer,
 including its material name, thickness, a list of electric field wavelengths,
@@ -36,7 +36,7 @@ end
 
 
 """
-    Structure
+    Structure(layers, λs, θs)
 
 The `Structure` is a mutable type that stores a Vector of `Layer` types, along with
 a list of field wavelengths and incident angles to calculate on.
