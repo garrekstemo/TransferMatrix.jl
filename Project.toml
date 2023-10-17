@@ -11,6 +11,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
+julia = "1.9"
 CSV = "0.10"
 DataInterpolations = "3, 4"
 StaticArrays = "1"
