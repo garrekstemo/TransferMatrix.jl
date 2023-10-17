@@ -1,7 +1,7 @@
 name = "TransferMatrix"
 uuid = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
 authors = ["Garrek Stemo <8449000+garrekstemo@users.noreply.github.com>"]
-version = "1.1"
+version = "1.0.1"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
