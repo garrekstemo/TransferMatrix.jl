@@ -5,4 +5,4 @@ DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
 TransferMatrix = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
 
 [compat]
-Documenter = "0.27"
+Documenter = "1"
