@@ -6,7 +6,7 @@ A general 4x4 transfer matrix method implementation for optical waves in layered
 
 ```
 julia>]
-pkg> add https://github.com/garrekstemo/TransferMatrix.jl
+pkg> add TransferMatrix
 ```
 
 Start using TransferMatrix.jl
