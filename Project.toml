@@ -13,6 +13,6 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 [compat]
 julia = "1.9"
 CSV = "<1"
-DataInterpolations = "3, 4"
+DataInterpolations = "4"
 StaticArrays = "1"
 YAML = "<1"
