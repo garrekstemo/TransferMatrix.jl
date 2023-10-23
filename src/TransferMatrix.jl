@@ -11,7 +11,10 @@ export Layer, Structure, Poynting,
        printstruct,
        propagation_matrix,
        read_refractive,
-       load_from_yaml
+       load_from_yaml,
+       fresnel,
+       stopband,
+       dbr_reflectivity
 
 using CSV
 using DataInterpolations
