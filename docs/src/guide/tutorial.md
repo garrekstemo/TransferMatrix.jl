@@ -2,11 +2,12 @@
 
 ## Installation
 
-TransferMatrix.jl is not a part of Julia's general registry, but can be found at <https://github.com/garrekstemo/TransferMatrix.jl>. Julia makes it easy to 
-install unregistered packages. From the [Julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/), enter the Pkg REPL (package manager) mode by typing `]` and then use `add` to add the GitHub URL to TransferMatrix.jl.
+TransferMatrix.jl is a part of Julia's general registry and the source code can be found at <https://github.com/garrekstemo/TransferMatrix.jl>.
+From the [Julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/), enter the package manager mode mode by typing `]`.
+Then just enter the following to install the package:
 
 ```
-pkg> add https://github.com/garrekstemo/TransferMatrix.jl
+pkg> add TransferMatrix
 ```
 
 ## A simple calculation
@@ -32,7 +33,7 @@ Details about different ways to make a layer are further on in the tutorial.
 
 ```@setup tutorial
 using Pkg
-Pkg.add(url="https://github.com/garrekstemo/TransferMatrix.jl.git")
+Pkg.add("TransferMatrix")
 Pkg.add("CairoMakie")
 ```
 

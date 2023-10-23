@@ -3,12 +3,12 @@
 If you just want to get started with a transfer matrix
 calculation and plot the transmittance or reflectance 
 spectrum, this is the place to start.
-First make sure to install TransferMatrix.jl by
-typing `]` from the Julia REPL to enter Pkg mode,
-then run
+First install TransferMatrix.jl by
+typing `]` from the Julia REPL to enter package mode,
+then enter
 
 ```
-pkg> add https://github.com/garrekstemo/TransferMatrix.jl.git
+pkg> add TransferMatrix
 ```
 
 ## Quarter-wave mirror
@@ -25,7 +25,7 @@ radiation.
 
 ```@setup dbr
 using Pkg
-Pkg.add(url="https://github.com/garrekstemo/TransferMatrix.jl.git")
+Pkg.add("TransferMatrix")
 Pkg.add("CairoMakie")
 ```
 
