@@ -24,13 +24,13 @@ layers:
           layer1:
             material: "ZnS n=2.32"
             thickness: 0.1077
-            refractive_filename: "../refractive_index_data/ZnS_n_0.4-14um_Amotchkina2020.csv"
+            refractive_filename: "../../../refractive_index_data/ZnS_n_0.4-14um_Amotchkina2020.csv"
           layer2:
             material: "MgF2 n=1.36"
             thickness: 0.1838
-            refractive_filename: "../refractive_index_data/MgF2_nk_0.03-2.0um_Rodriguez2017.csv"
+            refractive_filename: "../../../refractive_index_data/MgF2_nk_0.03-2.0um_Rodriguez2017.csv"
 
     layer3: 
         material: "ZnS n=2.32"
         thickness: 0.5
-        refractive_filename: "../refractive_index_data/ZnS_n_0.4-14um_Amotchkina2020.csv"
+        refractive_filename: "../../../refractive_index_data/ZnS_n_0.4-14um_Amotchkina2020.csv"

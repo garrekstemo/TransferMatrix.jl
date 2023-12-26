@@ -50,8 +50,8 @@ and provide the angles of the field with respect to the surface of the structure
 do this with the `Structure` type.
 
 ```@example tutorial
-θs = range(0., 85., length = 500)
-s = Structure([air, glass], [1.0e-6], collect(θs) .* π/180)
+θs = range(0.0, 85.0, length = 500)
+s = Structure([air, glass], [1e-6], collect(θs) .* π/180)
 ```
 
 The first argument is just a list of layers. The second argument is a list
@@ -254,7 +254,7 @@ To load the YAML config file into a `Structure`, we use the `load_from_yaml()` f
 in the `quarter-wave.yaml` file.
 
 ```@example tutorial
-s = load_from_yaml("../../../default_config/quarter-wave.yaml", 1e-6)
+s = load_from_yaml(abspath("../../../default_config/quarter-wave.yaml"), 1e-6)
 Tp, Ts, Rp, Rs = calculate_tr(s)
 ```
 
@@ -287,7 +287,6 @@ f = Figure()
 ax = Axis(f[1, 1], title = "Electric Field Profile at λ = $(Int(λ_field * 1e9)) nm", xlabel = "z position (nm)", ylabel = "Field intensity (a.u.)")
 
 lines!(field.z .* 1e9, real(field.p[1, :]).^2)
-
 vlines!(field.boundaries[1], color = :gray30, linestyle = :dash)
 vlines!(field.boundaries[end] * 1e9, color = :gray30, linestyle = :dash)
 
