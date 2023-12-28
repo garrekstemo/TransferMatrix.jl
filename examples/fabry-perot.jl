@@ -1,5 +1,4 @@
 using TransferMatrix
-using CairoMakie
 using GLMakie
 
 λs = range(3.0, 6.0, length = 1000) .* 1e-6
@@ -18,7 +17,7 @@ res = angle_resolved(s)
 Tpp, Tss, Rpp, Rss = calculate_tr(s)
 
 λ_field = 4.025e-6
-field = electric_field(s, λ, 0.0, numpoints = 1000)
+field = electric_field(s, λ_field, 0.0, numpoints = 1000)
 
 ##
 
@@ -35,7 +34,7 @@ vlines!(λ_field * 1e6, color = :orangered, linestyle = :dash)
 axislegend(ax1)
 
 
-ax2 = Axis(fig[2, 1], title = "Field at λ = $(round(λ * 1e6, digits=2)) μm", xlabel = "Position within cavity (μm)", ylabel = "Electric field (a. u.)",
+ax2 = Axis(fig[2, 1], title = "Field at λ = $(round(λ_field * 1e6, digits=2)) μm", xlabel = "Position within cavity (μm)", ylabel = "Electric field (a. u.)",
         xticks = LinearTicks(5))
 
 lines!(field.z .* 10^6, real(field.p[1, :]), label = "Eₓ p")

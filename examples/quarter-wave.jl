@@ -2,7 +2,6 @@
 # and Table 5.1
 
 using TransferMatrix
-using CairoMakie
 using GLMakie
 
 file = abspath("default_config/quarter-wave.yaml")

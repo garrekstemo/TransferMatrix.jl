@@ -1,6 +1,5 @@
 using TransferMatrix
 using GLMakie
-using CairoMakie
 
 air = Layer("Air", 0.0, [1.0e-6], [1.0], [0.0])
 glass = Layer("Glass", 0.0, [1.0e-6], [1.5], [0.0])
