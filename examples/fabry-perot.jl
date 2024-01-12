@@ -9,9 +9,8 @@ caf2file = abspath("./refractive_index_data/CaF2_n_0.23-9.7um_Malitson.csv")
 
 air = Layer("Air", 20e-6, collect(λs), fill(1.0, length(λs)), zeros(length(λs)))
 au = read_refractive(aufile, "Au", 10e-9, div=1e6)
-caf2 = read_refractive(caf2file, "CaF2", 5.0e-6, div=1e6)
 
-s = Structure([caf2, au, air, au, caf2], collect(λs), collect(θs))
+s = Structure([air, au, air, au, air], collect(λs), collect(θs))
 
 res = angle_resolved(s)
 Tpp, Tss, Rpp, Rss = calculate_tr(s)
