@@ -75,8 +75,8 @@ using CairoMakie
 
 brewster = atan(1.5) * 180 / π
 
-f = Figure()
-ax = Axis(f[1, 1], xlabel = "Incidence Angle (°)", ylabel = "Reflectance / Transmittance")
+fig = Figure()
+ax = Axis(fig[1, 1], xlabel = "Incidence Angle (°)", ylabel = "Reflectance / Transmittance")
 
 lines!(θs, res.Tss[:, 1], color = :firebrick4, label = "Ts")
 lines!(θs, res.Tpp[:, 1], color = :orangered3, label = "Tp")
@@ -86,7 +86,7 @@ vlines!(brewster, color = :dodgerblue1, linestyle = :dash)
 text!("Brewster angle\n(Rp = 0)", position = (35, 0.6))
 
 axislegend(ax)
-f
+fig
 ```
 
 We can see that the result of the angle-resolved calculation has four solutions: the s-wave and p-wave for both the reflected and transmitted waves. And we see that the Brewster angle
@@ -153,8 +153,9 @@ We will scan in the mid infrared between 4 and 6 μm and use data generated
 via the [Lorentz-Drude model](https://en.wikipedia.org/wiki/Lorentz_oscillator_model) for each 10 nm-thick gold mirror. (Note that we stay in units of micrometers for the wavelength.)
 
 ```@example tutorial
+
 λs = range(4.0, 6.0, length = 1000)
-frequencies = 10^4 ./ λs  # in 1/cm
+frequencies = 10^4 ./ λs  # in cm⁻¹
 air = Layer("Air", 10, collect(λs), fill(1.0, length(λs)), zeros(length(λs)))
 audata = RefractiveMaterial("main", "Au", "Rakic-LD")
 au = load_refractive_data(audata, 10e-3)
@@ -162,10 +163,10 @@ au = load_refractive_data(audata, 10e-3)
 s = Structure([air, au, air, au, air], collect(λs), [0.0])
 Tp, Ts, Rp, Rs = calculate_tr(s)
 
-f, ax, l = lines(frequencies, Ts)
+fig, ax, l = lines(frequencies, Ts)
 ax.xlabel = "Frequency (cm⁻¹)"
 ax.ylabel = "Transmittance"
-f
+fig
 ```
 
 
@@ -190,7 +191,7 @@ end
 ```
 The center wavelength for the absorbing material will be 5 μm, so we set the wavelength region centered around this and define quarter-wavelength materials for the DBR in terms of this wavelength.
 The refractive indices for these materials are arbitrary and, for this example, are not wavelength-dependent (although they usually are).
-We will make the optical path length of the cavity region slightly greater than one wavelength to get a negative detuning between the cavity resonance and the absorbing material resonance at normal incidence (i.e. ``\Delta = |\omega_c - \omega_m| < 0``).
+We will make the optical path length of the cavity region slightly greater than one wavelength to get a negative detuning between the cavity resonance and the absorbing material resonance at normal incidence (i.e. ``\Delta = |\omega_c - \omega_m| < 0``). (Here we're working in SI units.)
 
 ```@example tutorial
 λ_center = 5e-6
