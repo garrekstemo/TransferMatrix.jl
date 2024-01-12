@@ -10,17 +10,20 @@ export Layer, Structure, Poynting,
        initialize,
        printstruct,
        propagation_matrix,
-       read_refractive,
-       load_from_yaml,
+       load_refractive_data,
+    #    load_from_yaml,
        fresnel,
        stopband,
        dbr_reflectivity
 
-using CSV
+using RefractiveIndex
+using DelimitedFiles: readdlm
 using DataInterpolations
 using LinearAlgebra
 using StaticArrays
-import YAML
+# import YAML
+
+export RefractiveMaterial
 
 include("types.jl")
 include("core.jl")
