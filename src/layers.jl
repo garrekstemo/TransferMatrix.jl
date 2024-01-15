@@ -42,9 +42,9 @@ Return the diagonal complex dielectric tensor
 
 ```math
 \\varepsilon = 
-\\begin{pmatrix}\\
-    \\varepsilon_1 & 0 & 0 \\
-    0 & \\varepsilon_2  & 0 \\
+\\begin{pmatrix}
+    \\varepsilon_1 & 0 & 0 \\\\\
+    0 & \\varepsilon_2  & 0 \\\\\
     0 & 0 & \\varepsilon_3
 \\end{pmatrix}
 ```

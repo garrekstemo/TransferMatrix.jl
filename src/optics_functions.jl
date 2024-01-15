@@ -26,7 +26,7 @@ for a distributed bragg reflector (DBR) with two alternating
 materials of refractive indices `n1` and `n2`.
 
 ```math
-    \\frac{\\Delta f_0}{f_0} = \\frac{4}{\\pi} \\arcsin\\left( \\frac{n_2 - n_1}{n_2 + n_1} \right)
+    \\frac{\\Delta f_0}{f_0} = \\frac{4}{\\pi} \\arcsin\\left( \\frac{n_2 - n_1}{n_2 + n_1} \\right)
 ```
 
 [Distributed Bragg reflector](https://en.wikipedia.org/wiki/Distributed_Bragg_reflector)
