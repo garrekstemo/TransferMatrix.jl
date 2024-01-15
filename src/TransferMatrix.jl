@@ -11,7 +11,6 @@ export Layer, Structure, Poynting,
        printstruct,
        propagation_matrix,
        load_refractive_data,
-    #    load_from_yaml,
        fresnel,
        stopband,
        dbr_reflectivity
@@ -21,7 +20,6 @@ using DelimitedFiles: readdlm
 using DataInterpolations
 using LinearAlgebra
 using StaticArrays
-# import YAML
 
 export RefractiveMaterial
 
