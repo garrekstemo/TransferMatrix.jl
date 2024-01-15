@@ -34,11 +34,3 @@ Modules = [TransferMatrix]
 Pages = ["dataio.jl"]
 Public = false
 ```
-
-## Optics Functions
-
-```@autodocs
-Modules = [TransferMatrix]
-Pages = ["optics_functions.jl"]
-Public = false
-```
