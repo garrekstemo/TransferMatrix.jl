@@ -24,8 +24,9 @@ using StaticArrays
 export RefractiveMaterial
 
 include("types.jl")
-include("core.jl")
+include("layers.jl")
 include("dataio.jl")
+include("general_TMM.jl")
 include("optics_functions.jl")
 
 const ε_0::Float64 = 8.8541878128e-12

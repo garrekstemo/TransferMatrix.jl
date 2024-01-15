@@ -25,3 +25,28 @@ function load_refractive_data(material::RefractiveMaterial, thickness, wavelengt
     end
     return layer
 end
+
+"""
+    printstruct(s::Structure, unit=1e9)
+
+Print each layer and its thickness in a somewhat 
+visually useful way. Change the default unit multiplier to switch
+from nanometers to micrometers. This does not affect any calculations,
+only what is printed to the command line when using `printstruct`.
+"""
+function printstruct(s::Structure, unit=1e9)
+
+    unitstring = "nm"
+    if unit == 1e6
+        unitstring = "μm"
+    end
+
+    print("\n")
+    for layer in s.layers
+
+        print("-"^30, "\n")
+        print("    $(layer.material), d = $(layer.thickness * unit) $(unitstring)\n")
+
+    end
+    print("-"^30, "\n")
+end
