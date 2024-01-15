@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · TransferMatrix.jl</title><meta name="title" content="Tutorial · TransferMatrix.jl"/><meta property="og:title" content="Tutorial · TransferMatrix.jl"/><meta property="twitter:title" content="Tutorial · TransferMatrix.jl"/><meta name="description" content="Documentation for TransferMatrix.jl."/><meta property="og:description" content="Documentation for TransferMatrix.jl."/><meta property="twitter:description" content="Documentation for TransferMatrix.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">TransferMatrix.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">Tutorial</span><ul><li><a class="tocitem" href="../quickstart/">Quick Start</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#A-simple-calculation"><span>A simple calculation</span></a></li><li><a class="tocitem" href="#Defining-a-Layer"><span>Defining a Layer</span></a></li><li><a class="tocitem" href="#A-simple-multi-layered-structure"><span>A simple multi-layered structure</span></a></li><li><a class="tocitem" href="#Polariton-dispersion-in-a-DBR-cavity"><span>Polariton dispersion in a DBR cavity</span></a></li></ul></li></ul></li><li><span class="tocitem">Library</span><ul><li><a class="tocitem" href="../../lib/public/">Public</a></li><li><a class="tocitem" href="../../lib/internals/">Internals</a></li></ul></li><li><a class="tocitem" href="../../bibliography/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorial</a></li><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/garrekstemo/TransferMatrix.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/garrekstemo/TransferMatrix.jl/blob/main/docs/src/guide/tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><p>TransferMatrix.jl is a part of Julia&#39;s general registry and the source code can be found at <a href="https://github.com/garrekstemo/TransferMatrix.jl">https://github.com/garrekstemo/TransferMatrix.jl</a>. From the <a href="https://docs.julialang.org/en/v1/stdlib/REPL/">Julia REPL</a>, enter the package manager mode mode by typing <code>]</code>. Then just enter the following to install the package:</p><pre><code class="nohighlight hljs">pkg&gt; add TransferMatrix</code></pre><h2 id="A-simple-calculation"><a class="docs-heading-anchor" href="#A-simple-calculation">A simple calculation</a><a id="A-simple-calculation-1"></a><a class="docs-heading-anchor-permalink" href="#A-simple-calculation" title="Permalink"></a></h2><p>To get you up and running, let&#39;s build a simple two-layer structure of air and glass and calculate the reflectance and transmittance to visualize the <a href="https://en.wikipedia.org/wiki/Brewster%27s_angle">Brewster angle</a> for p-polarized light. We fix the wavelength of incident light and vary the angle of incidence when setting up our <code>Structure</code>. (It is just as simple to fix the incidence angle and calculate the transfer matrix as a function of the field wavelength.)</p><p>We start by making a <code>Layer</code> type of air and a <code>Layer</code> of glass. We&#39;ll do this for  a wavelength of 1 μm. Since there are only two layers and the transfer matrix method treats the first and last layers as semi-infinite, there is no need to provide a thickness for our glass and air layers. From the examples below, you can see that there are fields for</p><ul><li>the material name</li><li>the layer thickness</li><li>a list of wavelengths</li><li>the real part of the refractive index (corresponding to the wavelength)</li><li>the imaginary part of the refractive index</li></ul><p>Details about different ways to make a layer are further on in the tutorial.</p><pre><code class="language-julia hljs">using TransferMatrix
+
+air = Layer(&quot;Air&quot;, 0.0, [1.0e-6], [1.0], [0.0])
+glass = Layer(&quot;Glass&quot;, 0.0, [1.0e-6], [1.5], [0.0])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Layer(&quot;Glass&quot;, 0.0, [1.0e-6], [1.5], [0.0])</code></pre><h3 id="Assembling-layers-into-a-structure"><a class="docs-heading-anchor" href="#Assembling-layers-into-a-structure">Assembling layers into a structure</a><a id="Assembling-layers-into-a-structure-1"></a><a class="docs-heading-anchor-permalink" href="#Assembling-layers-into-a-structure" title="Permalink"></a></h3><p>Now that we have our glass and air layers, we need to assemble them into a structure and provide the angles of the field with respect to the surface of the structure. We do this with the <code>Structure</code> type.</p><pre><code class="language-julia hljs">θs = range(0.0, 85.0, length = 500)
+s = Structure([air, glass], [1e-6], collect(θs) .* π/180)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Structure(Layer[Layer(&quot;Air&quot;, 0.0, [1.0e-6], [1.0], [0.0]), Layer(&quot;Glass&quot;, 0.0, [1.0e-6], [1.5], [0.0])], [1.0e-6], [0.0, 0.0029730057398701004, 0.005946011479740201, 0.0089190172196103, 0.011892022959480402, 0.0148650286993505, 0.0178380344392206, 0.020811040179090703, 0.023784045918960803, 0.026757051658830907  …  1.4567728125363493, 1.459745818276219, 1.4627188240160895, 1.4656918297559594, 1.4686648354958296, 1.4716378412356999, 1.4746108469755699, 1.47758385271544, 1.48055685845531, 1.4835298641951802])</code></pre><p>The first argument is just a list of layers. The second argument is a list of desired wavelengths. Often the refractive index data we have for  two materials are not given for exactly the same wavelengths.  TransferMatrix.jl uses an interpolation function to normalize the wavelengths and complex refractive indices for all layers from  this user-provided list of wavelengths. (Be careful if the range you provide goes beyond the range of the data that you have!) Now we can evaluate the angle-resolved spectrum using the function <code>angle_resolved()</code>.</p><pre><code class="language-julia hljs">res = angle_resolved(s)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">TransferMatrix.AngleResolvedResult([0.04000000000000003; 0.039999528598952526; … ; 0.4813707135624852; 0.4932538118188537;;], [0.04000000000000003; 0.04000047140359379; … ; 0.7246514855242108; 0.7323454787108021;;], [0.9600000000000001; 0.9600004714010474; … ; 0.5186292864375149; 0.5067461881811459;;], [0.9600000000000001; 0.9599995285964057; … ; 0.2753485144757894; 0.267654521289198;;], Matrix{ComplexF64}[], ComplexF64[0.0 + 0.0im; 0.00297300136025645 + 0.0im; … ; 0.9959311813887618 + 0.0im; 0.9961946980917455 + 0.0im;;])</code></pre><p>Let&#39;s also plot the result using the <a href="https://makie.juliaplots.org/">Makie.jl</a> data visualization package.</p><pre><code class="language-julia hljs">using CairoMakie
+
+brewster = atan(1.5) * 180 / π
+
+fig = Figure()
+ax = Axis(fig[1, 1], xlabel = &quot;Incidence Angle (°)&quot;, ylabel = &quot;Reflectance / Transmittance&quot;)
+
+lines!(θs, res.Tss[:, 1], color = :firebrick4, label = &quot;Ts&quot;)
+lines!(θs, res.Tpp[:, 1], color = :orangered3, label = &quot;Tp&quot;)
+lines!(θs, res.Rss[:, 1], color = :dodgerblue4, label = &quot;Rs&quot;)
+lines!(θs, res.Rpp[:, 1], color = :dodgerblue1, label = &quot;Rp&quot;)
+vlines!(brewster, color = :dodgerblue1, linestyle = :dash)
+text!(&quot;Brewster angle\n(Rp = 0)&quot;, position = (35, 0.6))
+
+axislegend(ax)
+fig</code></pre><img src="9f208820.png" alt="Example block output"/><p>We can see that the result of the angle-resolved calculation has four solutions: the s-wave and p-wave for both the reflected and transmitted waves. And we see that the Brewster angle is <span>$\arctan\left( n_\text{glass} /n_\text{air} \right) \approx 56^{\circ}$</span>, as expected. Simultaneous calculation of s- and p-polarized incident waves is a feature of the  general 4x4 transfer matrix method being used. The <code>angle_resolved</code> function will also loop through all wavelengths so that you can plot a color plot of wavelength and angle versus transmittance (or reflectance).</p><h2 id="Defining-a-Layer"><a class="docs-heading-anchor" href="#Defining-a-Layer">Defining a Layer</a><a id="Defining-a-Layer-1"></a><a class="docs-heading-anchor-permalink" href="#Defining-a-Layer" title="Permalink"></a></h2><p>The <code>Layer</code> type is immutable. Once you make one, you can&#39;t change any of its  characteristics later. There are two ways to define a <code>Layer</code>. The first is by  directly filling in the argument fields:</p><pre><code class="language-julia hljs">Layer(material, thickness, λs, ns, κs)</code></pre><p>You may choose any units you like for thickness and wavelength,  but they must be the same (e.g. both are in nanometers). The material is just a <code>String</code>. Wavelength, and the  refractive index arguments must be Arrays, even if they just contain  with a single item. A very manual way to make a <code>Layer</code> might look like this:</p><pre><code class="language-julia hljs">glass = Layer(&quot;Glass&quot;, 20.0e-6, [1.0e-6, 1.1e-6, 1.3e-6], [0.0, 0.0, 0.0])</code></pre><p>This way works well for simple <code>Layers</code> or when you just need a single frequency for an angle-resolved calculation, but this is a lot more work if the refractive index  is pulled from a database or a file. The website <a href="https://refractiveindex.info">refractiveindex.info</a> contains a large database of refractive indices from peer-reviewed papers. TransferMatrix.jl uses <a href="https://github.com/stillyslalom/RefractiveIndex.jl/tree/master">RefractiveIndex.jl</a> (a Julia interface to refractiveindex.info) to load refractive index data and return a <code>Layer</code> type. Note that refractiveindex.info stores the wavelength in units of micrometers.</p><p>In the following example we load gold and assign it a thickness of 20 nm. The optional <code>wavelength_unit</code> keyword argument represents the desired unit conversion. In this case, if we want everything to be in meters we must multiply each wavelength by a factor <span>$1e-6$</span>. Alternatively, we can change the thickness units to micrometers. Whatever you do, as long as the units are consistent, the transfer matrix calculation will perform correctly. The <code>Layer</code> properties can be independently queried. To get the material name or thickness,  for example, you can just type:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; audata = RefractiveMaterial(&quot;main&quot;, &quot;Au&quot;, &quot;Rakic-LD&quot;)</code><code class="nohighlight hljs ansi" style="display:block;">ERROR: UndefVarError: `RefractiveMaterial` not defined</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; au = load_refractive_data(audata, 10e-3)</code><code class="nohighlight hljs ansi" style="display:block;">ERROR: UndefVarError: `load_refractive_data` not defined</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; au.material</code><code class="nohighlight hljs ansi" style="display:block;">ERROR: UndefVarError: `au` not defined</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; au.thickness</code><code class="nohighlight hljs ansi" style="display:block;">ERROR: UndefVarError: `au` not defined</code></pre><p>The same can be done to get wavelengths (<code>au.λ</code>) (get λ by typing <code>\lambda</code>), real refractive index (<code>au.n</code>), and complex refractive index (<code>au.κ</code>) (get κ by typing <code>\kappa</code>).</p><h2 id="A-simple-multi-layered-structure"><a class="docs-heading-anchor" href="#A-simple-multi-layered-structure">A simple multi-layered structure</a><a id="A-simple-multi-layered-structure-1"></a><a class="docs-heading-anchor-permalink" href="#A-simple-multi-layered-structure" title="Permalink"></a></h2><p>Now that we can make <code>Layer</code>s, we can put them together to calculate  the transfer matrix for a multi-layered structure and plot the reflectance and transmittance spectra. An important structure in optics is the Fabry-Pérot etalon, made with two parallel planar mirrors with a gap between them. If we set the optical path length to be an integer multiple of half the wavelength, we get constructive interference and a resonance in the transmittance spectrum. In the frequency domain, the cavity modes are evenly spaced by the free spectral range (FSR). We will scan in the mid infrared between 4 and 6 μm and use data generated via the <a href="https://en.wikipedia.org/wiki/Lorentz_oscillator_model">Lorentz-Drude model</a> for each 10 nm-thick gold mirror. (Note that we stay in units of micrometers for the wavelength.)</p><pre><code class="language-julia hljs">λs = range(4.0, 6.0, length = 1000)
+frequencies = 10^4 ./ λs  # in cm⁻¹
+air = Layer(&quot;Air&quot;, 10, collect(λs), fill(1.0, length(λs)), zeros(length(λs)))
+audata = RefractiveMaterial(&quot;main&quot;, &quot;Au&quot;, &quot;Rakic-LD&quot;)
+au = load_refractive_data(audata, 10e-3)
+
+s = Structure([air, au, air, au, air], collect(λs), [0.0])
+Tp, Ts, Rp, Rs = calculate_tr(s)
+
+fig, ax, l = lines(frequencies, Ts)
+ax.xlabel = &quot;Frequency (cm⁻¹)&quot;
+ax.ylabel = &quot;Transmittance&quot;
+fig</code></pre><img src="88261e1d.png" alt="Example block output"/><h2 id="Polariton-dispersion-in-a-DBR-cavity"><a class="docs-heading-anchor" href="#Polariton-dispersion-in-a-DBR-cavity">Polariton dispersion in a DBR cavity</a><a id="Polariton-dispersion-in-a-DBR-cavity-1"></a><a class="docs-heading-anchor-permalink" href="#Polariton-dispersion-in-a-DBR-cavity" title="Permalink"></a></h2><p>Now let&#39;s try something a little more complicated. We will simulate an absorbing material with a resonance that coincides with a cavity mode resonance at some angle. We will calculate the system dispersion and plot the transmittance spectrum as a function of incidence angle. Then we will plot the electric field profile within the structure. First we need to define the dielectric function of the absorbing material. The real and imagary parts of the dielectric function can be defined as below:</p><pre><code class="language-julia hljs">function dielectric_real(ω, p)
+    A, ω_0, Γ = p
+    return @. A * (ω_0^2 - ω^2) / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
+end
+function dielectric_imag(ω, p)
+    A, ω_0, Γ = p
+    return @. A * Γ * ω / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">dielectric_imag (generic function with 1 method)</code></pre><p>The center wavelength for the absorbing material will be 5 μm, so we set the wavelength region centered around this and define quarter-wavelength materials for the DBR in terms of this wavelength. The refractive indices for these materials are arbitrary and, for this example, are not wavelength-dependent (although they usually are). We will make the optical path length of the cavity region slightly greater than one wavelength to get a negative detuning between the cavity resonance and the absorbing material resonance at normal incidence (i.e. <span>$\Delta = |\omega_c - \omega_m| &lt; 0$</span>). (Here we&#39;re working in SI units.)</p><pre><code class="language-julia hljs">λ_center = 5e-6
+λs = collect(range(4.8, 5.2, length = 300)) .* 1e-6
+θs = collect(range(0, 30, length = 100))  # degrees
+νs = 10^-2 ./ λs
+n1 = 2.1
+n2 = 1.6
+n_bg = 1.4  # Background refractive index
+
+# Layer thicknesses
+t1 = λ_center / (4 * n1[1])
+t2 = λ_center / (4 * n2[1])
+t_cav = 1 * λ_center  / n_bg + 0.1e-6  # Slightly offset the cavity length to get negative detuning</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3.6714285714285717e-6</code></pre><p>Now we can define the absorbing material. The amplitude of the resonance is arbitrary and is set to 5000. The width of the resonance is set to 5 cm^-1. The real and imaginary parts of the dielectric function are used to calculate the refractive index <code>n</code> and extinction coefficient <code>k</code>, which are used to define the <code>lorentzian</code> layer. Since the dielectric function is unitless, we can perform these calculations in reciprocal centimeters without affecting the transfer matrix calculation, which will be done in units of micrometers.</p><pre><code class="language-julia hljs">A_0 = 5000.0
+ω_0 = 10^-2 / λ_center
+Γ_0 = 5
+p0 = [A_0, ω_0, Γ_0]
+ε1 = dielectric_real(νs, p0) .+ n_bg^2
+ε2 = dielectric_imag(νs, p0)
+n_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) + ε1) / 2)
+k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">300-element Vector{Float64}:
+ 0.00016110139215916766
+ 0.00016337265900263461
+ 0.00016569095774527474
+ 0.00016805758699204028
+ 0.0001704738891576009
+ 0.00017294125393486166
+ 0.0001754611195905365
+ 0.00017803497601524403
+ 0.0001806643650261984
+ 0.0001833508845284868
+ ⋮
+ 0.0002084467398187206
+ 0.0002056456260517088
+ 0.00020290195673241631
+ 0.00020021416332229914
+ 0.00019758072961916317
+ 0.00019500019196557218
+ 0.00019247113481031365
+ 0.00018999218939238922
+ 0.00018756203350112427</code></pre><p>Now we can define the layers of the system. For the DBR mirrors, we set the number of periods of alternating materials to 6 for high reflectivity in the region of interest.  The thickness of the two outer layers (air) is arbitrary and does not affect the result.</p><pre><code class="language-julia hljs">air = Layer(&quot;Air&quot;, 0.5e-6, λs, fill(1.0, length(λs)), zeros(length(λs)))
+material1 = Layer(&quot;Material 1&quot;, t1, λs, fill(n1, length(λs)), zeros(length(λs)))
+material2 = Layer(&quot;Material 2&quot;, t2, λs, fill(n2, length(λs)), zeros(length(λs)))
+lorentzian = Layer(&quot;Lorentz oscillator&quot;, t_cav, λs, n_medium, k_medium)
+nperiods = 6
+unit = [material1, material2]
+layers = [air, repeat(unit, nperiods)..., lorentzian, repeat(reverse(unit), nperiods)..., air]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">27-element Vector{Layer}:
+ Layer(&quot;Air&quot;, 5.0e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0  …  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ ⋮
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 2&quot;, 7.8125e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6  …  1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Material 1&quot;, 5.952380952380953e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1  …  2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+ Layer(&quot;Air&quot;, 5.0e-7, [4.8e-6, 4.801337792642141e-6, 4.802675585284281e-6, 4.804013377926421e-6, 4.805351170568562e-6, 4.806688963210703e-6, 4.808026755852842e-6, 4.809364548494983e-6, 4.810702341137124e-6, 4.812040133779265e-6  …  5.187959866220735e-6, 5.189297658862876e-6, 5.190635451505017e-6, 5.191973244147157e-6, 5.193311036789297e-6, 5.194648829431438e-6, 5.195986622073578e-6, 5.197324414715718e-6, 5.198662207357859e-6, 5.2e-6], [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0  …  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])</code></pre><p>After we calculate the angle-dependent transmittance and reflectance, there will be a normal mode splitting as a resulting of the coupling between the cavity mode and the absorbing material resonance. We want to find the angle at which the amplitudes of the two modes are equal, so define the function below using the <code>Peaks.jl</code> package to do this.</p><pre><code class="language-julia hljs">using Peaks
+
+function find_resonance(s, atol=1e-3)
+    for i in eachindex(s.θ)
+        pks, vals = findmaxima(res.Tpp[i, :])
+        if length(pks) == 2 &amp;&amp; isapprox(vals[1], vals[2], atol=atol)
+            return i, pks
+        end
+    end
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">find_resonance (generic function with 2 methods)</code></pre><p>Now we can calculate the transmittance and reflectance spectra, find the resonance angle, and calculate the electric field at both peaks. Then we plot the dispersion curve, the transmittance spectrum at zero detuning, and the electric field profiles at the two peaks. Finally, we plot the refractive index profile of the structure as a function of position and display this below the field profile to see the behavior of the field at different points in the structure.</p><pre><code class="language-julia hljs">s = Structure(layers, λs, deg2rad.(θs))
+res = angle_resolved(s)
+angle_idx, peaks = find_resonance(s, 1e-2)
+
+θ_plot = round(rad2deg(s.θ[angle_idx]), digits=1)
+T_plot = res.Tpp[angle_idx, :]
+field1 = electric_field(s, s.λ[peaks[1]])
+field2 = electric_field(s, s.λ[peaks[2]])
+
+fig = Figure()
+ax = Axis(fig[1, 1], title=&quot;Polariton dispersion&quot;, xlabel = &quot;Incidence angle (°)&quot;, ylabel = &quot;Frequency (cm⁻¹)&quot;)
+heatmap!(θs, νs, res.Tpp, colormap = :deep)
+fig</code></pre><img src="121bdf4c.png" alt="Example block output"/><pre><code class="language-julia hljs">fig = Figure()
+
+ax = Axis(fig[1, 1], title=&quot;Normal mode splitting (θ ≈ $θ_plot °)&quot;, xlabel = &quot;Frequency  (cm⁻¹)&quot;, ylabel = &quot;Transmittance&quot;)
+lines!(νs, 4π .* k_medium .* νs ./ 1e4, color = :firebrick3, linestyle = :dash, label = &quot;Abs&quot;)
+lines!(νs, T_plot, label = &quot;T&quot;)
+scatter!(νs[peaks], T_plot[peaks], color = :red, marker = &#39;x&#39;, markersize = 15)
+
+axislegend(ax)
+fig</code></pre><img src="28006cf8.png" alt="Example block output"/><p>We will use the following function to draw the refractive index profile of the structure.</p><pre><code class="language-julia hljs">function draw_index_profile(ax, indices, thicknesses)
+    prev_x = 0
+    prev_n = indices[1]
+    for (i, n) in enumerate(indices)
+        current_x = sum(thicknesses[1:i])
+        lines!(ax, [prev_x, current_x], [n, n], color = :black, linewidth = 0.5)  # Plot the horizontal line
+        if i &gt; 1
+            lines!(ax, [prev_x, prev_x], [prev_n, n], color = :black, linewidth = 0.5)  # Plot the vertical line
+        end
+        prev_x = current_x
+        prev_n = n
+    end
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">draw_index_profile (generic function with 1 method)</code></pre><pre><code class="language-julia hljs">fig = Figure()
+
+ax1 = Axis(fig[1, 1], ylabel = &quot;Photon field&quot;)
+lines!(field1.z .* 1e6, real(field1.p[1, :]), label = &quot;LP&quot;)
+lines!(field2.z .* 1e6, real(field2.p[1, :]), label = &quot;UP&quot;)
+hlines!(0, color = :black, linestyle = :dash, linewidth = 0.5)
+
+ax2 = Axis(fig[2, 1], xlabel = &quot;Distance (μm)&quot;, ylabel = &quot;Refractive index&quot;, xticks = LinearTicks(7), yticks = [n1, n2])
+
+# Draw DBR cavity structure
+refractive_indices = [layer.n[1] for layer in layers[2:end-1]]
+thicknesses = [layer.thickness for layer in layers[2:end-1]] .* 1e6
+
+draw_index_profile(ax2, refractive_indices, thicknesses)
+
+axislegend(ax1)
+hidexdecorations!(ax1)
+hideydecorations!(ax1, label = false, ticks = false, ticklabels = false)
+hidexdecorations!(ax2, label = false, ticks = false, ticklabels = false)
+hideydecorations!(ax2, label = false)
+rowgap!(fig.layout, 1, 0)
+
+fig</code></pre><img src="04874373.png" alt="Example block output"/><p>The electric field amplitude at both peaks is different because of the oblique incidence angle.</p><p>Here is the code to reproduce this example in its entirety:</p><pre><code class="language-julia hljs">using TransferMatrix
+using Peaks
+using CairoMakie
+
+function dielectric_real(ω, p)
+    A, ω_0, Γ = p
+    return @. A * (ω_0^2 - ω^2) / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
+end
+function dielectric_imag(ω, p)
+    A, ω_0, Γ = p
+    return @. A * Γ * ω / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
+end
+
+function find_resonance(s, atol=1e-3)
+    for i in eachindex(s.θ)
+        pks, vals = findmaxima(res.Tpp[i, :])
+        if length(pks) == 2 &amp;&amp; isapprox(vals[1], vals[2], atol=atol)
+            return i, pks
+        end
+    end
+end
+
+λ_center = 5e-6
+λs = collect(range(4.8, 5.2, length = 300)) .* 1e-6
+θs = collect(range(0, 30, length = 100))  # degrees
+νs = 10^-2 ./ λs
+n1 = 2.1  
+n2 = 1.6
+n_bg = 1.4  # Background refractive index
+
+# Layer thicknesses
+t1 = λ_center / (4 * n1[1])
+t2 = λ_center / (4 * n2[1])
+t_cav = 1 * λ_center  / n_bg + 0.1e-6  # Slightly offset the cavity length to get negative detuning
+
+# Define the dielectric function inside the cavity
+A_0 = 5000.0
+ω_0 = 10^-2 / λ_center
+Γ_0 = 5
+p0 = [A_0, ω_0, Γ_0]
+ε1 = dielectric_real(νs, p0) .+ n_bg^2
+ε2 = dielectric_imag(νs, p0)
+n_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) + ε1) / 2)
+k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)
+
+# Define the layers
+air = Layer(&quot;Air&quot;, 0.5e-6, λs, fill(1.0, length(λs)), zeros(length(λs)))
+material1 = Layer(&quot;Material 1&quot;, t1, λs, fill(n1, length(λs)), zeros(length(λs)))
+material2 = Layer(&quot;Material 2&quot;, t2, λs, fill(n2, length(λs)), zeros(length(λs)))
+lorentzian = Layer(&quot;Lorentz oscillator&quot;, t_cav, λs, n_medium, k_medium)
+nperiods = 6
+unit = [material1, material2]
+layers = [air, repeat(unit, nperiods)..., lorentzian, repeat(reverse(unit), nperiods)..., air]
+
+# Calculate the transmittance, reflectance
+s = Structure(layers, λs, deg2rad.(θs))
+res = angle_resolved(s)
+angle_idx, peaks = find_resonance(s, 1e-2)
+
+θ_plot = round(rad2deg(s.θ[angle_idx]), digits=1)
+T_plot = res.Tpp[angle_idx, :]
+field1 = electric_field(s, s.λ[peaks[1]])
+field2 = electric_field(s, s.λ[peaks[2]])
+
+
+fig = Figure(size = (400, 1000))
+
+ax1 = Axis(fig[1, 1], title=&quot;Polariton dispersion&quot;, xlabel = &quot;Incidence angle (°)&quot;, ylabel = &quot;Frequency (cm⁻¹)&quot;)
+heatmap!(θs, νs, res.Tpp, colormap = :deep)
+
+ax2 = Axis(fig[2, 1], title=&quot;Normal mode splitting (θ ≈ $θ_plot °)&quot;, xlabel = &quot;Frequency  (cm⁻¹)&quot;, ylabel = &quot;Transmittance&quot;)
+lines!(νs, 4π .* k_medium .* νs ./ 1e4, color = :firebrick3, linestyle = :dash, label = &quot;Abs&quot;)
+lines!(νs, T_plot, label = &quot;T&quot;)
+scatter!(νs[peaks], T_plot[peaks], color = :red, marker = &#39;x&#39;, markersize = 15)
+
+ax3 = Axis(fig[3, 1], ylabel = &quot;Photon field&quot;)
+lines!(field1.z .* 1e6, real(field1.p[1, :]), label = &quot;LP&quot;)
+lines!(field2.z .* 1e6, real(field2.p[1, :]), label = &quot;UP&quot;)
+hlines!(0, color = :black, linestyle = :dash, linewidth = 0.5)
+
+ax4 = Axis(fig[4, 1], xlabel = &quot;Distance (μm)&quot;, ylabel = &quot;Refractive index&quot;, xticks = LinearTicks(7), yticks = [n1, n2])
+
+# Draw DBR cavity structure
+refractive_indices = [layer.n[1] for layer in layers[2:end-1]]
+thicknesses = [layer.thickness for layer in layers[2:end-1]] .* 1e6
+
+prev_x = 0
+prev_n = refractive_indices[1]
+for (i, n) in enumerate(refractive_indices)
+    current_x = sum(thicknesses[1:i])
+    lines!(ax4, [prev_x, current_x], [n, n], color = :black, linewidth = 0.5)  # Plot the horizontal line
+
+    if i &gt; 1
+        lines!(ax4, [prev_x, prev_x], [prev_n, n], color = :black, linewidth = 0.5)  # Plot the vertical line
+    end
+    prev_x = current_x
+    prev_n = n
+end
+
+# Draw a rectangle in the cavity region
+middle_i = sum(thicknesses[1:length(thicknesses) ÷ 2])
+middle_f = sum(thicknesses[1:length(thicknesses) ÷ 2 + 1])
+poly!(ax4, Point2f[(middle_i, n_bg), (middle_f, n_bg), (middle_f, n1), (middle_i, n1)], color = (:deepskyblue2, 0.2))
+
+# Formatting
+ylims!(ax1, 1950, 2070)
+axislegend(ax2)
+axislegend(ax3)
+hidexdecorations!(ax3)
+hideydecorations!(ax3, label = false, ticks = false, ticklabels = false)
+hidexdecorations!(ax4, label = false, ticks = false, ticklabels = false)
+hideydecorations!(ax4, label = false)
+rowgap!(fig.layout, 3, 0)
+
+fig</code></pre><h3 id="Minor-implementation-details"><a class="docs-heading-anchor" href="#Minor-implementation-details">Minor implementation details</a><a id="Minor-implementation-details-1"></a><a class="docs-heading-anchor-permalink" href="#Minor-implementation-details" title="Permalink"></a></h3><p>Behind the scenes of the electric field calculation, a new <code>Structure</code> is actually being created and initialized for the user-supplied wavelength. The transfer matrix is again calculated for the provided wavelength and light incidence angle. Some solution of this sort is necessary because the <em>exact</em> wavelength that you may wish to calculate for may not be part of the original <code>Structure</code>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../quickstart/">« Quick Start</a><a class="docs-footer-nextpage" href="../../lib/public/">Public »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Monday 15 January 2024 07:41">Monday 15 January 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
