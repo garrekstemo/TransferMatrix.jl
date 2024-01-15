@@ -15,7 +15,7 @@ Pages = ["internals.md"]
 
 ```@autodocs
 Modules = [TransferMatrix]
-Pages = ["core.jl"]
+Pages = ["general_TMM.jl", "layers.jl"]
 Public = false
 ```
 
@@ -32,5 +32,13 @@ Public = false
 ```@autodocs
 Modules = [TransferMatrix]
 Pages = ["dataio.jl"]
+Public = false
+```
+
+## Optics Functions
+
+```@autodocs
+Modules = [TransferMatrix]
+Pages = ["optics_functions.jl"]
 Public = false
 ```
