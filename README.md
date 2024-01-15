@@ -26,7 +26,7 @@ For more details, including a comprehensive tutorial, see the [documentation web
 
 ## TODOs
 
-- [] Improve test coverage
-- [] Use [dispersion](https://stillyslalom.github.io/RefractiveIndex.jl/dev/#RefractiveIndex.dispersion-Tuple%7BRefractiveMaterial,%20Float64%7D) to calculate refractive indices.
-- [] `Layer` struct has only one refractive index (instead of an array for several wavelength), then propagate light of one wavelength at a time through the structure.
-- [] Clean up types in function arguments.
+- [ ] Improve test coverage
+- [ ] Use [dispersion](https://stillyslalom.github.io/RefractiveIndex.jl/dev/#RefractiveIndex.dispersion-Tuple%7BRefractiveMaterial,%20Float64%7D) to calculate refractive indices.
+- [ ] `Layer` struct has only one refractive index (instead of an array for several wavelength), then propagate light of one wavelength at a time through the structure.
+- [ ] Clean up types in function arguments.
