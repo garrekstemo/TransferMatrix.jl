@@ -1,6 +1,7 @@
 using Test
 using DataInterpolations
 using LinearAlgebra
+using StaticArrays
 using TransferMatrix
 
 const c_0 = 299792458
@@ -47,16 +48,22 @@ end
     ε[3,3] = 3.0 + 0im
     μ[3,3] = 0.0 + 5im
 
-    M = Array{ComplexF64}(undef, 6, 6)
+    M = @MMatrix zeros(ComplexF64, 6, 6)
     M[1:3, 1:3] = ε
     M[4:6, 4:6] = μ
     
     a = TransferMatrix.construct_a(ξ, M)
 
-    a[3,5] -= -5.0 - 5im
-    a[6,2] -= 3. - 3im
+    to_subtract = @MMatrix zeros(ComplexF64, 6, 6)
+    to_subtract[3,5] = -5.0 - 5im
+    to_subtract[6,2] = 3.0 - 3im
 
-    @test isapprox(a, zeros(ComplexF64, 6, 6), atol=1e-15)
+    b = a - to_subtract
+    test_against = zeros(ComplexF64, 6, 6)
+
+    println(b[3, 5])
+
+    @test isapprox(b, zeros(ComplexF64, 6, 6), atol=1e-15)
     
 end
 

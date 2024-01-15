@@ -1,6 +1,4 @@
-using Test
-using TransferMatrix
-
+using Test, TransferMatrix
 # Test types.jl
 
 @testset "Layer" begin
