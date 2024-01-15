@@ -1,5 +1,7 @@
 # TransferMatrix.jl
 
+[![codecov](https://codecov.io/gh/garrekstemo/TransferMatrix.jl/graph/badge.svg?token=WO2ITE125C)](https://codecov.io/gh/garrekstemo/TransferMatrix.jl)
+
 A general 4x4 transfer matrix method implementation for optical waves in layered media in Julia.
 
 ## Installation
