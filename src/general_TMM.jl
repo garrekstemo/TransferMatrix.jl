@@ -33,7 +33,9 @@ Construct the reordered matrix Δ in terms of the elements of
 the two matrices, M and a, and the in-plane reduced wavevector ξ = ``k_x / k_0``.
 The matrix Δ is involved in the relation
 
-``\\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi``
+```math
+    \\frac{\\delta}{\\delta z}\\Psi = \\frac{i \\omega}{c}\\Delta \\Psi
+```
 
 and Δ is the reordered S matrix in Berreman's formulation.
 
@@ -182,7 +184,9 @@ The dynamical matrix relating two layers at the interface
 where matrix ``A_i`` for layer ``i`` relates the field ``E_i`` to
 the field in the previous layer ``i - 1`` via
 
-``A_{i-1}E_{i-1} = A_{i}E_{i}``
+```math
+    A_{i-1}E_{i-1} = A_{i}E_{i}
+```
 
 Xu et al., 2000,
 DOI: 10.1103/PhysRevB.61.1740

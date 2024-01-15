@@ -38,7 +38,6 @@ dielectric_constant(layer::Layer) = @. (layer.n + layer.κ * im)^2
 """
     dielectric_tensor(ε1, ε2, ε3)
 
-    WHoops
 Return the diagonal complex dielectric tensor
 
 ```math
