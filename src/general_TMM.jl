@@ -512,6 +512,14 @@ function layer_params(ω, ξ, n, μ, d)
     M[1:3, 1:3] = ε
     M[4:6, 4:6] = Diagonal([μ, μ, μ])
     M = SMatrix(M)
+    # M = @SMatrix ComplexF64[
+    #         ε[1,1] ε[1,2] ε[1,3] 0 0 0;
+    #         ε[2,1] ε[2,2] ε[2,3] 0 0 0;
+    #         ε[3,1] ε[3,2] ε[3,3] 0 0 0;
+    #         0 0 0 μ 0 0;
+    #         0 0 0 0 μ 0;
+    #         0 0 0 0 0 μ
+    # ]
     
     a = construct_a(ξ, M)
     Δ = construct_Δ(ξ, M, a)
@@ -654,8 +662,8 @@ function tr_from_poynting(S::Poynting)
     Tpp = S.out_p[3] / S.in_p[3]
     Tss = S.out_s[3] / S.in_s[3]
 
-    Rpp = - S.refl_p[3] / S.in_p[3]
-    Rss = - S.refl_s[3] / S.in_s[3]
+    Rpp = -S.refl_p[3] / S.in_p[3]
+    Rss = -S.refl_s[3] / S.in_s[3]
 
     return Tpp, Tss, Rpp, Rss
 end
