@@ -1,11 +1,16 @@
-using Test, TransferMatrix
+using Test
+using RefractiveIndex
+using TransferMatrix
+
 # Test types.jl
 
 @testset "Layer" begin
-    l = TransferMatrix.Layer(10e-6, 1.000273, 0.0)
-    @test l.t ≈ 0.00001
-    @test l.n_re == 1.000273
-    @test l.n_im == 0.0
+    au = RefractiveMaterial("main", "Au", "Rakic-LD")
+    l = TransferMatrix.Layer(au, 10e-6)
+    
+    @test l.thickness ≈ 0.00001
+    @test dispersion(l.material, 2.0) == 0.777149018404908
+    @test extinction(l.material, 2.0) == 12.597128834355829
 end
 
 # @testset "Structure" begin
