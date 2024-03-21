@@ -1,22 +1,22 @@
 """
-    Layer(t, n_r, n_i)
+    Layer(t, n_re, n_im)
 
 Construct a single layer with keywords:
 
 * `t`: thickness of the layer
-* `n_r`: real part of the index of refraction
-* `n_i`: imaginary part of the index of refraction
+* `n_re`: real part of the index of refraction
+* `n_im`: imaginary part of the index of refraction
 """
 struct Layer{T<:Real}
     t::T
-    n_r::T
-    n_i::T
+    n_re::T
+    n_im::T
 end
 
-function Layer(; t, n_r=1.0, n_i=0.0)
+function Layer(; t, n_re=1.0, n_im=0.0)
     t ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
-    t, n_r, n_i = promote(t, n_r, n_i)
-    return Layer(t, n_r, n_i)
+    t, n_re, n_im = promote(t, n_re, n_im)
+    return Layer(t, n_re, n_im)
 end
 
 mutable struct Structure
@@ -53,25 +53,25 @@ end
 
 
 """
-    dielectric_constant(n_r::Real, n_i::Real)
+    dielectric_constant(n_re::Real, n_im::Real)
 
 Return the complex dielectric function from
 the real and imaginary parts of the index of refraction.
 
 The complex index of refraction, given by
 
-        n' = n_r + i * n_i
+        n' = n_re + i * n_im
     
-(in terms of n_r and n_i), can be used to
+(in terms of n_re and n_im), can be used to
 obtain the frequency-dependent complex dielectric function
 
         ε_r(ω) = ε' + iε''
 
 via the relation
 
-        (n_r + i * n_i)^2 = ε' + iε''.
+        (n_re + i * n_im)^2 = ε' + iε''.
 """
-dielectric_constant(n_r::Real, n_i::Real) = (n_r + n_i * im)^2
+dielectric_constant(n_re::Real, n_im::Real) = (n_re + n_im * im)^2
 
 """
     dielectric_constant(n::Complex)
@@ -87,7 +87,7 @@ dielectric_constant(n::Complex) = n^2
 Return a complex dielectric function from
 the index of refraction in a `Layer`` type.
 """
-dielectric_constant(layer::Layer) = @. (layer.n_r + layer.n_i * im)^2
+dielectric_constant(layer::Layer) = @. (layer.n_re + layer.n_im * im)^2
 
 """
     dielectric_tensor(ε1, ε2, ε3)

@@ -417,9 +417,9 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
     t = ts[1]
     ξ = res.ξ[1]
 
-    superstrate = s.layers[1]
-    substrate = s.layers[end]
-    A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξ, substrate.n_r[1] + substrate.n_i[1] * im, μ, substrate.thickness)
+    first_layer = s.layers[1]
+    last_layer = s.layers[end]
+    A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξ, last_layer.n_re[1] + last_layer.n_im[1] * im, μ, last_layer.thickness)
 
     Eplus_p = zeros(ComplexF64, length(s.layers), 4)
     Eminus_p = zeros(ComplexF64, length(s.layers), 4)
@@ -430,8 +430,8 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
     Eplus_p[end, :] = [t[1], t[2], 0, 0]
     Eplus_s[end, :] = [t[3], t[4], 0, 0]
     
-    Eminus_p[end, :] = inv(P_f(substrate.thickness)) * Eplus_p[end, :]
-    Eminus_s[end, :] = inv(P_f(substrate.thickness)) * Eplus_s[end, :]
+    Eminus_p[end, :] = inv(P_f(last_layer.thickness)) * Eplus_p[end, :]
+    Eminus_s[end, :] = inv(P_f(last_layer.thickness)) * Eplus_s[end, :]
 
     propagation_funcs = Function[P_f]
     γs = [γ_f]
@@ -443,7 +443,7 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
 
             layer = s.layers[l - 1]
             
-            n = layer.n_r[1] + layer.n_i[1] * im
+            n = layer.n_re[1] + layer.n_im[1] * im
             A_prev, P_prev, T_prev, γ_prev, q_prev = layer_params(ω, ξ, n, μ, layer.thickness)
 
             push!(propagation_funcs, P_prev)
@@ -465,9 +465,9 @@ function electric_field(s::Structure, λ, θ = 0.0; numpoints = 1000)
     reverse!(γs)
 
     interface_positions, total_thickness = find_layerbounds(s)
-    interface_positions .-= superstrate.thickness
+    interface_positions .-= first_layer.thickness
 
-    zs = range(-superstrate.thickness, interface_positions[end], length = numpoints)
+    zs = range(-first_layer.thickness, interface_positions[end], length = numpoints)
 
     field_p = []
     field_s = []
@@ -541,11 +541,11 @@ and ξ.
 """
 function calculate_Γ_S(s::Structure, θ=0.0)
 
-    superstrate = s.layers[1]
-    substrate = s.layers[end]
+    first_layer = s.layers[1]
+    last_layer = s.layers[end]
 
     μ = 1.0 + 0.0im
-    ε_0in = dielectric_constant(superstrate)
+    ε_0in = dielectric_constant(first_layer)
     ξs = @. √(ε_0in) * sin(θ)
 
     Λ_1324 = @SMatrix [1 0 0 0;
@@ -560,14 +560,14 @@ function calculate_Γ_S(s::Structure, θ=0.0)
 
     for (i, ω) in enumerate(ωs)
         
-        A_0, P_0, T_0, γ_0, q_0 = layer_params(ω, ξs[i], superstrate.n_r[i] + superstrate.n_i[i] * im, μ, superstrate.thickness)
-        A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξs[i], substrate.n_r[i] + substrate.n_i[i] * im, μ, substrate.thickness)
+        A_0, P_0, T_0, γ_0, q_0 = layer_params(ω, ξs[i], first_layer.n_re[i] + first_layer.n_im[i] * im, μ, first_layer.thickness)
+        A_f, P_f, T_f, γ_f, q_f = layer_params(ω, ξs[i], last_layer.n_re[i] + last_layer.n_im[i] * im, μ, last_layer.thickness)
         
         Γ = I
 
         for layer in s.layers[2:end - 1]
 
-            n = layer.n_r[i] + layer.n_i[i] * im
+            n = layer.n_re[i] + layer.n_im[i] * im
             A_i, P_i, T_i, γ_i, q_i = layer_params(ω, ξs[i], n, μ, layer.thickness)
             Γ *= T_i
         end
@@ -770,7 +770,7 @@ end
 
 Given a new set of wavelengths (the Vector, λs), interpolate the 
 complex refractive index values for the input Layer
-and return a new Layer with the new λ, n_r, and n_i.
+and return a new Layer with the new λ, n_re, and n_im.
 The new wavelengths must not extend beyond the 
 domain of the existing wavelengths in the Layer (i.e. no extrapolation).
 
@@ -779,18 +779,18 @@ Here we use LinearInterpolation from the package DataInterpolations.jl
 function interp_data(layer::Layer, λs)
 
     if length(layer.λ) == 1
-        n_r = fill(layer.n_r[1], length(λs))
-        n_i = fill(layer.n_i[1], length(λs))
+        n_re = fill(layer.n_re[1], length(λs))
+        n_im = fill(layer.n_im[1], length(λs))
 
-        return Layer(layer.material, layer.thickness, λs, n_r, n_i)
+        return Layer(layer.material, layer.thickness, λs, n_re, n_im)
     else
-        interp_n_r = LinearInterpolation(layer.n, layer.λ)
-        interp_n_i = LinearInterpolation(layer.n_i, layer.λ)
+        interp_n_re = LinearInterpolation(layer.n, layer.λ)
+        interp_n_im = LinearInterpolation(layer.n_im, layer.λ)
 
-        n_r = interp_n_r.(λs)
-        n_i = interp_n_i.(λs)
+        n_re = interp_n_re.(λs)
+        n_im = interp_n_im.(λs)
 
-        return Layer(layer.material, layer.thickness, λs, n_r, n_i)
+        return Layer(layer.material, layer.thickness, λs, n_re, n_im)
     end
 end
 
