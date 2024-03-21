@@ -358,8 +358,8 @@ function evaluate_birefringence(Ψ, S, t_modes, r_modes)
     C_q1 = abs_ratio(S[1, t_modes[1]], S[2, t_modes[1]])
     C_q2 = abs_ratio(S[1, t_modes[2]], S[2, t_modes[2]])
     
-    # Note: isapprox(NaN, NaN) = false, which is important
-    # in the case that both Sx and Sy are zero.
+    # Note: isapprox(NaN, NaN) = false,
+    # which is important in the case that both Sx and Sy are zero.
     if isapprox(C_q1, C_q2)
 
         if C_q2 > C_q1
