@@ -5,25 +5,30 @@ Construct the elements of the intermediate 6x6 matrix ``a`` in terms of the
 elements of matrix ``M`` (the 6x6 matrix holding the material dielectric and permeability tensors)
 and propagation vector ξ. This is implemented as described in 
 
-Berreman, 1972, DOI: 10.1364/JOSA.62.000502
+Berreman, 1972. https://doi.org/10.1364/JOSA.62.000502
 """
 function construct_a(ξ, M)
 
-    a = @MMatrix zeros(ComplexF64, 6, 6)
-
     d = M[3,3] * M[6,6] - M[3,6] * M[6,3]
 
-    a[3,1] = (M[6,1] * M[3,6] - M[3,1] * M[6,6]) / d
-    a[3,2] =((M[6,2] - ξ) * M[3,6] - M[3,2] * M[6,6]) / d
-    a[3,4] = (M[6,4] * M[3,6] -  M[3,4] * M[6,6]) / d
-    a[3,5] = (M[6,5] * M[3,6] - (M[3,5] + ξ) * M[6,6]) / d
+    a31 = (M[6,1] * M[3,6] - M[3,1] * M[6,6]) / d
+    a32 =((M[6,2] - ξ) * M[3,6] - M[3,2] * M[6,6]) / d
+    a34 = (M[6,4] * M[3,6] -  M[3,4] * M[6,6]) / d
+    a35 = (M[6,5] * M[3,6] - (M[3,5] + ξ) * M[6,6]) / d
 
-    a[6,1] = (M[6,3] * M[3,1] - M[3,3] * M[6,1]) / d
-    a[6,2] = (M[6,3] * M[3,2] - M[3,3] * (M[6,2] - ξ)) / d
-    a[6,4] = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / d
-    a[6,5] = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / d
+    a61 = (M[6,3] * M[3,1] - M[3,3] * M[6,1]) / d
+    a62 = (M[6,3] * M[3,2] - M[3,3] * (M[6,2] - ξ)) / d
+    a64 = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / d
+    a65 = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / d
     
-    return SMatrix(a)
+    return @SMatrix [
+        0 0 0 0 0 0;
+        0 0 0 0 0 0;
+        a31 a32 0 a34 a35 0;
+        0 0 0 0 0 0;
+        0 0 0 0 0 0;
+        a61 a62 0 a64 a65 0
+    ]
 end
 
 """
@@ -39,33 +44,18 @@ The matrix Δ is involved in the relation
 
 and Δ is the reordered S matrix in Berreman's formulation.
 
-Berreman, 1972, DOI: 10.1364/JOSA.62.000502
+Berreman, 1972. https://doi.org/10.1364/JOSA.62.000502
 """
 function construct_Δ(ξ, M, a)
 
-    Δ = @MMatrix zeros(ComplexF64, 4, 4)
+    Δ = (i, j) -> M[i,j] + M[i,3] * a[3,j] + (i == 2 || i == 4 ? M[i,6] - ξ : M[i,6]) * a[6,j]
 
-    Δ[1,1] =  M[5,1] + (M[5,3] + ξ) * a[3,1] + M[5,6] * a[6,1]
-    Δ[1,2] =  M[5,5] + (M[5,3] + ξ) * a[3,5] + M[5,6] * a[6,5]
-    Δ[1,3] =  M[5,2] + (M[5,3] + ξ) * a[3,2] + M[5,6] * a[6,2]
-    Δ[1,4] = -M[5,4] - (M[5,3] + ξ) * a[3,4] - M[5,6] * a[6,4]
-
-    Δ[2,1] =  M[1,1] + M[1,3] * a[3,1] + M[1,6] * a[6,1]
-    Δ[2,2] =  M[1,5] + M[1,3] * a[3,5] + M[1,6] * a[6,5]
-    Δ[2,3] =  M[1,2] + M[1,3] * a[3,2] + M[1,6] * a[6,2]
-    Δ[2,4] = -M[1,4] - M[1,3] * a[3,4] - M[1,6] * a[6,4]
-
-    Δ[3,1] = -M[4,1] - M[4,3] * a[3,1] - M[4,6] * a[6,1]
-    Δ[3,2] = -M[4,5] - M[4,3] * a[3,5] - M[4,6] * a[6,5]
-    Δ[3,3] = -M[4,2] - M[4,3] * a[3,2] - M[4,6] * a[6,2]
-    Δ[3,4] =  M[4,4] + M[4,3] * a[3,4] + M[4,6] * a[6,4]
-
-    Δ[4,1] =  M[2,1] + M[2,3] * a[3,1] + (M[2,6] - ξ) * a[6,1]
-    Δ[4,2] =  M[2,5] + M[2,3] * a[3,5] + (M[2,6] - ξ) * a[6,5]
-    Δ[4,3] =  M[2,2] + M[2,3] * a[3,2] + (M[2,6] - ξ) * a[6,2]
-    Δ[4,4] = -M[2,4] - M[2,3] * a[3,4] - (M[2,6] - ξ) * a[6,4]
-
-    return SMatrix(Δ)
+    return @SMatrix [
+        Δ(5,1) Δ(5,5) Δ(5,2) Δ(5,4);
+        Δ(1,1) Δ(1,5) Δ(1,2) Δ(1,4);
+        Δ(4,1) Δ(4,5) Δ(4,2) Δ(4,4);
+        Δ(2,1) Δ(2,5) Δ(2,2) Δ(2,4)
+    ]
 end
 
 """
@@ -76,8 +66,7 @@ The four eigenvalues of ``q`` may be obtained from the
 Here the eigenvalues must be sorted appropriately to avoid 
 potentially discontinuous solutions. This extends from the work in
 
-Li et al, 1988,
-DOI: 10.1364/AO.27.001334
+Li et al, 1988. https://doi.org/10.1364/AO.27.001334
 """
 function calculate_q(Δ, a)
 
