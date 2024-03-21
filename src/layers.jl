@@ -102,7 +102,6 @@ Return the diagonal complex dielectric tensor
     0 & 0 & \\varepsilon_3
 \\end{pmatrix}
 ```
-
 """
 dielectric_tensor(ε1, ε2, ε3) = Diagonal(SVector{3, ComplexF64}(ε1, ε2, ε3))
 
