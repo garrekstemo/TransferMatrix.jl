@@ -1,5 +1,12 @@
 module TransferMatrix
 
+using DataInterpolations
+using DelimitedFiles: readdlm
+using LinearAlgebra
+using RefractiveIndex
+using StaticArrays
+
+
 export Layer, Structure, Poynting,
        angle_resolved,
        calculate_tr,
@@ -15,11 +22,6 @@ export Layer, Structure, Poynting,
        stopband,
        dbr_reflectivity
 
-using RefractiveIndex
-using DelimitedFiles: readdlm
-using DataInterpolations
-using LinearAlgebra
-using StaticArrays
 
 export RefractiveMaterial
 
