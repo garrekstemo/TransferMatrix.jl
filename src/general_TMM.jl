@@ -180,17 +180,12 @@ the field in the previous layer ``i - 1`` via
 Xu et al., 2000,
 DOI: 10.1103/PhysRevB.61.1740
 """
-function dynamical_matrix(ξ, q, γ, μ)
-
-    A = @MMatrix zeros(ComplexF64, 4, 4)
-
-    A[1, :] =  γ[:, 1]
-    A[2, :] =  γ[:, 2]
-    A[3, :] = (γ[:, 1] .* q .- ξ * γ[:, 3]) ./ μ
-    A[4, :] =  γ[:, 2] .* q ./ μ
-
-    return SMatrix(A)
-end
+dynamical_matrix(ξ, q, γ, μ) = @SMatrix{4, 4}(
+        γ[:, 1],
+        γ[:, 2],
+        (γ[:, 1] .* q .- ξ * γ[:, 3]) ./ μ,
+        γ[:, 2] .* q ./ μ
+    )
 
 """
     propagation_matrix(ω, q)
