@@ -228,7 +228,9 @@ end
 
     A = TransferMatrix.dynamical_matrix(ξ, q, γ, μ)
 
-    @test A == A_test
+    for (i, col) in enumerate(eachrow(A))
+        @test A[:, i] == A_test[:, i]
+    end
 end
 
 @testset "propagation_matrix" begin
