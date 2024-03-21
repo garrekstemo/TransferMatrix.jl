@@ -7,10 +7,22 @@ Construct a single layer with keywords:
 * `n_re`: real part of the index of refraction
 * `n_im`: imaginary part of the index of refraction
 """
-struct Layer{T<:Real}
-    t::T
-    n_re::T
-    n_im::T
+# struct Layer{T<:Real}
+#     t::T
+#     n_re::T
+#     n_im::T
+# end
+"""
+    Layer(material, thickness)
+
+Construct a single layer with keywords:
+
+* `material`: refractive material containing dispersion and extinction data (if available)
+* `thickness`: thickness of the layer
+"""
+struct Layer
+    material::RefractiveMaterial
+    thickness::Real
 end
 
 function Layer(; t, n_re=1.0, n_im=0.0)
@@ -80,14 +92,6 @@ Return the complex dielectric function from
 the complex index of refraction.
 """
 dielectric_constant(n::Complex) = n^2
-
-"""
-    dielectric_constant(layer::Layer)
-
-Return a complex dielectric function from
-the index of refraction in a `Layer`` type.
-"""
-dielectric_constant(layer::Layer) = @. (layer.n_re + layer.n_im * im)^2
 
 """
     dielectric_tensor(ε1, ε2, ε3)

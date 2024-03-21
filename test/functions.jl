@@ -2,6 +2,7 @@ using Test
 using DataInterpolations
 using LinearAlgebra
 using StaticArrays
+using RefractiveIndex
 using TransferMatrix
 
 const c_0 = 299792458
@@ -9,15 +10,12 @@ const c_0 = 299792458
 # Test functions.jl
 
 @testset "dielectric_constant" begin
-    l = TransferMatrix.Layer(1.0, 1.0, 2.0)
-    ε1 = TransferMatrix.dielectric_constant(l)
+    au = RefractiveMaterial("main", "Au", "Rakic-LD")
+    l = TransferMatrix.Layer(au, 1.0)
 
-    @test real(ε1) == -3.0
-    @test imag(ε1) == 4.0
-
-    ε2 = TransferMatrix.dielectric_constant.([1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
-    @test real(ε2) == [-3.0, -3.0, -3.0]
-    @test imag(ε2) == [4.0, 4.0, 4.0]
+    ε = TransferMatrix.dielectric_constant.([1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
+    @test real(ε) == [-3.0, -3.0, -3.0]
+    @test imag(ε) == [4.0, 4.0, 4.0]
 
     @test TransferMatrix.dielectric_constant(1.0, 2.0) == -3.0 + 4.0im
     @test TransferMatrix.dielectric_constant(1.0 + 2.0im) == -3.0 + 4.0im
