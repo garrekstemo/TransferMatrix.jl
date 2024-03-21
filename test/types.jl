@@ -4,8 +4,8 @@ using Test, TransferMatrix
 @testset "Layer" begin
     l = TransferMatrix.Layer(10e-6, 1.000273, 0.0)
     @test l.t ≈ 0.00001
-    @test l.n == 1.000273
-    @test l.κ == 0.0
+    @test l.n_r == 1.000273
+    @test l.n_i == 0.0
 end
 
 # @testset "Structure" begin
@@ -25,7 +25,7 @@ end
 #     @test s.layers[2].λ == λs
 #     @test s.λ == λs
 #     @test s.θ == θs
-#     @test s.layers[1].n == fill(1.0, length(λs))
-#     @test length(s.layers[2].n) == length(λs)
-#     @test length(s.layers[2].κ) == length(λs)
+#     @test s.layers[1].n_r == fill(1.0, length(λs))
+#     @test length(s.layers[2].n_r) == length(λs)
+#     @test length(s.layers[2].n_i) == length(λs)
 # end
