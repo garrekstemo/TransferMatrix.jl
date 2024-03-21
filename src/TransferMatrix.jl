@@ -8,13 +8,13 @@ using StaticArrays
 
 
 export Layer, Structure, Poynting,
+       transfer_matrix,
        angle_resolved,
        calculate_tr,
        dielectric_constant,
        dielectric_tensor,
        electric_field,
        find_layerbounds,
-       initialize,
        printstruct,
        propagation_matrix,
        load_refractive_data,
@@ -23,7 +23,7 @@ export Layer, Structure, Poynting,
        dbr_reflectivity
 
 
-export RefractiveMaterial
+# export RefractiveMaterial, dispersion, extinction
 
 include("types.jl")
 include("layers.jl")
