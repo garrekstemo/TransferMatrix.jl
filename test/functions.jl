@@ -1,10 +1,6 @@
-using Test
-using LinearAlgebra
-using StaticArrays
-using RefractiveIndex
-using TransferMatrix
-
-const c_0 = 299792458
+# using Test
+# using RefractiveIndex
+# using TransferMatrix
 
 # Test functions.jl
 
@@ -139,4 +135,17 @@ end
     # neither are reversed
     @test t4 == [2, 1]
     @test r4 == [4, 3]
+end
+
+@testset "find_layerbounds" begin
+    l1 = TransferMatrix.Layer(RefractiveMaterial("main", "Au", "Rakic-LD"), 1)
+    l2 = TransferMatrix.Layer(RefractiveMaterial("main", "SiO2", "Malitson"), 2)
+    l3 = TransferMatrix.Layer(RefractiveMaterial("main", "Au", "Rakic-LD"), 3)
+
+    layers = [l1, l2, l3]
+
+    interface_positions, total_thickness = TransferMatrix.find_layerbounds(layers)
+
+    @test interface_positions == [1.0, 3.0, 6.0]
+    @test total_thickness == 6.0
 end

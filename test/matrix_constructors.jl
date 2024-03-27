@@ -1,11 +1,3 @@
-using Test
-using LinearAlgebra
-using StaticArrays
-using RefractiveIndex
-using TransferMatrix
-
-const c_0 = 299792458
-
 @testset "construct_a" begin
 
     # Test orthorhombic crystal with principal axes

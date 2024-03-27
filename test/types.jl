@@ -1,7 +1,3 @@
-using Test
-using RefractiveIndex
-using TransferMatrix
-
 # Test types.jl
 
 @testset "Layer" begin
