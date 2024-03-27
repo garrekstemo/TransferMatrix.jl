@@ -113,14 +113,14 @@ function layer_matrices(layer, λ, ξ, μ_i)
 end
 
 """
-    printstruct(layers, unit=1e9)
+    print_structure(layers, unit=1e9)
 
 Print each layer and its thickness in a somewhat 
 visually useful way. Change the default unit multiplier to switch
 from nanometers to micrometers. This does not affect any calculations,
 only what is printed to the command line when using `printstruct`.
 """
-function printstruct(layers, unit=1e9)
+function print_structure(layers, unit=1e9)
 
     unitstring = "nm"
     if unit == 1e6
