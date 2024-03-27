@@ -188,7 +188,7 @@ function propagate(λ, layers, θ=0.0, μ=1.0+0.0im)
     first_layer = layers[1]
     last_layer = layers[end]
 
-    n_in = retrieve_refractive_index(first_layer.material, λ)
+    n_in = get_refractive_index(first_layer.material, λ)
     ε_0in = dielectric_constant(n_in)
     ξ = √(ε_0in) * sin(θ)
 

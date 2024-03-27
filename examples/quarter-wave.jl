@@ -5,7 +5,7 @@ using RefractiveIndex
 using TransferMatrix
 using GLMakie
 
-air = RefractiveMaterial("https://refractiveindex.info/?shelf=other&book=air&page=Ciddor")
+air = RefractiveMaterial("other", "air", "Ciddor")
 tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
 sio2 = RefractiveMaterial("main", "SiO2", "Rodriguez-de_Marcos")
 
