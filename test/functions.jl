@@ -60,7 +60,6 @@ end
     test_against = zeros(ComplexF64, 6, 6)
 
     @test isapprox(b, zeros(ComplexF64, 6, 6), atol=1e-15)
-    
 end
 
 @testset "construct_Δ" begin
@@ -326,34 +325,3 @@ end
     @test isapprox(γ5, γ5_test)
     @test isapprox(γ6, γ6_test, atol=1e-5)
 end
-
-# @testset "interp_data" begin
-    
-#     λ = range(1.0, 1.3, length = 10)
-#     n = range(0.3, 0.4, length = 10)
-#     κ = range(6.0, 7.0, length = 10)
-
-#     λ_test = range(1.0, 1.3, length = 20)
-#     n_test = range(0.3, 0.4, length = 20)
-#     κ_test = range(6.0, 7.0, length = 20)
-
-#     l1 = TransferMatrix.Layer()
-#     l2 = TransferMatrix.Layer("TestMaterial", 1e-6, λ, n, κ)
-
-#     l1 = TransferMatrix.interp_data(l1, λ_test)
-#     l2 = TransferMatrix.interp_data(l2, λ_test)
-
-#     @test l1.λ == λ_test
-#     @test l1.n == fill(1.0, length(λ_test))
-#     @test l1.κ == zeros(length(λ_test))
-    
-#     @test l2.λ == λ_test
-#     @test l2.n ≈ Vector(n_test)
-#     @test l2.κ ≈ Vector(κ_test)
-
-#     λ_bounds = range(1.0, 2.0, length = 20)
-
-#     # LinearInterpolation from DataInterpolations.jl does not error for extrapolation.
-#     # @test_throws BoundsError TransferMatrix.interp_data(l2, λ_bounds)
-
-# end

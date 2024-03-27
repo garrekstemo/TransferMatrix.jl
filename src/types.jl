@@ -11,12 +11,6 @@ struct Poynting
     end
 end
 
-struct TransferMatrixResult
-    tm::AbstractVector{SMatrix{4, 4, ComplexF64}}
-    poynting::AbstractVector{Poynting}
-    ξ::Vector{ComplexF64}
-end
-
 struct AngleResolvedResult
     Rpp::Matrix{Float64}
     Rss::Matrix{Float64}

@@ -1,33 +1,24 @@
 module TransferMatrix
 
-using DataInterpolations
-using DelimitedFiles: readdlm
 using LinearAlgebra
 using RefractiveIndex
 using StaticArrays
 
-
-export Layer, Structure, Poynting,
-       transfer_matrix,
-       angle_resolved,
+export Layer,
        calculate_tr,
        dielectric_constant,
        dielectric_tensor,
        electric_field,
        find_layerbounds,
        printstruct,
-       propagation_matrix,
-       load_refractive_data,
        fresnel,
        stopband,
        dbr_reflectivity
 
 
-# export RefractiveMaterial, dispersion, extinction
-
 include("types.jl")
-include("layers.jl")
-include("dataio.jl")
+include("layer.jl")
+include("matrix_constructors.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
 
