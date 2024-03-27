@@ -1,5 +1,4 @@
 using Test
-using DataInterpolations
 using LinearAlgebra
 using StaticArrays
 using RefractiveIndex
