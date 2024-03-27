@@ -262,4 +262,3 @@ end
     @test isapprox(γ5, γ5_test)
     @test isapprox(γ6, γ6_test, atol=1e-5)
 end
-

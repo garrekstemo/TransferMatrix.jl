@@ -10,7 +10,6 @@ export Layer,
        dielectric_tensor,
        electric_field,
        find_layerbounds,
-       printstruct,
        fresnel,
        stopband,
        dbr_reflectivity
