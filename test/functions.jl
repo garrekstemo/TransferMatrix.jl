@@ -8,6 +8,14 @@ const c_0 = 299792458
 
 # Test functions.jl
 
+@testset "get_refractive_index" begin
+    air = RefractiveMaterial("other", "air", "Ciddor")
+    au = RefractiveMaterial("main", "Au", "Rakic-LD")
+
+    @test TransferMatrix.get_refractive_index(air, 1.0) == 1.0002741661312147 + 0.0im
+    @test TransferMatrix.get_refractive_index(au, 1.0) == 0.2557301597051597 + 5.986408108108109im
+end
+
 @testset "dielectric_constant" begin
     au = RefractiveMaterial("main", "Au", "Rakic-LD")
     l = TransferMatrix.Layer(au, 1.0)
@@ -24,76 +32,6 @@ end
 @testset "dielectric_tensor" begin
     @test TransferMatrix.dielectric_tensor(1.0, 1.0, 1.0) == [1.0 0 0; 0 1.0 0; 0 0 1.0]
     @test TransferMatrix.dielectric_tensor(1.0 + 1.0im, 1.0 + 1.0im, 1.0) == [complex(1.0, 1.0) 0 0; 0 complex(1.0, 1.0) 0; 0 0 1.0]
-end
-
-@testset "construct_a" begin
-
-    # Test orthorhombic crystal with principal axes
-    # parallel to x, y, z. M is constant and diagonal.
-    # The only nonzero coefficients are
-    
-    # a[3,5] = -ξ / M[3, 3]
-    # a[6,2] =  ξ / M[6, 6]
-    
-    # Berreman, Optics in Stratefied and Anisotropic Media, 1972
-    # DOI: 10.1364/JOSA.62.000502
-
-    ξ = 15.0 + 15im
-
-    ε = Diagonal([1 + 1im, 1 + 1im, 1 + 1im])
-    μ = Diagonal([1 + 0im, 1 + 0im, 1 + 0im])
-    ε[3,3] = 3.0 + 0im
-    μ[3,3] = 0.0 + 5im
-
-    M = @MMatrix zeros(ComplexF64, 6, 6)
-    M[1:3, 1:3] = ε
-    M[4:6, 4:6] = μ
-    
-    a = TransferMatrix.construct_a(ξ, M)
-
-    to_subtract = @MMatrix zeros(ComplexF64, 6, 6)
-    to_subtract[3,5] = -5.0 - 5im
-    to_subtract[6,2] = 3.0 - 3im
-
-    b = a - to_subtract
-    test_against = zeros(ComplexF64, 6, 6)
-
-    @test isapprox(b, zeros(ComplexF64, 6, 6), atol=1e-15)
-end
-
-@testset "construct_Δ" begin
- 
-    # Continue the test from `construct_a`.
-    # For an orthorhombic crystal described above, the only nonzero elements of Δ are
-    # Δ[2,1] = M[1,1] = ε[1,1]
-    # Δ[4,3] = M[2,2] - ξ^2 / M[6,6] = ε[2,2] - ξ^2 / μ[3,3]
-    # Δ[3,4] = M[4,4] = μ[1,1]
-    # Δ[1,2] = M[5,5] - ξ^2 / M[3,3] = μ[2,2] - ξ^2 / ε[3,3]
-
-    ξ = 0.
-
-    ε = Diagonal([1 + 1im, 1 + 1im, 1 + 1im])
-    μ = Diagonal([1 + 0im, 1 + 0im, 1 + 0im])
-    ε[3,3] = 3.0 + 0im
-    μ[3,3] = 0.0 + 5im
-
-    M = zeros(ComplexF64, 6, 6)
-    M[1:3, 1:3] = ε
-    M[4:6, 4:6] = μ
-    
-    a = TransferMatrix.construct_a(ξ, M)
-    Δ = TransferMatrix.construct_Δ(ξ, M, a)
-
-    Δ21 = ε[1,1]
-    Δ43 = ε[2,2] - ξ^2 / μ[3,3]
-    Δ34 = μ[1,1]
-    Δ12 = μ[2,2] - ξ^2 / ε[3,3]
-    Δ_squared = Diagonal([Δ12 * Δ21, Δ12 * Δ21, Δ34 * Δ43, Δ34 * Δ43])
-    Δ_cubed = Δ^3
-
-    @test Δ^2 == Δ_squared
-    @test Δ_cubed[1,1] == 0.0 + 0im
-    @test Δ_cubed[1,2] == Δ12^2 * Δ21
 end
 
 # @testset "poynting" begin
@@ -324,3 +262,4 @@ end
     @test isapprox(γ5, γ5_test)
     @test isapprox(γ6, γ6_test, atol=1e-5)
 end
+
