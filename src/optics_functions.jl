@@ -9,11 +9,11 @@ of two media `n1` and `n2` at a plane interface.
 """
 function fresnel(θ, n1, n2)
 
-    α = √( 1 - (n1 * sin(θ) / n2)^2 ) / cos(θ)
+    α = √(1 - (n1 * sin(θ) / n2)^2) / cos(θ)
     β = n2 / n1
 
-    Rs = abs2( (1/β - α) / (1/β + α) )
-    Rp = abs2( (α - β) / (α + β) )
+    Rs = abs2((1/β - α) / (1/β + α))
+    Rp = abs2((α - β) / (α + β))
 
     return Rs, Rp
 end
@@ -32,7 +32,7 @@ materials of refractive indices `n1` and `n2`.
 [Distributed Bragg reflector](https://en.wikipedia.org/wiki/Distributed_Bragg_reflector)
 """
 function stopband(n1, n2)
-    4 * asin( (n2 - n1) / (n2 + n1) ) / π
+    4 * asin(abs(n2 - n1) / (n2 + n1)) / π
 end
 
 """
