@@ -11,14 +11,14 @@ struct Poynting
     end
 end
 
-struct AngleResolvedResult
-    Rpp::Matrix{Float64}
-    Rss::Matrix{Float64}
-    Tpp::Matrix{Float64}
-    Tss::Matrix{Float64}
-    Γ::Vector{Matrix{ComplexF64}}
-    ξ::Matrix{ComplexF64}
-end
+# struct AngleResolvedResult
+#     Rpp::Matrix{Float64}
+#     Rss::Matrix{Float64}
+#     Tpp::Matrix{Float64}
+#     Tss::Matrix{Float64}
+#     Γ::Vector{Matrix{ComplexF64}}
+#     ξ::Matrix{ComplexF64}
+# end
 
 
 struct ElectricField
