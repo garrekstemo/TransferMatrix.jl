@@ -1,5 +1,5 @@
-# Quarter-wave stack example given in Yeh pg. 110
-# and Table 5.1
+# Quarter-wave stack example
+
 using Revise
 using RefractiveIndex
 using TransferMatrix
@@ -9,7 +9,7 @@ air = RefractiveMaterial("https://refractiveindex.info/?shelf=other&book=air&pag
 tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
 sio2 = RefractiveMaterial("main", "SiO2", "Rodriguez-de_Marcos")
 
-λ_0 = 1.0  # μm
+λ_0 = 1.0   # μm
 nperiods = 6
 t_tio2 = λ_0 / (4 * tio2(λ_0))
 t_sio2 = λ_0 / (4 * sio2(λ_0))
