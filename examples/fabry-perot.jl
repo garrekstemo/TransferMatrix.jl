@@ -6,7 +6,6 @@ using GLMakie
 caf2 = RefractiveMaterial("main", "CaF2", "Malitson")
 au = RefractiveMaterial("main", "Au", "Rakic-LD")
 air = RefractiveMaterial("other", "air", "Ciddor")
-au.name
 
 λ_0 = 5.0
 t_middle = λ_0 / 2
