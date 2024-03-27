@@ -17,7 +17,7 @@ function Layer(; m, t)
 end
 
 """
-    retrieve_refraction_index(material, λ)
+    retrieve_refractive_index(material, λ)
 
 Retrieve the refractive index for a given material at a given wavelength.
 """
