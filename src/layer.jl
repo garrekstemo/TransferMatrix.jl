@@ -94,28 +94,20 @@ Calculate all parameters for a single layer, particularly
 the propagation matrix and dynamical matrix so that
 the overall transfer matrix can be calculated.
 """
-function layer_matrices(layer, λ, ξ, μ)
+function layer_matrices(layer, λ, ξ, μ_i)
 
     ω = 2π * c_0 / λ
     n_i = get_refractive_index(layer.material, λ)
     ε_i = dielectric_constant(n_i)
     ε = dielectric_tensor(ε_i, ε_i, ε_i)
+    μ = permeability_tensor(μ_i, μ_i, μ_i)
 
-    # M = construct_M(ε, μ)
-    M = SMatrix{6, 6, Complex}([
-            ε[1,1] ε[1,2] ε[1,3] 0 0 0;
-            ε[2,1] ε[2,2] ε[2,3] 0 0 0;
-            ε[3,1] ε[3,2] ε[3,3] 0 0 0;
-            0 0 0 μ 0 0;
-            0 0 0 0 μ 0;
-            0 0 0 0 0 μ
-    ])
-
+    M = construct_M(ε, μ)
     a = construct_a(ξ, M)
     Δ = construct_Δ(ξ, M, a)
     q, S = calculate_q(Δ, a)
-    γ = calculate_γ(ξ, q, ε, μ)
-    D = dynamical_matrix(ξ, q, γ, μ)
+    γ = calculate_γ(ξ, q, ε, μ_i)
+    D = dynamical_matrix(ξ, q, γ, μ_i)
     P = propagation_matrix(ω, q)
     return D, P, γ, q
 end
