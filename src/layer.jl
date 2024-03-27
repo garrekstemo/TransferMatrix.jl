@@ -9,19 +9,19 @@ Construct a single layer with keywords:
 struct Layer
     material::RefractiveMaterial
     thickness::Real
-end
 
-function Layer(; m, t)
-    t ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
-    return Layer(m, t)
+    function Layer(material, thickness)
+        thickness ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
+        new(material, thickness)
+    end
 end
 
 """
-    retrieve_refractive_index(material, λ)
+    get_refractive_index(material, λ)
 
 Retrieve the refractive index for a given material at a given wavelength.
 """
-function retrieve_refractive_index(material::RefractiveMaterial, λ)
+function get_refractive_index(material::RefractiveMaterial, λ)
     ε_real = dispersion(material, λ)
     ε_imag = 0.0
     
@@ -97,7 +97,7 @@ the overall transfer matrix can be calculated.
 function layer_matrices(layer, λ, ξ, μ)
 
     ω = 2π * c_0 / λ
-    n_i = retrieve_refractive_index(layer.material, λ)
+    n_i = get_refractive_index(layer.material, λ)
     ε_i = dielectric_constant(n_i)
     ε = dielectric_tensor(ε_i, ε_i, ε_i)
 
