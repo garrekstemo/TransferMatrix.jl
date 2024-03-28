@@ -1,3 +1,5 @@
+# Fabry-Pérot cavity example
+
 using Revise
 using RefractiveIndex
 using TransferMatrix

@@ -1,81 +1,4 @@
-# using Test
-# using RefractiveIndex
-# using TransferMatrix
-
-# Test functions.jl
-
-@testset "get_refractive_index" begin
-    air = RefractiveMaterial("other", "air", "Ciddor")
-    au = RefractiveMaterial("main", "Au", "Rakic-LD")
-
-    @test TransferMatrix.get_refractive_index(air, 1.0) == 1.0002741661312147 + 0.0im
-    @test TransferMatrix.get_refractive_index(au, 1.0) == 0.2557301597051597 + 5.986408108108109im
-end
-
-@testset "dielectric_constant" begin
-    au = RefractiveMaterial("main", "Au", "Rakic-LD")
-    l = TransferMatrix.Layer(au, 1.0)
-
-    ε = TransferMatrix.dielectric_constant.([1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
-    @test real(ε) == [-3.0, -3.0, -3.0]
-    @test imag(ε) == [4.0, 4.0, 4.0]
-
-    @test TransferMatrix.dielectric_constant(1.0, 2.0) == -3.0 + 4.0im
-    @test TransferMatrix.dielectric_constant(1.0 + 2.0im) == -3.0 + 4.0im
-
-end
-
-@testset "dielectric_tensor" begin
-    @test TransferMatrix.dielectric_tensor(1.0, 1.0, 1.0) == [1.0 0 0; 0 1.0 0; 0 0 1.0]
-    @test TransferMatrix.dielectric_tensor(1.0 + 1.0im, 1.0 + 1.0im, 1.0) == [complex(1.0, 1.0) 0 0; 0 complex(1.0, 1.0) 0; 0 0 1.0]
-end
-
-# @testset "poynting" begin
-
-#     M = Array{ComplexF64}(undef, 6, 6)
-#     ε = Diagonal([1, 1, 1])
-#     μ = Diagonal([1, 1, 1])
-#     M[1:3, 1:3] = ε
-#     M[4:6, 4:6] = μ
-    
-#     a = TransferMatrix.construct_a(0., M)
-#     Δ = TransferMatrix.construct_Δ(0., M, a)
-#     q, Ψ = eigen(Δ)
-
-#     # This just makes the elements of Ψ all 1 or -1
-#     # for convenience when calculating by hand.
-#     Ψ ./= √2 / 2 
-
-#     # Ψ now looks like the following:
-#     # Ψ = [1  0  1  0;
-#     #     -1  0  1  0;
-#     #      0  1  0  1;
-#     #      0 -1  0  1]
-
-#     # The relevant indices of the matrix, a, above are zero,
-#     # so we give them arbitrary values here to check that
-#     # all elements of the Poynting vector are calculated:
-    
-#     a[3,1] = 1
-#     a[3,2] = 2
-#     a[3,4] = 3
-#     a[3,5] = 4
-    
-#     a[6,1] = 5
-#     a[6,2] = 6
-#     a[6,4] = 7
-#     a[6,5] = 8
-              
-#     S = TransferMatrix.poynting(Ψ, a)
-
-#     # Calculated by hand with the above a and Ψ following Passler et al. 2017.
-#     S_test = ComplexF64[
-#         -3  13 -5  -1;
-#          3  5  -13  1;
-#         -1 -1   1   1]
-
-#     @test isapprox(S, S_test, atol=1e-13)
-# end
+# Test other functions in TransferMatrix.jl
 
 @testset "abs_ratio" begin
     S = ComplexF64[
@@ -137,15 +60,50 @@ end
     @test r4 == [4, 3]
 end
 
-@testset "find_layerbounds" begin
-    l1 = TransferMatrix.Layer(RefractiveMaterial("main", "Au", "Rakic-LD"), 1)
-    l2 = TransferMatrix.Layer(RefractiveMaterial("main", "SiO2", "Malitson"), 2)
-    l3 = TransferMatrix.Layer(RefractiveMaterial("main", "Au", "Rakic-LD"), 3)
 
-    layers = [l1, l2, l3]
+# @testset "poynting" begin
 
-    interface_positions, total_thickness = TransferMatrix.find_layerbounds(layers)
+#     M = Array{ComplexF64}(undef, 6, 6)
+#     ε = Diagonal([1, 1, 1])
+#     μ = Diagonal([1, 1, 1])
+#     M[1:3, 1:3] = ε
+#     M[4:6, 4:6] = μ
+    
+#     a = TransferMatrix.construct_a(0., M)
+#     Δ = TransferMatrix.construct_Δ(0., M, a)
+#     q, Ψ = eigen(Δ)
 
-    @test interface_positions == [1.0, 3.0, 6.0]
-    @test total_thickness == 6.0
-end
+#     # This just makes the elements of Ψ all 1 or -1
+#     # for convenience when calculating by hand.
+#     Ψ ./= √2 / 2 
+
+#     # Ψ now looks like the following:
+#     # Ψ = [1  0  1  0;
+#     #     -1  0  1  0;
+#     #      0  1  0  1;
+#     #      0 -1  0  1]
+
+#     # The relevant indices of the matrix, a, above are zero,
+#     # so we give them arbitrary values here to check that
+#     # all elements of the Poynting vector are calculated:
+    
+#     a[3,1] = 1
+#     a[3,2] = 2
+#     a[3,4] = 3
+#     a[3,5] = 4
+    
+#     a[6,1] = 5
+#     a[6,2] = 6
+#     a[6,4] = 7
+#     a[6,5] = 8
+              
+#     S = TransferMatrix.poynting(Ψ, a)
+
+#     # Calculated by hand with the above a and Ψ following Passler et al. 2017.
+#     S_test = ComplexF64[
+#         -3  13 -5  -1;
+#          3  5  -13  1;
+#         -1 -1   1   1]
+
+#     @test isapprox(S, S_test, atol=1e-13)
+# end
