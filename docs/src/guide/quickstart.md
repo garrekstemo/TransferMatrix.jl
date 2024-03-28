@@ -33,21 +33,29 @@ Pkg.add("CairoMakie")
 using TransferMatrix
 using CairoMakie
 
-λs = collect(range(0.4, 1.0, length = 1000)) .* 1e-6
-n_tio2 = fill(2.13, length(λs))
-n_sio2 = fill(1.46, length(λs))
+n_air = RefractiveMaterial("other", "air", "Ciddor")
+n_tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
+n_sio2 = RefractiveMaterial("main", "SiO2", "Rodriguez-de_Marcos")
 
-air = Layer("Air", 0.5e-6, λs, fill(1.0, length(λs)), zeros(length(λs)))
-tio2 = Layer("TiO2", 0.074e-6, λs, n_tio2, zeros(length(λs)))
-sio2 = Layer("SiO2", 0.108e-6, λs, n_sio2, zeros(length(λs)))
+λ_0 = 0.63  # μm
+t_tio2 = λ_0 / (4 * n_tio2(λ_0))
+t_sio2 = λ_0 / (4 * n_sio2(λ_0))
 
-layers = [air, tio2, sio2, tio2, sio2, tio2, sio2]
+air = Layer(n_air, 0.1)
+tio2 = Layer(n_tio2, t_tio2)
+sio2 = Layer(n_sio2, t_sio2)
 
-s = Structure(layers, λs, [0.0])
-Tp, Ts, Rp, Rs = calculate_tr(s)
+layers = [air, tio2, sio2, tio2, sio2, tio2, sio2];
 
-fig, ax, l = lines(λs .* 1e9, Rp, label = "3 periods")
+λs = 0.4:0.002:1.0
+Rpp = Float64[]
+for λ in λs
+    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+    push!(Rpp, Rpp_)
+end
 
+
+fig, ax, l = lines(λs .* 1e3, Rpp)
 ax.xlabel = "Wavelength (nm)"
 ax.ylabel = "Reflectance"
 
@@ -63,11 +71,15 @@ not creating a new structure.
 nperiods = 6
 
 for i in 1:nperiods
-    push!(s.layers, tio2)
-    push!(s.layers, sio2)
+    push!(layers, tio2)
+    push!(layers, sio2)
+    Rpp = Float64[]
     if i%3 == 0
-        Tp, Ts, Rp, Rs = calculate_tr(s)
-        lines!(ax, λs .* 1e9, Rp, label = "$(i + 3) periods")
+        for λ in λs
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+            push!(Rpp, Rpp_)
+        end
+        lines!(ax, λs .* 1e3, Rpp, label = "$(i + 3) periods")
     end
 end
 
