@@ -15,9 +15,7 @@ export Layer,
        dbr_reflectivity
 
 
-include("types.jl")
 include("layer.jl")
-include("matrix_constructors.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
 

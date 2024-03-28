@@ -1,3 +1,35 @@
+struct Poynting
+    out_p::SVector{3, Float64}
+    in_p::SVector{3, Float64}
+    out_s::SVector{3, Float64}
+    in_s::SVector{3, Float64}
+    refl_p::SVector{3, Float64}
+    refl_s::SVector{3, Float64}
+
+    function Poynting(out_p::T, in_p::T, out_s::T, in_s::T, refl_p::T, refl_s::T) where {T<:SVector{3, Float64}}
+        new(out_p, in_p, out_s, in_s, refl_p, refl_s)
+    end
+end
+
+
+struct ElectricField
+    z::Array{Float64}
+    p::Matrix{ComplexF64}
+    s::Matrix{ComplexF64}
+    boundaries::Array{Float64}
+end
+
+
+# struct AngleResolvedResult
+#     Rpp::Matrix{Float64}
+#     Rss::Matrix{Float64}
+#     Tpp::Matrix{Float64}
+#     Tss::Matrix{Float64}
+#     Γ::Vector{Matrix{ComplexF64}}
+#     ξ::Matrix{ComplexF64}
+# end
+
+
 """
     poynting(Ψ, a)
 
@@ -225,7 +257,7 @@ function propagate(λ, layers, θ=0.0, μ=1.0+0.0im)
 end
 
 """
-    calculate_tr(Γ::Matrix)
+    calculate_tr(Γ)
 
 Calculate reflectance and transmittance for the total structure.
 This takes the matrix Γ*, but for brevity we call it Γ in this function.
@@ -235,7 +267,7 @@ This follows the formalism in:
 Yeh, Electromagnetic propagation in birefringent layered media, 1979,
 DOI: 10.1364/JOSA.69.000742
 """
-function calculate_tr(Γ::AbstractArray)
+function calculate_tr(Γ)
 
     d = Γ[1,1] * Γ[3,3] - Γ[1,3] * Γ[3,1]
 
@@ -305,7 +337,7 @@ function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
 end
 
 """
-    electric_field(layers, λ, θ; numpoints)
+    electric_field(layers, λ, θ; dz)
 
 Calculate the electric field profile for the entire structure
 as a function of z for a given incidence angle θ.
