@@ -210,12 +210,12 @@ used to evaluate if a material is birefringent.
 abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
 
 """
-    propagate(λ, layers, θ=0.0, μ=1.0+0.0im)
+    propagate(λ, layers, θ, μ)
 
 Calculate the transfer matrix for the entire structure,
 as well as the Poynting vector for the structure.
 """
-function propagate(λ, layers, θ=0.0, μ=1.0+0.0im)
+function propagate(λ, layers, θ, μ)
 
     first_layer = layers[1]
     last_layer = layers[end]
@@ -330,7 +330,7 @@ function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
     
     Γ, S, Ds, Ps, γs = propagate(λ, layers, θ, μ)
     r, R, t, T = calculate_tr(Γ)
-    Tpp, Tss, Rpp, Rss = calculate_tr(S)
+    Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
     Rpp = R[1]
     Rss = R[2]
     return Tpp, Tss, Rpp, Rss
