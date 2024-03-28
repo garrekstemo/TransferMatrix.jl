@@ -19,6 +19,7 @@
     @test isnan(d) == true
 end
 
+
 @testset "evaluate_birefringence" begin
     Ψ1 = ComplexF64[
         1 2 1 2;
