@@ -1,5 +1,5 @@
 [deps]
-DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 RefractiveIndex = "97a43521-7681-4ec2-835f-5b8ab7e7617e"

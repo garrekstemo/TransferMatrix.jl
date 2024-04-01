@@ -6,6 +6,7 @@ using RefractiveIndex
 using StaticArrays
 
 export Layer,
+       angle_resolved,
        calculate_tr,
        dielectric_constant,
        dielectric_tensor,

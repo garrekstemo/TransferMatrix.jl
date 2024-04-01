@@ -16,9 +16,12 @@ struct Layer
     end
 end
 
-
 function Layer(material::RefractiveMaterial, thickness::Real)
     return Layer(refractive_index(material), thickness)
+end
+
+function Layer(λs::AbstractVector, disperion::AbstractVector, extinction::AbstractVector, thickness::Real)
+    return Layer(refractive_index(λs, disperion, extinction), thickness)
 end
 
 """
@@ -73,25 +76,28 @@ end
 
 Retrieve the refractive index for a material at a given wavelength.
 """
-function get_refractive_index(layer::Layer, λ)
-    n_real = dispersion(layer.material, λ)
-    n_imag = 0.0
+# function get_refractive_index(layer::Layer, λ)
+#     n_real = dispersion(layer.material, λ)
+#     n_imag = 0.0
     
-    try
-        n_imag = extinction(layer.material, λ)
-    catch e
-        if isa(e, ArgumentError)
-            # Handle the specific case of ArgumentError, which indicates missing extinction data
-            n_imag = 0.0
-        else
-            # Re-throw the error if it's not an ArgumentError
-            rethrow(e)
-        end
-    end
+#     try
+#         n_imag = extinction(layer.material, λ)
+#     catch e
+#         if isa(e, ArgumentError)
+#             # Handle the specific case of ArgumentError, which indicates missing extinction data
+#             n_imag = 0.0
+#         else
+#             # Re-throw the error if it's not an ArgumentError
+#             rethrow(e)
+#         end
+#     end
     
-    return n_real + n_imag * im
-end
+#     return n_real + n_imag * im
+# end
 
+function get_refractive_index(layer::Layer, λ)
+    return layer.disperion(λ)
+end
 
 """
     dielectric_constant(n_re::Real, n_im::Real)

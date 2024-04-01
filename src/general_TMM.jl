@@ -11,7 +11,6 @@ struct Poynting
     end
 end
 
-
 struct ElectricField
     z::Array{Float64}
     p::Matrix{ComplexF64}
@@ -19,15 +18,12 @@ struct ElectricField
     boundaries::Array{Float64}
 end
 
-
-# struct AngleResolvedResult
-#     Rpp::Matrix{Float64}
-#     Rss::Matrix{Float64}
-#     Tpp::Matrix{Float64}
-#     Tss::Matrix{Float64}
-#     Γ::Vector{Matrix{ComplexF64}}
-#     ξ::Matrix{ComplexF64}
-# end
+struct AngleResolvedResult
+    Rpp::Matrix{Float64}
+    Rss::Matrix{Float64}
+    Tpp::Matrix{Float64}
+    Tss::Matrix{Float64}
+end
 
 
 """
@@ -220,7 +216,7 @@ function propagate(λ, layers, θ, μ)
     first_layer = layers[1]
     last_layer = layers[end]
 
-    n_in = get_refractive_index(first_layer.material, λ)
+    n_in = get_refractive_index(first_layer, λ)
     ε_0in = dielectric_constant(n_in)
     ξ = √(ε_0in) * sin(θ)
 
@@ -231,10 +227,11 @@ function propagate(λ, layers, θ, μ)
    
     D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
     D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
+
     
     Γ = I
     Ds = [D_0]
-    Ps = [P_0]
+    Ps = Function[P_0]
     γs = [γ_0]
     for layer in layers[2:end - 1]
         D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
@@ -334,6 +331,24 @@ function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
     Rpp = R[1]
     Rss = R[2]
     return Tpp, Tss, Rpp, Rss
+end
+
+function angle_resolved(λs, θs, layers)
+    Tpp = Matrix{Float64}(undef, length(θs), length(λs))
+    Tss = Matrix{Float64}(undef, length(θs), length(λs))
+    Rpp = Matrix{Float64}(undef, length(θs), length(λs))
+    Rss = Matrix{Float64}(undef, length(θs), length(λs))
+    
+    Threads.@threads for (i, θ) in collect(enumerate(θs))
+        for (j, λ) in collect(enumerate(λs))
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers, deg2rad(θ))
+            Tpp[i, j] = Tpp_
+            Tss[i, j] = Tss_
+            Rpp[i, j] = Rpp_
+            Rss[i, j] = Rss_
+        end
+    end
+    return AngleResolvedResult(Rpp, Rss, Tpp, Tss)
 end
 
 """

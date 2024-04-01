@@ -36,7 +36,7 @@ the overall transfer matrix can be calculated.
 function layer_matrices(layer, λ, ξ, μ_i)
 
     ω = 2π * c_0 / λ
-    n_i = get_refractive_index(layer.material, λ)
+    n_i = get_refractive_index(layer, λ)
     ε_i = dielectric_constant(n_i)
     ε = dielectric_tensor(ε_i, ε_i, ε_i)
     μ = permeability_tensor(μ_i, μ_i, μ_i)
