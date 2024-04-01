@@ -17,8 +17,7 @@ struct Layer
 end
 
 Layer(material::RefractiveMaterial, thickness::Real) = Layer(refractive_index(material), thickness)
-Layer(λs::Vector{Float64}, dispersion::Vector{Real}, extinction::Vector{Real}, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
-Layer(dispersion::Function, thickness::Real) = Layer(dispersion, thickness)
+Layer(λs::AbstractVector, dispersion::AbstractVector, extinction::AbstractVector, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
 
 """
     refractive_index()
@@ -38,7 +37,7 @@ function refractive_index(material::RefractiveMaterial)
         end
     end
 end
-function refractive_index(λs, ns, ks)
+function refractive_index(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector)
     n_real = LinearInterpolation(ns, λs)
     n_imag = LinearInterpolation(ks, λs)
     return λ -> begin
@@ -66,34 +65,6 @@ function find_bounds(layers)
     return interface_positions, total_thickness
 end
 
-
-"""
-    get_refractive_index(material, λ)
-
-Retrieve the refractive index for a material at a given wavelength.
-"""
-# function get_refractive_index(layer::Layer, λ)
-#     n_real = dispersion(layer.material, λ)
-#     n_imag = 0.0
-    
-#     try
-#         n_imag = extinction(layer.material, λ)
-#     catch e
-#         if isa(e, ArgumentError)
-#             # Handle the specific case of ArgumentError, which indicates missing extinction data
-#             n_imag = 0.0
-#         else
-#             # Re-throw the error if it's not an ArgumentError
-#             rethrow(e)
-#         end
-#     end
-    
-#     return n_real + n_imag * im
-# end
-
-function get_refractive_index(layer::Layer, λ)
-    return layer.dispersion(λ)
-end
 
 """
     dielectric_constant(n_re::Real, n_im::Real)

@@ -19,9 +19,9 @@ n_tio2 = RefractiveMaterial("main", "TiO2", "Kischkat")
 n_sio2 = RefractiveMaterial("main", "SiO2", "Kischkat")
 
 λ_0 = 5.0
-λs = range(4.8, 5.2, length = 300)
+λs = range(4.8, 5.2, length = 50)
 νs = 10^4 ./ λs
-θs = range(0, 30, length = 50)
+θs = range(0, 30, length = 10)
 
 # absorbing material
 n_bg = 1.4
