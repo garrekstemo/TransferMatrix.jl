@@ -380,7 +380,7 @@ function electric_field(λ, layers, θ=0.0; dz=0.001)
         end
     end
 
-    interface_positions, total_thickness = find_layerbounds(layers)
+    interface_positions, total_thickness = find_bounds(layers)
     interface_positions .-= first_layer.thickness
 
     zs = range(-first_layer.thickness, interface_positions[end], step=dz)

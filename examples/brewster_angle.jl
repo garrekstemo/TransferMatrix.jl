@@ -5,7 +5,6 @@ using GLMakie
  
 n_air = RefractiveMaterial("other", "air", "Ciddor")
 n_glass = RefractiveMaterial("glass", "BK7", "SCHOTT")[1]
-n_glass(1.0)
 air = Layer(n_air, 0.1)
 glass = Layer(n_glass, 0.1)
 layers = [air, glass]

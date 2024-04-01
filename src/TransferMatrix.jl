@@ -1,5 +1,6 @@
 module TransferMatrix
 
+using DataInterpolations
 using LinearAlgebra
 using RefractiveIndex
 using StaticArrays
@@ -12,9 +13,10 @@ export Layer,
        find_layerbounds,
        fresnel,
        stopband,
-       dbr_reflectivity
+       dbr_reflectivity,
+       refractive_index
 
-
+include("matrix_constructors.jl")
 include("layer.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")

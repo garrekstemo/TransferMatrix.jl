@@ -14,22 +14,17 @@ pkg> add TransferMatrix
 
 To get you up and running, let's build a simple two-layer structure of air and glass
 and calculate the reflectance and transmittance to visualize the [Brewster angle](https://en.wikipedia.org/wiki/Brewster%27s_angle) for p-polarized light.
-We fix the wavelength of incident light and vary the angle of incidence when setting up
-our `Structure`.
-(It is just as simple to fix the incidence angle and calculate the transfer matrix as a function of the field wavelength.)
+We fix the wavelength of incident light and vary the angle of incidence.
 
 We start by making a `Layer` type of air and a `Layer` of glass. We'll do this for 
 a wavelength of 1 μm. Since there are only two layers and the transfer matrix method
 treats the first and last layers as semi-infinite, there is no need to provide a thickness
 for our glass and air layers. From the examples below, you can see that there are fields for
 
-- the material name
+- the material
 - the layer thickness
-- a list of wavelengths
-- the real part of the refractive index (corresponding to the wavelength)
-- the imaginary part of the refractive index
 
-Details about different ways to make a layer are further on in the tutorial.
+The material is a `RefractiveMaterial` from the RefractiveIndex.jl package.
 
 ```@setup tutorial
 using Pkg
@@ -41,48 +36,46 @@ Pkg.add("CairoMakie")
 ```@example tutorial
 using TransferMatrix
 
-air = Layer("Air", 0.0, [1.0e-6], [1.0], [0.0])
-glass = Layer("Glass", 0.0, [1.0e-6], [1.5], [0.0])
+n_air = RefractiveMaterial("other", "air", "Ciddor")
+n_glass = RefractiveMaterial("glass", "BK7", "SCHOTT")[1]
+air = Layer(n_air, 0.1)
+glass = Layer(n_glass, 0.1)
+layers = [air, glass]
 ```
-### Assembling layers into a structure
 
-Now that we have our glass and air layers, we need to assemble them into a structure
-and provide the angles of the field with respect to the surface of the structure. We
-do this with the `Structure` type.
+Now that we have our glass and air layers, we can iterate over the angles of incidence and compute the reflectance and transmittance for light of wavelength 1 μm.
 
 ```@example tutorial
-θs = range(0.0, 85.0, length = 500)
-s = Structure([air, glass], [1e-6], collect(θs) .* π/180)
+λ = 1.0
+θs = 0.0:1:85.0
+
+Tpp = Float64[]
+Tss = Float64[]
+Rpp = Float64[]
+Rss = Float64[]
+for θ in θs
+    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers, deg2rad(θ))
+    push!(Tpp, Tpp_)
+    push!(Tss, Tss_)
+    push!(Rpp, Rpp_)
+    push!(Rss, Rss_)
+end
 ```
 
-The first argument is just a list of layers. The second argument is a list
-of desired wavelengths. Often the refractive index data we have for 
-two materials are not given for exactly the same wavelengths. 
-TransferMatrix.jl uses an interpolation function to normalize
-the wavelengths and complex refractive indices for all layers from 
-this user-provided list of wavelengths. (Be careful if the range you
-provide goes beyond the range of the data that you have!)
-Now we can evaluate the angle-resolved spectrum using the function
-`angle_resolved()`.
-
-```@example tutorial
-res = angle_resolved(s)
-```
-Let's also plot the result using the [Makie.jl](https://makie.juliaplots.org/) data visualization package.
+Let's now plot the result using the [Makie.jl](https://makie.juliaplots.org/) data visualization package.
 
 ```@example tutorial
 using CairoMakie
 
-brewster = atan(1.5) * 180 / π
+brewster = atan(n_glass(λ)) * 180 / π
 
 fig = Figure()
 ax = Axis(fig[1, 1], xlabel = "Incidence Angle (°)", ylabel = "Reflectance / Transmittance")
-
-lines!(θs, res.Tss[:, 1], color = :firebrick4, label = "Ts")
-lines!(θs, res.Tpp[:, 1], color = :orangered3, label = "Tp")
-lines!(θs, res.Rss[:, 1], color = :dodgerblue4, label = "Rs")
-lines!(θs, res.Rpp[:, 1], color = :dodgerblue1, label = "Rp")
-vlines!(brewster, color = :dodgerblue1, linestyle = :dash)
+lines!(θs, Tss, label = "Ts", color = :firebrick3)
+lines!(θs, Tpp, label = "Tp", color = :orangered3)
+lines!(θs, Rss, label = "Rs", color = :dodgerblue4)
+lines!(θs, Rpp, label = "Rp", color = :dodgerblue1)
+vlines!(ax, brewster, color = :black, linestyle = :dash)
 text!("Brewster angle\n(Rp = 0)", position = (35, 0.6))
 
 axislegend(ax)
@@ -95,51 +88,6 @@ Simultaneous calculation of s- and p-polarized incident waves is a feature of th
 general 4x4 transfer matrix method being used. The `angle_resolved` function
 will also loop through all wavelengths so that you can plot
 a color plot of wavelength and angle versus transmittance (or reflectance).
-
-## Defining a Layer
-
-The `Layer` type is immutable. Once you make one, you can't change any of its 
-characteristics later. There are two ways to define a `Layer`. The first is by 
-directly filling in the argument fields:
-
-```julia
-Layer(material, thickness, λs, ns, κs)
-```
-
-You may choose any units you like for thickness and wavelength, 
-but they must be the same (e.g. both are in nanometers).
-The material is just a `String`. Wavelength, and the 
-refractive index arguments must be Arrays, even if they just contain 
-with a single item. A very manual way to make a `Layer` might look like this:
-
-```julia
-glass = Layer("Glass", 20.0e-6, [1.0e-6, 1.1e-6, 1.3e-6], [0.0, 0.0, 0.0])
-```
-
-This way works well for simple `Layers` or when you just need a single frequency
-for an angle-resolved calculation, but this is a lot more work if the refractive index 
-is pulled from a database or a file. The website [refractiveindex.info](https://refractiveindex.info) contains a large database of refractive indices from peer-reviewed papers.
-TransferMatrix.jl uses [RefractiveIndex.jl](https://github.com/stillyslalom/RefractiveIndex.jl/tree/master) (a Julia interface to refractiveindex.info) to load refractive index data and return a `Layer` type.
-Note that refractiveindex.info stores the wavelength in units of micrometers.
-
-In the following example we load gold and assign it a thickness of 20 nm.
-The optional `wavelength_unit` keyword argument represents the desired unit conversion.
-In this case, if we want everything to be in meters we
-must multiply each wavelength by a factor ``1e-6``.
-Alternatively, we can change the thickness units to micrometers.
-Whatever you do, as long as the units are consistent, the transfer matrix calculation
-will perform correctly.
-The `Layer` properties can be independently queried. To get the material name or thickness, 
-for example, you can just type:
-
-```@repl
-audata = RefractiveMaterial("main", "Au", "Rakic-LD")
-au = load_refractive_data(audata, 10e-3)
-au.material
-au.thickness
-```
-
-The same can be done to get wavelengths (`au.λ`) (get λ by typing `\lambda`), real refractive index (`au.n`), and complex refractive index (`au.κ`) (get κ by typing `\kappa`).
 
 
 ## A simple multi-layered structure
@@ -225,7 +173,7 @@ n_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) + ε1) / 2)
 k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)
 ```
 Now we can define the layers of the system.
-For the DBR mirrors, we set the number of periods of alternating materials to 6 for high reflectivity in the region of interest. 
+For the DBR mirrors, we set the number of periods of alternating materials to 6 for high reflectivity in the region of interest.
 The thickness of the two outer layers (air) is arbitrary and does not affect the result.
 
 ```@example tutorial
