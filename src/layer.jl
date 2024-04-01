@@ -26,15 +26,17 @@ Return a function that takes a wavelength and gives the real and imaginary parts
 """
 function refractive_index(material::RefractiveMaterial)
     return λ -> begin
+        n_imag = 0.0im  # Define n_imag before the try block
         try
-            return dispersion(material, λ) + im * extinction(material, λ)
+            n_imag = im * extinction(material, λ)
         catch e
             if isa(e, ArgumentError)
-                return 1.0 + im * 0.0
+                n_imag = 0.0im
             else
                 rethrow(e)
             end
         end
+        return dispersion(material, λ) + n_imag
     end
 end
 function refractive_index(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector)

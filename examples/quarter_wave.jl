@@ -17,10 +17,7 @@ t_sio2 = λ_0 / (4 * n_sio2(λ_0))
 air = Layer(n_air, 0.1)
 tio2 = Layer(n_tio2, t_tio2)
 sio2 = Layer(n_sio2, t_sio2)
-
 layers = [air, tio2, sio2, tio2, sio2, tio2, sio2];
-n_in = TransferMatrix.get_refractive_index(tio2.material, 0.9)
-ε_0in = TransferMatrix.dielectric_constant(n_in)
 
 λs = 0.4:0.002:1.0
 Rpp = Float64[]

@@ -29,12 +29,14 @@ The material is a `RefractiveMaterial` from the RefractiveIndex.jl package.
 ```@setup tutorial
 using Pkg
 Pkg.add("Peaks")
+Pkg.add("RefractiveIndex")
 Pkg.add("TransferMatrix")
 Pkg.add("CairoMakie")
 ```
 
 ```@example tutorial
 using TransferMatrix
+using RefractiveIndex
 
 n_air = RefractiveMaterial("other", "air", "Ciddor")
 n_glass = RefractiveMaterial("glass", "BK7", "SCHOTT")[1]
@@ -101,15 +103,28 @@ We will scan in the mid infrared between 4 and 6 μm and use data generated
 via the [Lorentz-Drude model](https://en.wikipedia.org/wiki/Lorentz_oscillator_model) for each 10 nm-thick gold mirror. (Note that we stay in units of micrometers for the wavelength.)
 
 ```@example tutorial
+caf2 = RefractiveMaterial("main", "CaF2", "Malitson")
+au = RefractiveMaterial("main", "Au", "Rakic-LD")
+air = RefractiveMaterial("other", "air", "Ciddor")
 
-λs = range(4.0, 6.0, length = 1000)
-frequencies = 10^4 ./ λs  # in cm⁻¹
-air = Layer("Air", 10, collect(λs), fill(1.0, length(λs)), zeros(length(λs)))
-audata = RefractiveMaterial("main", "Au", "Rakic-LD")
-au = load_refractive_data(audata, 10e-3)
+λ_0 = 5.0
+t_middle = λ_0 / 2
+layers = [Layer(air, 8.0), Layer(au, 0.01), Layer(air, t_middle), Layer(au, 0.01),  Layer(air, 8.0)];
 
-s = Structure([air, au, air, au, air], collect(λs), [0.0])
-Tp, Ts, Rp, Rs = calculate_tr(s)
+λs = range(2.0, 6.0, length = 500)
+νs = 10^4 ./ λs
+
+Tpp = Float64[]
+Tss = Float64[]
+Rpp = Float64[]
+Rss = Float64[]
+for λ in λs
+    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+    push!(Tpp, Tpp_)
+    push!(Tss, Tss_)
+    push!(Rpp, Rpp_)
+    push!(Rss, Rss_)
+end
 
 fig, ax, l = lines(frequencies, Ts)
 ax.xlabel = "Frequency (cm⁻¹)"
@@ -142,18 +157,14 @@ The refractive indices for these materials are arbitrary and, for this example, 
 We will make the optical path length of the cavity region slightly greater than one wavelength to get a negative detuning between the cavity resonance and the absorbing material resonance at normal incidence (i.e. ``\Delta = |\omega_c - \omega_m| < 0``). (Here we're working in SI units.)
 
 ```@example tutorial
-λ_center = 5e-6
-λs = collect(range(4.8, 5.2, length = 300)) .* 1e-6
-θs = collect(range(0, 30, length = 100))  # degrees
-νs = 10^-2 ./ λs
-n1 = 2.1  
-n2 = 1.6
-n_bg = 1.4  # Background refractive index
+n_air = RefractiveMaterial("other", "air", "Ciddor")
+n_tio2 = RefractiveMaterial("main", "TiO2", "Kischkat")
+n_sio2 = RefractiveMaterial("main", "SiO2", "Kischkat")
 
-# Layer thicknesses
-t1 = λ_center / (4 * n1[1])
-t2 = λ_center / (4 * n2[1])
-t_cav = 1 * λ_center  / n_bg + 0.1e-6  # Slightly offset the cavity length to get negative detuning
+λ_0 = 5.0
+λs = range(4.8, 5.2, length = 50)
+νs = 10^4 ./ λs
+θs = range(0, 30, length = 10)
 ```
 
 Now we can define the absorbing material.
@@ -163,8 +174,10 @@ The real and imaginary parts of the dielectric function are used to calculate th
 Since the dielectric function is unitless, we can perform these calculations in reciprocal centimeters without affecting the transfer matrix calculation, which will be done in units of micrometers.
 
 ```@example tutorial
-A_0 = 5000.0
-ω_0 = 10^-2 / λ_center
+# absorbing material
+n_bg = 1.4
+A_0 = 2000.0
+ω_0 = 10^4 / λ_0
 Γ_0 = 5
 p0 = [A_0, ω_0, Γ_0]
 ε1 = dielectric_real(νs, p0) .+ n_bg^2
@@ -177,13 +190,20 @@ For the DBR mirrors, we set the number of periods of alternating materials to 6 
 The thickness of the two outer layers (air) is arbitrary and does not affect the result.
 
 ```@example tutorial
-air = Layer("Air", 0.5e-6, λs, fill(1.0, length(λs)), zeros(length(λs)))
-material1 = Layer("Material 1", t1, λs, fill(n1, length(λs)), zeros(length(λs)))
-material2 = Layer("Material 2", t2, λs, fill(n2, length(λs)), zeros(length(λs)))
-lorentzian = Layer("Lorentz oscillator", t_cav, λs, n_medium, k_medium)
+# dbr layers
+t_tio2 = λ_0 / (4 * n_tio2(λ_0))
+t_sio2 = λ_0 / (4 * n_sio2(λ_0))
+t_cav = 1 * λ_0  / n_bg + 0.1  # Slightly offset the cavity length to get negative detuning
+
+air = Layer(n_air, 2.0);
+tio2 = Layer(n_tio2, t_tio2);
+sio2 = Layer(n_sio2, t_sio2);
+absorber = Layer(λs, n_medium, k_medium, t_cav);
+
 nperiods = 6
-unit = [material1, material2]
-layers = [air, repeat(unit, nperiods)..., lorentzian, repeat(reverse(unit), nperiods)..., air]
+unit = [tio2, sio2]
+layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air];
+
 ```
 After we calculate the angle-dependent transmittance and reflectance, there will be a normal mode splitting as a resulting of the coupling between the cavity mode and the absorbing material resonance.
 We want to find the angle at which the amplitudes of the two modes are equal, so define the function below using the `Peaks.jl` package to do this.
@@ -207,15 +227,13 @@ Finally, we plot the refractive index profile of the structure as a function of 
 
 
 ```@example tutorial
-
-s = Structure(layers, λs, deg2rad.(θs))
-res = angle_resolved(s)
+res = angle_resolved(λs, deg2rad.(θs), layers)
 angle_idx, peaks = find_resonance(s, 1e-2)
 
 θ_plot = round(rad2deg(s.θ[angle_idx]), digits=1)
 T_plot = res.Tpp[angle_idx, :]
-field1 = electric_field(s, s.λ[peaks[1]])
-field2 = electric_field(s, s.λ[peaks[2]])
+field1 = electric_field(s, λs[peaks[1]])
+field2 = electric_field(s, λs[peaks[2]])
 
 fig = Figure()
 ax = Axis(fig[1, 1], title="Polariton dispersion", xlabel = "Incidence angle (°)", ylabel = "Frequency (cm⁻¹)")
@@ -228,7 +246,7 @@ fig
 fig = Figure()
 
 ax = Axis(fig[1, 1], title="Normal mode splitting (θ ≈ $θ_plot °)", xlabel = "Frequency  (cm⁻¹)", ylabel = "Transmittance")
-lines!(νs, 4π .* k_medium .* νs ./ 1e4, color = :firebrick3, linestyle = :dash, label = "Abs")
+lines!(νs, 4π .* k_medium .* νs, color = :firebrick3, linestyle = :dash, label = "Abs")
 lines!(νs, T_plot, label = "T")
 scatter!(νs[peaks], T_plot[peaks], color = :red, marker = 'x', markersize = 15)
 
@@ -260,15 +278,15 @@ end
 fig = Figure()
 
 ax1 = Axis(fig[1, 1], ylabel = "Photon field")
-lines!(field1.z .* 1e6, real(field1.p[1, :]), label = "LP")
-lines!(field2.z .* 1e6, real(field2.p[1, :]), label = "UP")
+lines!(field1.z .* 1e3, real(field1.p[1, :]), label = "LP")
+lines!(field2.z .* 1e3, real(field2.p[1, :]), label = "UP")
 hlines!(0, color = :black, linestyle = :dash, linewidth = 0.5)
 
 ax2 = Axis(fig[2, 1], xlabel = "Distance (μm)", ylabel = "Refractive index", xticks = LinearTicks(7), yticks = [n1, n2])
 
 # Draw DBR cavity structure
 refractive_indices = [layer.n[1] for layer in layers[2:end-1]]
-thicknesses = [layer.thickness for layer in layers[2:end-1]] .* 1e6
+thicknesses = [layer.thickness for layer in layers[2:end-1]] .* 1e3
 
 draw_index_profile(ax2, refractive_indices, thicknesses)
 
@@ -283,128 +301,3 @@ fig
 ```
 
 The electric field amplitude at both peaks is different because of the oblique incidence angle.
-
-Here is the code to reproduce this example in its entirety:
-
-```julia
-using TransferMatrix
-using Peaks
-using CairoMakie
-
-function dielectric_real(ω, p)
-    A, ω_0, Γ = p
-    return @. A * (ω_0^2 - ω^2) / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
-end
-function dielectric_imag(ω, p)
-    A, ω_0, Γ = p
-    return @. A * Γ * ω / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
-end
-
-function find_resonance(s, atol=1e-3)
-    for i in eachindex(s.θ)
-        pks, vals = findmaxima(res.Tpp[i, :])
-        if length(pks) == 2 && isapprox(vals[1], vals[2], atol=atol)
-            return i, pks
-        end
-    end
-end
-
-λ_center = 5e-6
-λs = collect(range(4.8, 5.2, length = 300)) .* 1e-6
-θs = collect(range(0, 30, length = 100))  # degrees
-νs = 10^-2 ./ λs
-n1 = 2.1  
-n2 = 1.6
-n_bg = 1.4  # Background refractive index
-
-# Layer thicknesses
-t1 = λ_center / (4 * n1[1])
-t2 = λ_center / (4 * n2[1])
-t_cav = 1 * λ_center  / n_bg + 0.1e-6  # Slightly offset the cavity length to get negative detuning
-
-# Define the dielectric function inside the cavity
-A_0 = 5000.0
-ω_0 = 10^-2 / λ_center
-Γ_0 = 5
-p0 = [A_0, ω_0, Γ_0]
-ε1 = dielectric_real(νs, p0) .+ n_bg^2
-ε2 = dielectric_imag(νs, p0)
-n_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) + ε1) / 2)
-k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)
-
-# Define the layers
-air = Layer("Air", 0.5e-6, λs, fill(1.0, length(λs)), zeros(length(λs)))
-material1 = Layer("Material 1", t1, λs, fill(n1, length(λs)), zeros(length(λs)))
-material2 = Layer("Material 2", t2, λs, fill(n2, length(λs)), zeros(length(λs)))
-lorentzian = Layer("Lorentz oscillator", t_cav, λs, n_medium, k_medium)
-nperiods = 6
-unit = [material1, material2]
-layers = [air, repeat(unit, nperiods)..., lorentzian, repeat(reverse(unit), nperiods)..., air]
-
-# Calculate the transmittance, reflectance
-s = Structure(layers, λs, deg2rad.(θs))
-res = angle_resolved(s)
-angle_idx, peaks = find_resonance(s, 1e-2)
-
-θ_plot = round(rad2deg(s.θ[angle_idx]), digits=1)
-T_plot = res.Tpp[angle_idx, :]
-field1 = electric_field(s, s.λ[peaks[1]])
-field2 = electric_field(s, s.λ[peaks[2]])
-
-
-fig = Figure(size = (400, 1000))
-
-ax1 = Axis(fig[1, 1], title="Polariton dispersion", xlabel = "Incidence angle (°)", ylabel = "Frequency (cm⁻¹)")
-heatmap!(θs, νs, res.Tpp, colormap = :deep)
-
-ax2 = Axis(fig[2, 1], title="Normal mode splitting (θ ≈ $θ_plot °)", xlabel = "Frequency  (cm⁻¹)", ylabel = "Transmittance")
-lines!(νs, 4π .* k_medium .* νs ./ 1e4, color = :firebrick3, linestyle = :dash, label = "Abs")
-lines!(νs, T_plot, label = "T")
-scatter!(νs[peaks], T_plot[peaks], color = :red, marker = 'x', markersize = 15)
-
-ax3 = Axis(fig[3, 1], ylabel = "Photon field")
-lines!(field1.z .* 1e6, real(field1.p[1, :]), label = "LP")
-lines!(field2.z .* 1e6, real(field2.p[1, :]), label = "UP")
-hlines!(0, color = :black, linestyle = :dash, linewidth = 0.5)
-
-ax4 = Axis(fig[4, 1], xlabel = "Distance (μm)", ylabel = "Refractive index", xticks = LinearTicks(7), yticks = [n1, n2])
-
-# Draw DBR cavity structure
-refractive_indices = [layer.n[1] for layer in layers[2:end-1]]
-thicknesses = [layer.thickness for layer in layers[2:end-1]] .* 1e6
-
-prev_x = 0
-prev_n = refractive_indices[1]
-for (i, n) in enumerate(refractive_indices)
-    current_x = sum(thicknesses[1:i])
-    lines!(ax4, [prev_x, current_x], [n, n], color = :black, linewidth = 0.5)  # Plot the horizontal line
-
-    if i > 1
-        lines!(ax4, [prev_x, prev_x], [prev_n, n], color = :black, linewidth = 0.5)  # Plot the vertical line
-    end
-    prev_x = current_x
-    prev_n = n
-end
-
-# Draw a rectangle in the cavity region
-middle_i = sum(thicknesses[1:length(thicknesses) ÷ 2])
-middle_f = sum(thicknesses[1:length(thicknesses) ÷ 2 + 1])
-poly!(ax4, Point2f[(middle_i, n_bg), (middle_f, n_bg), (middle_f, n1), (middle_i, n1)], color = (:deepskyblue2, 0.2))
-
-# Formatting
-ylims!(ax1, 1950, 2070)
-axislegend(ax2)
-axislegend(ax3)
-hidexdecorations!(ax3)
-hideydecorations!(ax3, label = false, ticks = false, ticklabels = false)
-hidexdecorations!(ax4, label = false, ticks = false, ticklabels = false)
-hideydecorations!(ax4, label = false)
-rowgap!(fig.layout, 3, 0)
-
-fig
-```
-
-### Minor implementation details
-
-Behind the scenes of the electric field calculation, a new `Structure` is actually being created and initialized for the user-supplied wavelength. The transfer matrix is again calculated for the provided wavelength and light incidence angle.
-Some solution of this sort is necessary because the *exact* wavelength that you may wish to calculate for may not be part of the original `Structure`.

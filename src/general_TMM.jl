@@ -227,7 +227,6 @@ function propagate(λ, layers, θ, μ)
    
     D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
     D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
-
     
     Γ = I
     Ds = [D_0]
@@ -316,7 +315,7 @@ function calculate_tr(S::Poynting)
 end
 
 """
-    calculate_tr(layers, θ=0.0)
+    calculate_tr(layers, θ, μ)
 
 Calculate the transmittance and reflectance spectrum
 of the structure at a single incidence angle θ.
@@ -334,14 +333,14 @@ function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
 end
 
 function angle_resolved(λs, θs, layers)
-    Tpp = Matrix{Float64}(undef, length(θs), length(λs))
-    Tss = Matrix{Float64}(undef, length(θs), length(λs))
-    Rpp = Matrix{Float64}(undef, length(θs), length(λs))
-    Rss = Matrix{Float64}(undef, length(θs), length(λs))
+    Tpp = Array{Float64}(undef, length(θs), length(λs))
+    Tss = Array{Float64}(undef, length(θs), length(λs))
+    Rpp = Array{Float64}(undef, length(θs), length(λs))
+    Rss = Array{Float64}(undef, length(θs), length(λs))
     
     Threads.@threads for (i, θ) in collect(enumerate(θs))
         for (j, λ) in collect(enumerate(λs))
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers, deg2rad(θ))
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers, θ)
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
             Rpp[i, j] = Rpp_
@@ -377,9 +376,9 @@ end
 Calculate the electric field profile for the entire structure
 as a function of z for a given incidence angle θ.
 """
-function electric_field(λ, layers, θ=0.0; dz=0.001)
+function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
 
-    Γ, S, Ds, Ps, γs = propagate(λ, layers, θ)
+    Γ, S, Ds, Ps, γs = propagate(λ, layers, θ, μ)
     r, R, t, T = calculate_tr(Γ)
     first_layer = layers[1]
     last_layer = layers[end]

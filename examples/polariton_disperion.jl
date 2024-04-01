@@ -49,7 +49,7 @@ nperiods = 6
 unit = [tio2, sio2]
 layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air];
 
-res = angle_resolved(λs, θs, layers)
+res = angle_resolved(λs, deg2rad.(θs), layers)
 
 fig = Figure()
 ax = Axis(fig[1, 1], title = "Polariton dispersion",
