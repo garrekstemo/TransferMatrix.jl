@@ -15,7 +15,8 @@ export Layer,
        fresnel,
        stopband,
        dbr_reflectivity,
-       refractive_index
+       refractive_index,
+       tune_thickness
 
 include("matrix_constructors.jl")
 include("layer.jl")

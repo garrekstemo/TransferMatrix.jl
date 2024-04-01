@@ -21,7 +21,7 @@ n_sio2 = RefractiveMaterial("main", "SiO2", "Kischkat")
 λ_0 = 5.0
 λs = range(4.8, 5.2, length = 300)
 νs = 10^4 ./ λs
-θs = range(0, 30, length = 50)
+thicknesses = 0.1:0.01:5
 
 # absorbing material
 n_bg = 1.4
@@ -49,11 +49,13 @@ nperiods = 6
 unit = [tio2, sio2]
 layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air];
 
-res = angle_resolved(λs, θs, layers)
+##
+res = tune_thickness(λs, thicknesses, layers, 14)
+
 
 fig = Figure()
 ax = Axis(fig[1, 1], title = "Polariton dispersion",
-    xlabel = "Incidence angle (°)",
+    xlabel = "Thickness (μm)",
     ylabel = "Frequency (cm⁻¹)")
-heatmap!(θs, νs, res.Rpp, colormap = :deep)
+heatmap!(thicknesses, νs, res.Tpp, colormap = :deep)
 fig

@@ -7,7 +7,7 @@ Construct a single layer with keywords:
 * `thickness`: thickness of the layer
 """
 struct Layer
-    disperion::Function
+    dispersion::Function
     thickness::Real
 
     function Layer(material, thickness)
@@ -16,13 +16,9 @@ struct Layer
     end
 end
 
-function Layer(material::RefractiveMaterial, thickness::Real)
-    return Layer(refractive_index(material), thickness)
-end
-
-function Layer(λs::AbstractVector, disperion::AbstractVector, extinction::AbstractVector, thickness::Real)
-    return Layer(refractive_index(λs, disperion, extinction), thickness)
-end
+Layer(material::RefractiveMaterial, thickness::Real) = Layer(refractive_index(material), thickness)
+Layer(λs::Vector{Float64}, dispersion::Vector{Real}, extinction::Vector{Real}, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
+Layer(dispersion::Function, thickness::Real) = Layer(dispersion, thickness)
 
 """
     refractive_index()
@@ -96,7 +92,7 @@ Retrieve the refractive index for a material at a given wavelength.
 # end
 
 function get_refractive_index(layer::Layer, λ)
-    return layer.disperion(λ)
+    return layer.dispersion(λ)
 end
 
 """
