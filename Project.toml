@@ -1,7 +1,7 @@
 name = "TransferMatrix"
 uuid = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
 authors = ["Garrek Stemo <8449000+garrekstemo@users.noreply.github.com>"]
-version = "1.1.0"
+version = "2.0.0"
 
 [deps]
 DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
