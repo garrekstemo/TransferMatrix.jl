@@ -39,6 +39,7 @@ function refractive_index(material::RefractiveMaterial)
         return dispersion(material, λ) + n_imag
     end
 end
+
 function refractive_index(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector)
     n_real = LinearInterpolation(ns, λs)
     n_imag = LinearInterpolation(ks, λs)
