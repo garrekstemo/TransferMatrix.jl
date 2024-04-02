@@ -155,6 +155,7 @@ end
 # absorbing material
 λ_0 = 5.0
 λs = range(4.8, 5.2, length = 200)
+frequencies = 10^4 ./ λs
 n_bg = 1.4
 A_0 = 3000.0
 ω_0 = 10^4 / λ_0  # cm^-1
