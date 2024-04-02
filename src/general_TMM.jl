@@ -262,6 +262,9 @@ This follows the formalism in:
 
 Yeh, Electromagnetic propagation in birefringent layered media, 1979,
 DOI: 10.1364/JOSA.69.000742
+
+but the ordering is taken from Passler, et al., 2017
+DOI: 10.1364/JOSAB.34.002128
 """
 function calculate_tr(Γ)
 
