@@ -18,6 +18,15 @@ end
 
     @test TransferMatrix.refractive_index(air)(1.0) == 1.0002741661312147 + 0.0im
     @test TransferMatrix.refractive_index(au)(1.0) == 0.2557301597051597 + 5.986408108108109im
+    
+    λs = [1.0, 2.0, 3.0]
+    ns = [1.5, 2.0, 2.5]
+    ks = [0.5, 1.0, 1.5]
+    refractive_index_func = refractive_index(λs, ns, ks)
+
+    @test refractive_index_func(1.0) == 1.5 + 0.5im
+    @test refractive_index_func(2.0) == 2.0 + 1.0im
+    @test refractive_index_func(3.0) == 2.5 + 1.5im
 end
 
 
