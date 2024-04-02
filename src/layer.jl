@@ -48,7 +48,7 @@ function refractive_index(λs::AbstractVector, ns::AbstractVector, ks::AbstractV
 end
 
 """
-    find_layerbounds(layers)
+    find_bounds(layers)
 
 Find the unitful z coordinate for all layer-layer interfaces in the structure,
 with the first interface starting at z = 0.
