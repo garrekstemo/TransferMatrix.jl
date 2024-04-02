@@ -114,4 +114,4 @@ ax.ylabel = "Transmittance"
 fig
 ```
 
-More examples are available in the `examples` folder of the package source code.
+More examples are available in the examples folder of the package source code.
