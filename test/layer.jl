@@ -12,12 +12,12 @@
 end
 
 
-@testset "get_refractive_index" begin
+@testset "refractive_index" begin
     air = RefractiveMaterial("other", "air", "Ciddor")
     au = RefractiveMaterial("main", "Au", "Rakic-LD")
 
-    @test TransferMatrix.get_refractive_index(air, 1.0) == 1.0002741661312147 + 0.0im
-    @test TransferMatrix.get_refractive_index(au, 1.0) == 0.2557301597051597 + 5.986408108108109im
+    @test TransferMatrix.refractive_index(air)(1.0) == 1.0002741661312147 + 0.0im
+    @test TransferMatrix.refractive_index(au)(1.0) == 0.2557301597051597 + 5.986408108108109im
 end
 
 
