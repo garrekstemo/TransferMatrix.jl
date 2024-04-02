@@ -2,6 +2,7 @@ using Peaks
 using RefractiveIndex
 using TransferMatrix
 using GLMakie
+using CairoMakie
 
 function dielectric_real(ω, p)
     A, ω_0, Γ = p
@@ -100,7 +101,7 @@ text!(1960, 0.013, text="LP", color = :black, fontsize=18)
 text!(2020, 0.013, text="UP", color = :black, fontsize=18)
 
 fig
-# save("docs/src/assets/polariton_dispersion.png", fig)
+save("docs/src/assets/polariton_dispersion.svg", fig)
 
 ##
 
@@ -132,4 +133,4 @@ hideydecorations!(ax2, label = false, ticks = false, ticklabels = false)
 rowgap!(fig.layout, 1, 0)
 
 fig
-# save("docs/src/assets/polariton_field.png", fig)
+save("docs/src/assets/polariton_field.svg", fig)
