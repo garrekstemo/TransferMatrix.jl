@@ -6,9 +6,6 @@ Recent corrections and improvements are incorporated to deal with singularities 
 Sources are cited both in the documentation and docstrings where appropriate.
 A comprehensive [bibliography](https://garrek.org/TransferMatrix.jl/stable/bibliography/) is also available as part of the documentation.
 
-
-## Why make another transfer matrix program?
-
 There are a lot of transfer matrix programs out there. Many are
 proprietary and some are part of graduate theses. The problem
 with the proprietary ones are that the source code cannot be examined 
