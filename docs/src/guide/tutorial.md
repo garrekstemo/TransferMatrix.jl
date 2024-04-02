@@ -115,3 +115,44 @@ fig
 ```
 
 More examples are available in the examples folder of the package source code.
+
+
+## User-generated refractive index data
+
+A convenience function is available to generate a `Layer` with user-generated refractive index data.
+For example, if we want to make an absorbing layer modeled on a Lorentzian function, we might do so as follows:
+
+
+```julia
+function dielectric_real(ω, p)
+    A, ω_0, Γ = p
+    return @. A * (ω_0^2 - ω^2) / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
+end
+
+function dielectric_imag(ω, p)
+    A, ω_0, Γ = p
+    return @. A * Γ * ω / ((ω^2 - ω_0^2)^2 + (Γ * ω)^2)
+end
+
+# absorbing material
+n_bg = 1.4
+A_0 = 3000.0
+ω_0 = 10^4 / λ_0  # cm^-1
+Γ_0 = 5
+p0 = [A_0, ω_0, Γ_0]
+ε1 = dielectric_real(frequencies, p0) .+ n_bg^2
+ε2 = dielectric_imag(frequencies, p0)
+n_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) + ε1) / 2)
+k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)
+
+absorber = Layer(λs, n_medium, k_medium, t_cav)
+```
+
+## Thickness-dependence calculations
+
+Instead of angle-resolved, you might want to vary the thickness of a particular layer.
+A convenience function is provided to do this:
+
+```julia
+tune_thickness(λs, thicknesses, layers, 14)
+```

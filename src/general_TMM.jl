@@ -199,11 +199,13 @@ function evaluate_birefringence(Ψ, S, t_modes, r_modes)
     return t_modes, r_modes
 end
 
+
 """
 Ratio of the absolution squares of two components
 used to evaluate if a material is birefringent.
 """
 abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
+
 
 """
     propagate(λ, layers, θ, μ)
@@ -335,6 +337,16 @@ function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
     return Tpp, Tss, Rpp, Rss
 end
 
+"""
+    angle_resolved(λs, θs, layers)
+
+Calculate the transmission and reflection at different angles of incidence and wavelengths for a stack of layers.
+
+# Arguments
+- `λs`: Vector of wavelengths.
+- `θs`: Vector of angles of incidence in radians.
+- `layers`: Vector of `Layer` objects representing the stack.
+"""
 function angle_resolved(λs, θs, layers)
     Tpp = Array{Float64}(undef, length(θs), length(λs))
     Tss = Array{Float64}(undef, length(θs), length(λs))
@@ -353,7 +365,19 @@ function angle_resolved(λs, θs, layers)
     return AngleResolvedResult(Rpp, Rss, Tpp, Tss)
 end
 
-function tune_thickness(λs, ts, layers, t_index, θ=0.0)
+"""
+    tune_thickness(λs, ts, layers, t_index, θ=0.0)
+
+Tune the thickness of a specific layer in a stack and calculate the transmission and reflection.
+
+# Arguments
+- `λs`: Vector of wavelengths.
+- `ts`: Vector of thicknesses.
+- `layers`: Vector of `Layer` objects representing the stack.
+- `t_index`: Index of the layer in the stack to tune the thickness of.
+- `θ`: Angle of incidence in radians. Default is 0.0 (normal incidence).
+"""
+function tune_thickness(λs, ts, layers, t_index::Int, θ=0.0)
     Tpp = Matrix{Float64}(undef, length(ts), length(λs))
     Tss = Matrix{Float64}(undef, length(ts), length(λs))
     Rpp = Matrix{Float64}(undef, length(ts), length(λs))
