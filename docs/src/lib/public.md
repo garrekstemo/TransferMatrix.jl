@@ -14,23 +14,7 @@ Pages = ["public.md"]
 
 ```@autodocs
 Modules = [TransferMatrix]
-Pages = ["general_TMM.jl", "layers.jl"]
-Private = false
-```
-
-## Types
-
-```@autodocs
-Modules = [TransferMatrix]
-Pages = ["types.jl"]
-Private = false
-```
-
-## Data Read/Write Functions
-
-```@autodocs
-Modules = [TransferMatrix]
-Pages = ["dataio.jl"]
+Pages = ["general_TMM.jl", "layer.jl", "matrix_constructors.jl"]
 Private = false
 ```
 

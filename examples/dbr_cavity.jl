@@ -1,22 +1,25 @@
-# Quarter-wave stack example
+# DBR cavity example
 
 using Revise
 using RefractiveIndex
 using TransferMatrix
 using GLMakie
 
-air = RefractiveMaterial("other", "air", "Ciddor")
-tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
-sio2 = RefractiveMaterial("main", "SiO2", "Rodriguez-de_Marcos")
+n_air = RefractiveMaterial("other", "air", "Ciddor")
+n_tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
+n_sio2 = RefractiveMaterial("main", "SiO2", "Rodriguez-de_Marcos")
 
 λ_0 = 1.0   # μm
 nperiods = 6
-t_tio2 = λ_0 / (4 * tio2(λ_0))
-t_sio2 = λ_0 / (4 * sio2(λ_0))
-dbr_unit = [Layer(tio2, t_tio2), Layer(sio2,  t_sio2)];
-
+t_tio2 = λ_0 / (4 * n_tio2(λ_0))
+t_sio2 = λ_0 / (4 * n_sio2(λ_0))
 t_middle = λ_0 / 2
-layers = [Layer(air, 0.5), repeat(dbr_unit, nperiods)..., Layer(air, t_middle), repeat(reverse(dbr_unit), nperiods)..., Layer(air, 0.5)];
+
+air = Layer(n_air, t_middle)
+tio2 = Layer(n_tio2, t_tio2)
+sio2 = Layer(n_sio2, t_sio2)
+dbr_unit = [tio2, sio2]
+layers = [air, repeat(dbr_unit, nperiods)..., air, repeat(reverse(dbr_unit), nperiods)..., air];
 
 λs = 0.8:0.001:1.2
 νs = 10^4 ./ λs

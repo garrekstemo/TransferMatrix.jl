@@ -11,26 +11,10 @@ manually step by step or modify intermediate steps.
 Pages = ["internals.md"]
 ```
 
-## Transfer Matrix Functions
+## General Transfer Matrix Method
 
 ```@autodocs
 Modules = [TransferMatrix]
-Pages = ["general_TMM.jl", "layers.jl"]
-Public = false
-```
-
-## Types
-
-```@autodocs
-Modules = [TransferMatrix]
-Pages = ["types.jl"]
-Public = false
-```
-
-## Data Read/Write Functions
-
-```@autodocs
-Modules = [TransferMatrix]
-Pages = ["dataio.jl"]
+Pages = ["general_TMM.jl", "layer.jl", "matrix_constructors.jl"]
 Public = false
 ```

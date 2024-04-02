@@ -23,15 +23,11 @@ the transmittance and reflectance for s-polarized and p-polarized
 radiation.
 (We are using the powerful plotting library [Makie.jl](https://makie.juliaplots.org/) to produce the figures.)
 
-```@setup dbr
-using Pkg
-Pkg.add("TransferMatrix")
-Pkg.add("CairoMakie")
-```
 
 ```@example dbr
 using TransferMatrix
 using CairoMakie
+using RefractiveIndex
 
 n_air = RefractiveMaterial("other", "air", "Ciddor")
 n_tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
