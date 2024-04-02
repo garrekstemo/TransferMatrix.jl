@@ -68,7 +68,7 @@ Construct the elements of the intermediate 6x6 matrix ``a`` in terms of the
 elements of matrix ``M`` (the 6x6 matrix holding the material dielectric and permeability tensors)
 and propagation vector ξ. This is implemented as described in 
 
-Berreman, 1972. https://doi.org/10.1364/JOSA.62.000502
+Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
 """
 function construct_a(ξ, M)
     d = M[3,3] * M[6,6] - M[3,6] * M[6,3]
@@ -107,7 +107,7 @@ The matrix Δ is involved in the relation
 
 and Δ is the reordered S matrix in Berreman's formulation.
 
-Berreman, 1972. https://doi.org/10.1364/JOSA.62.000502
+Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
 """
 function construct_Δ(ξ, M, a)
 
@@ -148,7 +148,7 @@ The four eigenvalues of ``q`` may be obtained from the
 Here the eigenvalues must be sorted appropriately to avoid 
 potentially discontinuous solutions. This extends from the work in
 
-Li et al, 1988. https://doi.org/10.1364/AO.27.001334
+Li et al, 1988, https://doi.org/10.1364/AO.27.001334
 """
 function calculate_q(Δ, a)
 
@@ -199,11 +199,8 @@ to the electric field calculated such that singularities are identified and remo
 `q[1]` and `q[2]` are forward-traveling modes and
 `q[3]` and `q[4]` are backward-traveling modes.
 
-This is based on the work in:
-
-Xu et al. Optical degeneracies in anisotropic layered media:
-Treatment of singularities in a 4x4 matrix formalism, 2000.
-DOI: 10.1103/PhysRevB.61.1740
+This is based on the work in
+Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
 function calculate_γ(ξ, q, ε, μ)
 
@@ -258,8 +255,7 @@ the field in the previous layer ``i - 1`` via
     A_{i-1}E_{i-1} = A_{i}E_{i}
 ```
 
-Xu et al., 2000,
-DOI: 10.1103/PhysRevB.61.1740
+Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
 function dynamical_matrix(ξ, q, γ, μ)
     A_3 = (γ[:, 1] .* q .- ξ * γ[:, 3]) ./ μ

@@ -48,7 +48,7 @@ for a right-handed Cartesian coordinate system with
 the z-axis along the normal to the multilayer structure.
 
 Berreman, 1972,
-DOI: 10.1364/JOSA.62.000502
+https://doi.org/10.1364/JOSA.62.000502
 """
 function poynting(Ψ, a)
 
@@ -69,6 +69,7 @@ function poynting(Ψ, a)
     end
     return SMatrix(S)
 end
+
 
 """
     poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
@@ -122,6 +123,7 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s)
 end
 
+
 """
     evaluate_birefringence(Ψ, S, t_modes, r_modes)
 
@@ -148,18 +150,12 @@ C = |S_x|^2 / (|S_x|^2 + |S_y|^2)
 If there is no birefringence, then the electric field is analyzed.
 This analysis follows
 
-Li et al., 1988,
-DOI: 10.1364/AO.27.001334
+Li et al., 1988, https://doi.org/10.1364/AO.27.001334
 
 and the use of the Poynting vector is from
 
-Passler et al., 2017,
-DOI: 10.1364/JOSAB.34.002128
-
-and
-
-Passler et al., 2019,
-DOI: 10.1364/JOSAB.36.003246
+Passler et al., 2017, https://doi.org/10.1364/JOSAB.34.002128
+Passler et al., 2019, https://doi.org/10.1364/JOSAB.36.003246
 """
 function evaluate_birefringence(Ψ, S, t_modes, r_modes)
 
@@ -254,19 +250,20 @@ function propagate(λ, layers, θ, μ)
     return Γ, S, Ds, Ps, γs
 end
 
+
 """
     calculate_tr(Γ)
 
-Calculate reflectance and transmittance for the total structure.
-This takes the matrix Γ*, but for brevity we call it Γ in this function.
+Calculate reflectance and transmittance for the total stack.
+This takes the matrix Γ* in Passler, et al., but for brevity we call it Γ in this function.
 
-This follows the formalism in:
+The original formalism is from:
+Yeh, 1979,
+https://doi.org/10.1364/JOSA.69.000742
 
-Yeh, Electromagnetic propagation in birefringent layered media, 1979,
-DOI: 10.1364/JOSA.69.000742
-
-but the ordering is taken from Passler, et al., 2017
-DOI: 10.1364/JOSAB.34.002128
+but the ordering of reflection/transmission coefficients 
+is modified in Passler, et al. 2017
+https://doi.org/10.1364/JOSAB.34.002128
 """
 function calculate_tr(Γ)
 
@@ -301,6 +298,7 @@ function calculate_tr(Γ)
     return r, R, t, T
 end
 
+
 """
     calculate_tr(S::Poynting)
 
@@ -319,6 +317,7 @@ function calculate_tr(S::Poynting)
     return Tpp, Tss, Rpp, Rss
 end
 
+
 """
     calculate_tr(layers, θ, μ)
 
@@ -336,6 +335,7 @@ function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
     Rss = R[2]
     return Tpp, Tss, Rpp, Rss
 end
+
 
 """
     angle_resolved(λs, θs, layers)
@@ -364,6 +364,7 @@ function angle_resolved(λs, θs, layers)
     end
     return AngleResolvedResult(Rpp, Rss, Tpp, Tss)
 end
+
 
 """
     tune_thickness(λs, ts, layers, t_index, θ=0.0)
@@ -396,6 +397,7 @@ function tune_thickness(λs, ts, layers, t_index::Int, θ=0.0)
     end
     return AngleResolvedResult(Rpp, Rss, Tpp, Tss)
 end
+
 
 """
     electric_field(layers, λ, θ; dz)
