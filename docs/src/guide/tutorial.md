@@ -120,7 +120,21 @@ More examples are available in the examples folder of the package source code.
 ## User-generated refractive index data
 
 A convenience function is available to generate a `Layer` with user-generated refractive index data.
-For example, if we want to make an absorbing layer modeled on a Lorentzian function, we might do so as follows:
+For example, if we want to make an absorbing layer modeled on a Lorentzian function, we might do the following:
+
+1. Generate the dielectric function for the absorbing material.
+2. Calculate the refractive index and extinction coefficient.
+
+```math
+\varepsilon_r(\omega) = n_\infty^2 \frac{A (\omega_0^2 - \omega^2)}{(\omega^2 - \omega_0^2)^2 + (\Gamma \omega)^2}
+
+\varepsilon_i(\omega) = \frac{A \Gamma \omega}{(\omega^2 - \omega_0^2)^2 + (\Gamma \omega)^2}
+
+n(\omega) = \sqrt{\frac{\sqrt{\epsilon_r^2 + \epsilon_i^2} + \epsilon_r}{2}}
+
+k(\omega) = \sqrt{\frac{\sqrt{\epsilon_r^2 + \epsilon_i^2} - \epsilon_r}{2}}
+```
+where ``A`` is the amplitude, ``\omega_0`` is the resonant frequency, ``\Gamma`` is phenomenological damping, and ``n_\infty`` is the background refractive index.
 
 
 ```julia
@@ -148,11 +162,17 @@ k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)
 absorber = Layer(λs, n_medium, k_medium, t_cav)
 ```
 
-## Thickness-dependence calculations
+A complete example calculating dispersion of a polaritonic system is provided in the examples folder of the package source code.
+
+## Thickness-dependent calculations
 
 Instead of angle-resolved, you might want to vary the thickness of a particular layer.
-A convenience function is provided to do this:
+A convenience function, `tune_thickness` is provided to do this.
+It takes a list of wavelengths, a list of thicknesses, the layers, and the index of the layer to vary.
+For example, if you want to vary the 14th layer in the `layers` array, you might do the following:
 
 ```julia
 tune_thickness(λs, thicknesses, layers, 14)
 ```
+
+A complete example using this is provided in the examples folder of the package source code.
