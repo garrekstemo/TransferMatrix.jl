@@ -1,5 +1,3 @@
-using Revise
-using BenchmarkTools
 using Peaks
 using RefractiveIndex
 using TransferMatrix

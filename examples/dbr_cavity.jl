@@ -1,6 +1,5 @@
 # DBR cavity example
 
-using Revise
 using RefractiveIndex
 using TransferMatrix
 using GLMakie

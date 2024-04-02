@@ -1,4 +1,3 @@
-using Revise
 using RefractiveIndex
 using TransferMatrix
 using GLMakie

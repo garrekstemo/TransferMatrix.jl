@@ -1,7 +1,6 @@
 # Quarter-wave stack example
 # from documentation
 
-using Revise
 using RefractiveIndex
 using TransferMatrix
 using GLMakie
