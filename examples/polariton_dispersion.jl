@@ -65,7 +65,8 @@ t_cav = 1 * λ_0  / n_bg + 0.1  # Slightly offset the cavity length to get negat
 air = Layer(n_air, 2.0);
 tio2 = Layer(n_tio2, t_tio2);
 sio2 = Layer(n_sio2, t_sio2);
-absorber = Layer(λs, n_medium, k_medium, t_cav);
+absorber = Layer(λs, n_medium, k_medium, t_cav)
+absorber.dispersion(4.9)
 
 nperiods = 6
 unit = [tio2, sio2]

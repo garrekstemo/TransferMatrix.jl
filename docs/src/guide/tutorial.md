@@ -120,21 +120,25 @@ More examples are available in the examples folder of the package source code.
 ## User-generated refractive index data
 
 A convenience function is available to generate a `Layer` with user-generated refractive index data.
-For example, if we want to make an absorbing layer modeled on a Lorentzian function, we might do the following:
+For example, if we want to make an absorbing layer modeled on a Lorentzian function, we would
 
 1. Generate the dielectric function for the absorbing material.
 2. Calculate the refractive index and extinction coefficient.
 
 ```math
-\varepsilon_r(\omega) = n_\infty^2 \frac{A (\omega_0^2 - \omega^2)}{(\omega^2 - \omega_0^2)^2 + (\Gamma \omega)^2}
+\begin{aligned}
+   \varepsilon_r(\omega) &= n_\infty^2 + \frac{A (\omega_0^2 - \omega^2)}{(\omega^2 - \omega_0^2)^2 + (\Gamma \omega)^2} \\
 
-\varepsilon_i(\omega) = \frac{A \Gamma \omega}{(\omega^2 - \omega_0^2)^2 + (\Gamma \omega)^2}
+   \varepsilon_i(\omega) &= \frac{A \Gamma \omega}{(\omega^2 - \omega_0^2)^2 + (\Gamma \omega)^2} \\
 
-n(\omega) = \sqrt{\frac{\sqrt{\epsilon_r^2 + \epsilon_i^2} + \epsilon_r}{2}}
+   n(\omega) &= \sqrt{\frac{\varepsilon_r + \sqrt{\varepsilon_r^2 + \varepsilon_i^2}}{2}} \\
 
-k(\omega) = \sqrt{\frac{\sqrt{\epsilon_r^2 + \epsilon_i^2} - \epsilon_r}{2}}
+   k(\omega) &= \sqrt{\frac{-\varepsilon_r + \sqrt{\varepsilon_r^2 + \varepsilon_i^2}}{2}} \\
+\end{aligned}
 ```
 where ``A`` is the amplitude, ``\omega_0`` is the resonant frequency, ``\Gamma`` is phenomenological damping, and ``n_\infty`` is the background refractive index.
+Then this data, along with the wavelengths and thickness of the layer, can be used to create a `Layer` object.
+Under the hood, this data is converted into an interpolation function that, when given a wavelength, will return the complex refractive index. (Extrapolation is not supported right now.)
 
 
 ```julia
@@ -149,6 +153,8 @@ function dielectric_imag(ω, p)
 end
 
 # absorbing material
+λ_0 = 5.0
+λs = range(4.8, 5.2, length = 200)
 n_bg = 1.4
 A_0 = 3000.0
 ω_0 = 10^4 / λ_0  # cm^-1
@@ -160,6 +166,7 @@ n_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) + ε1) / 2)
 k_medium = @. sqrt((sqrt(abs2(ε1) + abs2(ε2)) - ε1) / 2)
 
 absorber = Layer(λs, n_medium, k_medium, t_cav)
+absorber.dispersion(4.9)
 ```
 
 A complete example calculating dispersion of a polaritonic system is provided in the examples folder of the package source code.
