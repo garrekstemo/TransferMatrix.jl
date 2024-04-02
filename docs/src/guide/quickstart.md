@@ -82,7 +82,3 @@ end
 axislegend(ax)
 fig
 ```
-
-You can see that it's quite simple to make a structure
-and modify the layers. Note that while an individual `Layer` is immutable,
-you can modify the properties of a `Structure`.

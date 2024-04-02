@@ -1,11 +1,11 @@
 # TransferMatrix.jl
 
 TransferMatrix.jl provides a general 4x4 transfer matrix method for optical waves propagating in layered media implemented in Julia.
-The core is an electrodynamics simulation based on Pochi Yeh's 4x4 transfer matrix method.
+The core is an electrodynamics simulation based on a general 4x4 transfer matrix method developed by Passler, et al.
 Recent corrections and improvements are incorporated to deal with singularities and numerical instabilities for some types of multi-layered structures.
-The algorithms implemented are based on the efforts of others and
-sources are cited both in the documentation and docstrings where appropriate.
+Sources are cited both in the documentation and docstrings where appropriate.
 A comprehensive [bibliography](https://garrek.org/TransferMatrix.jl/stable/bibliography/) is also available as part of the documentation.
+
 
 ## Why make another transfer matrix program?
 
@@ -19,13 +19,15 @@ This makes it very difficult to use them. TransferMatrix.jl
 solves these problems and provides the first generalized 4x4 transfer matrix algorithm
 available for Julia.
 
+
 ## API
 
-Only exported (i.e. can be used without the `TransferMatrix.` qualifier after loading the TransferMatrix.jl package with `using TransferMatrix`) types and functions are considered part of the public API of the TransferMatrix.jl package.
+Only exported types and functions are considered part of the public API.
 All of these objects are documented in this manual. If not, please [open an issue](https://github.com/garrekstemo/TransferMatrix.jl/issues/new).
 The advanced user is encouraged, however, to access the guts of TransferMatrix.jl and modify portions to achieve a desired outcome or test a different approach to the algorithm.
 This implementation is as modular as possible to maximize flexibility;
 each function is as small as possible so that the user may easily change any step along the way in calculating the transfer matrix, reflection or transmission spectra, electric field profile, etc.
+
 
 ## Issues and contributions
 
