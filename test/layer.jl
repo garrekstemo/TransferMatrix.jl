@@ -1,11 +1,11 @@
-@testset "find_layerbounds" begin
+@testset "find_bounds" begin
     l1 = TransferMatrix.Layer(RefractiveMaterial("main", "Au", "Rakic-LD"), 1)
     l2 = TransferMatrix.Layer(RefractiveMaterial("main", "SiO2", "Malitson"), 2)
     l3 = TransferMatrix.Layer(RefractiveMaterial("main", "Au", "Rakic-LD"), 3)
 
     layers = [l1, l2, l3]
 
-    interface_positions, total_thickness = TransferMatrix.find_layerbounds(layers)
+    interface_positions, total_thickness = TransferMatrix.find_bounds(layers)
 
     @test interface_positions == [1.0, 3.0, 6.0]
     @test total_thickness == 6.0
