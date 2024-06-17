@@ -59,8 +59,8 @@ lines!(θs, result.Tss[:, 1], label = "Ts", color = :firebrick3)
 lines!(θs, result.Tpp[:, 1], label = "Tp", color = :orangered3)
 lines!(θs, result.Rss[:, 1], label = "Rs", color = :dodgerblue4)
 lines!(θs, result.Rpp[:, 1], label = "Rp", color = :dodgerblue1)
-vlines!(ax, brewster, color = :black, linestyle = :dash)
-text!("Brewster angle\n(Rp = 0)", position = (35, 0.6))
+vlines!(brewster, color = :black, linestyle = :dash)
+text!(35, 0.6, text = "Brewster angle\n(Rp = 0)")
 
 axislegend(ax)
 fig
