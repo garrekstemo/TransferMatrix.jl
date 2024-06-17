@@ -319,7 +319,7 @@ end
 
 
 """
-    calculate_tr(layers, θ, μ)
+    calculate_tr(λ, layers, θ, μ)
 
 Calculate the transmittance and reflectance spectrum
 of the structure at a single incidence angle θ.
