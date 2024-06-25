@@ -36,7 +36,7 @@ function stopband(n1, n2)
 end
 
 """
-    dbr_reflectivity(no, n2, n1, n2, N)
+    dbr_reflectivity(no, ns, n1, n2, N)
 
 Approximate the reflectivity of a DBR structure with originating medium with refractive index `no`,
 substrate with index `ns`, and alternating materials with indices `n1` and `n2` and number of repetitions
