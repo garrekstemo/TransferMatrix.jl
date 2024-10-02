@@ -400,7 +400,7 @@ end
 
 
 """
-    electric_field(layers, λ, θ; dz)
+    electric_field(λ, layers, θ; dz)
 
 Calculate the electric field profile for the entire structure
 as a function of z for a given incidence angle θ.
