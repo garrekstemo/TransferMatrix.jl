@@ -11,7 +11,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 DataInterpolations = "4, 5, 6, 7"
-RefractiveIndex = "0.4"
+RefractiveIndex = "0.4, 0.5"
 StaticArrays = "1"
 julia = "1.9"
 
