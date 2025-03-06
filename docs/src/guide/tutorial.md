@@ -32,7 +32,7 @@ using TransferMatrix
 using RefractiveIndex
 
 n_air = RefractiveMaterial("other", "air", "Ciddor")
-n_glass = RefractiveMaterial("glass", "BK7", "SCHOTT")[1]
+n_glass = RefractiveMaterial("glass", "soda-lime", "Rubin-clear")[1]
 air = Layer(n_air, 0.1)
 glass = Layer(n_glass, 0.1)
 layers = [air, glass]
