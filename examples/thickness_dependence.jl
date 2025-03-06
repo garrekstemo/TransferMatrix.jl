@@ -1,5 +1,3 @@
-using Revise
-using BenchmarkTools
 using RefractiveIndex
 using TransferMatrix
 using GLMakie
