@@ -13,7 +13,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 DataInterpolations = "7"
 RefractiveIndex = "0.5"
 StaticArrays = "1"
-julia = "1.10"
+julia = "1.9"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
