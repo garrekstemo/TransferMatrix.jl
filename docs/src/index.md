@@ -16,8 +16,6 @@ This makes it very difficult to use them. TransferMatrix.jl
 solves these problems and provides the first generalized 4x4 transfer matrix algorithm
 available for Julia.
 
-
-
 ```@raw html
 <div style="text-align: center;">
 <img src="assets/polariton_dispersion.svg" alt="polariton dispersion", width="100%"/>
