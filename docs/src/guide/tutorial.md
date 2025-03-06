@@ -182,5 +182,11 @@ For example, if you want to vary the 14th layer in the `layers` array, you might
 ```julia
 tune_thickness(λs, thicknesses, layers, 14)
 ```
+```@raw html
+<div style="text-align: center;">
+<img src="assets/thickness_dependence.svg" alt="thickness dependent polariton dispersion", width="100%"/>
+</div>
+```
+
 
 A complete example using this is provided in the examples folder of the package source code.
