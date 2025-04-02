@@ -10,7 +10,7 @@ RefractiveIndex = "97a43521-7681-4ec2-835f-5b8ab7e7617e"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-DataInterpolations = "7"
+DataInterpolations = "7, 8"
 RefractiveIndex = "0.5"
 StaticArrays = "1"
 julia = "1.9"
