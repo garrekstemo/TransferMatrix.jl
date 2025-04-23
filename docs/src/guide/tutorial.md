@@ -6,7 +6,7 @@ TransferMatrix.jl is a part of Julia's general registry and the source code can 
 From the [Julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/), enter the package manager mode mode by typing `]`.
 Then just enter the following to install the package:
 
-```
+```julia
 pkg> add TransferMatrix
 ```
 
@@ -36,7 +36,7 @@ n_air = RefractiveMaterial("other", "air", "Ciddor")
 n_glass = RefractiveMaterial("glass", "soda-lime", "Rubin-clear")[1]
 air = Layer(n_air, 0.1)
 glass = Layer(n_glass, 0.1)
-layers = [air, glass]
+layers = [air, glass];
 ```
 
 Now that we have our glass and air layers, we can iterate over the angles of incidence and compute the reflectance and transmittance for light of wavelength 1 μm.
@@ -44,7 +44,7 @@ Now that we have our glass and air layers, we can iterate over the angles of inc
 ```@example tutorial
 λ = 1.0
 θs = 0.0:1:85.0
-result = angle_resolved([λ], deg2rad.(θs), layers)
+result = angle_resolved([λ], deg2rad.(θs), layers);
 ```
 
 Let's now plot the result using the [Makie.jl](https://makie.juliaplots.org/) data visualization package.
@@ -117,6 +117,7 @@ ax.ylabel = "Transmittance"
 f
 ```
 
+
 ## Electric field calculation
 
 The wavelength-dependent electric field is the cavity is provided by the `electric_field` function.
@@ -125,7 +126,7 @@ We can calculate the electric field at the first peak in the above plot using
 ```@example tutorial
 λ_min = findfirst(λs .> 4.9)
 λ_max = findfirst(λs .> 5.5)
-peak = findmax(Tpp[λ_min:λ_max])[2] + λ_min - 1
+peak = findmax(Ts[λ_min:λ_max])[2] + λ_min - 1
 λ = λs[peak]
 
 field = electric_field(λ, layers)
