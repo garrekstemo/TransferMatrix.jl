@@ -19,7 +19,7 @@ sio2 = Layer(n_sio2, t_sio2)
 
 unit = [tio2, sio2]
 periods = 3
-layers = [air, repeat(unit, periods)...];
+layers = [air, repeat(unit, periods)...]
 
 λs = 0.4:0.002:1.0
 Rpp = Float64[]
