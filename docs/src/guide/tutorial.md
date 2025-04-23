@@ -206,7 +206,7 @@ tune_thickness(λs, thicknesses, layers, 14)
 ```
 ```@raw html
 <div style="text-align: center;">
-<img src="assets/thickness_dependence.png" alt="thickness dependent polariton dispersion", width="100%"/>
+<img src="/docs/src/assets/thickness_dependence.png" alt="thickness dependent polariton dispersion", width="100%"/>
 </div>
 ```
 
