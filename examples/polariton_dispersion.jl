@@ -42,9 +42,9 @@ n_tio2 = RefractiveMaterial("main", "TiO2", "Kischkat")
 n_sio2 = RefractiveMaterial("main", "SiO2", "Kischkat")
 
 λ_0 = 5.0
-λs = range(4.8, 5.2, length = 300)
+λs = range(4.8, 5.2, length = 500)
 νs = 10^4 ./ λs
-θs = range(0, 30, length = 300)
+θs = range(0, 30, length = 400)
 
 # absorbing material
 n_bg = 1.4
@@ -111,7 +111,7 @@ text!(1960, 0.013, text="LP", color = :black, fontsize=18)
 text!(2020, 0.013, text="UP", color = :black, fontsize=18)
 
 f
-# save("docs/src/assets/polariton_dispersion.svg", f)
+save("docs/src/assets/polariton_dispersion.png", f)
 
 ##
 
@@ -149,4 +149,4 @@ hideydecorations!(ax2, label = false, ticks = false, ticklabels = false)
 rowgap!(f.layout, 1, 0)
 
 f
-# save("docs/src/assets/polariton_field.svg", f)
+# save("docs/src/assets/polariton_field.png", f)

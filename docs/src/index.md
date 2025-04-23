@@ -18,7 +18,7 @@ available for Julia.
 
 ```@raw html
 <div style="text-align: center;">
-<img src="assets/polariton_dispersion.svg" alt="polariton dispersion", width="100%"/>
+<img src="assets/polariton_dispersion.png" alt="polariton dispersion", width="100%"/>
 </div>
 ```
 
