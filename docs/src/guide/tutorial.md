@@ -10,9 +10,10 @@ Then just enter the following to install the package:
 pkg> add TransferMatrix
 ```
 
+
 ## A simple calculation
 
-To get you up and running, let's build a simple two-layer structure of air and glass
+To get up and running, let's build a simple two-layer structure of air and glass
 and calculate the reflectance and transmittance to visualize the [Brewster angle](https://en.wikipedia.org/wiki/Brewster%27s_angle) for p-polarized light.
 We fix the wavelength of incident light and vary the angle of incidence.
 
@@ -53,8 +54,8 @@ using CairoMakie
 
 brewster = atan(n_glass(λ)) * 180 / π
 
-fig = Figure()
-ax = Axis(fig[1, 1], xlabel = "Incidence Angle (°)", ylabel = "Reflectance / Transmittance")
+f = Figure()
+ax = Axis(f[1, 1], xlabel = "Incidence Angle (°)", ylabel = "Reflectance / Transmittance")
 lines!(θs, result.Tss[:, 1], label = "Ts", color = :firebrick3)
 lines!(θs, result.Tpp[:, 1], label = "Tp", color = :orangered3)
 lines!(θs, result.Rss[:, 1], label = "Rs", color = :dodgerblue4)
@@ -63,7 +64,7 @@ vlines!(brewster, color = :black, linestyle = :dash)
 text!(35, 0.6, text = "Brewster angle\n(Rp = 0)")
 
 axislegend(ax)
-fig
+f
 ```
 
 We can see that the result of the angle-resolved calculation has four solutions: the s-wave and p-wave for both the reflected and transmitted waves. And we see that the Brewster angle
@@ -91,7 +92,9 @@ air = RefractiveMaterial("other", "air", "Ciddor")
 
 λ_0 = 5.0
 t_middle = λ_0 / 2
-layers = [Layer(air, 8.0), Layer(au, 0.01), Layer(air, t_middle), Layer(au, 0.01),  Layer(air, 8.0)];
+air = Layer(air, t_middle)
+au = Layer(au, 0.01)
+layers = [air, au, air, au, air];
 
 λs = range(2.0, 6.0, length = 500)
 frequencies = 10^4 ./ λs
@@ -108,13 +111,30 @@ for λ in λs
     push!(Rs, Rs_)
 end
 
-fig, ax, l = lines(frequencies, Ts)
+f, ax, l = lines(frequencies, Ts)
 ax.xlabel = "Frequency (cm⁻¹)"
 ax.ylabel = "Transmittance"
-fig
+f
 ```
 
-More examples are available in the examples folder of the package source code.
+## Electric field calculation
+
+The wavelength-dependent electric field is the cavity is provided by the `electric_field` function.
+We can calculate the electric field at the first peak in the above plot using
+
+```@example tutorial
+λ_min = findfirst(λs .> 4.9)
+λ_max = findfirst(λs .> 5.5)
+peak = findmax(Tpp[λ_min:λ_max])[2] + λ_min - 1
+λ = λs[peak]
+
+field = electric_field(λ, layers)
+
+f, ax, l = lines(field.z .* 1e3, real(field.p[1, :]))
+vlines!(field.boundaries[1], color = :black, linestyle = :dash)
+vlines!(field.boundaries[end] .* 1e3, color = :black, linestyle = :dash)
+f
+```
 
 
 ## User-generated refractive index data
@@ -171,6 +191,7 @@ absorber.dispersion(4.9)
 ```
 
 A complete example calculating dispersion of a polaritonic system is provided in the examples folder of the package source code.
+
 
 ## Thickness-dependent calculations
 
