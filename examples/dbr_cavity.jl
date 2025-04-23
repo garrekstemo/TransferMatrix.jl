@@ -39,10 +39,10 @@ end
 field = electric_field(λ_0, layers)
 
 
-fig = Figure(size = (450, 600))
+f = Figure(size = (450, 600))
 DataInspector()
 
-ax1 = Axis(fig[1, 1], title = "ZnS / MgF₂ quarter-wave stack with 3 layers", xlabel = "Wavelength (μm)", ylabel = "Transmittance / Reflectance",
+ax1 = Axis(f[1, 1], title = "ZnS / MgF₂ quarter-wave stack with 3 layers", xlabel = "Wavelength (μm)", ylabel = "Transmittance / Reflectance",
             yticks = LinearTicks(5), 
             xticks = LinearTicks(10))
 
@@ -50,10 +50,10 @@ lines!(λs, Tpp, label = "T")
 lines!(λs, Rpp, label = "R")
 axislegend(ax1, position = :rc)
 
-ax2 = Axis(fig[2, 1], title = "Electric Field at λ = $(Int(λ * 1e3)) nm", xlabel = "z position (nm)", ylabel = "Field intensity (a.u.)")
+ax2 = Axis(f[2, 1], title = "Electric Field at λ = $(Int(λ * 1e3)) nm", xlabel = "z position (nm)", ylabel = "Field intensity (a.u.)")
 
 lines!(field.z .* 1e3, real(field.p[1, :]))
 vlines!(field.boundaries[1], color = :black, linestyle = :dash)
 vlines!(field.boundaries[end] .* 1e3, color = :black, linestyle = :dash)
 
-fig
+f

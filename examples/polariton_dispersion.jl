@@ -63,15 +63,15 @@ t_sio2 = λ_0 / (4 * n_sio2(λ_0))
 t_cav = 1 * λ_0  / n_bg + 0.1  # Slightly offset the cavity length to get negative detuning
 
 
-air = Layer(n_air, 2.0);
-tio2 = Layer(n_tio2, t_tio2);
-sio2 = Layer(n_sio2, t_sio2);
+air = Layer(n_air, 2.0)
+tio2 = Layer(n_tio2, t_tio2)
+sio2 = Layer(n_sio2, t_sio2)
 absorber = Layer(λs, n_medium, k_medium, t_cav)
 absorber.dispersion(4.9)
 
 nperiods = 6
 unit = [tio2, sio2]
-layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air];
+layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air]
 
 res = angle_resolved(λs, deg2rad.(θs), layers)
 θ_idx, peaks = find_resonance(res.Tpp)
@@ -83,31 +83,44 @@ field2 = electric_field(λs[peaks[2]], layers)
 
 ##
 
-fig = Figure(size = (900, 450))
+f = Figure(size = (900, 450))
 
-ax1 = Axis(fig[1, 1], title = "Polariton dispersion",
+ax1 = Axis(f[1, 1],
+    title = "Polariton dispersion",
     xlabel = "Incidence angle (°)",
-    ylabel = "Frequency (cm⁻¹)")
+    ylabel = "Frequency (cm⁻¹)",
+)
 heatmap!(θs, νs, res.Tpp, colormap = :deep)
 hlines!(ν_0, color = :firebrick3, linestyle = :dash, linewidth = 2)
-text!(19, 2000, text="ν₀ = 2000 cm⁻¹", color = :black, fontsize=18)
+text!(
+    19,
+    2000,
+    text="ν₀ = 2000 cm⁻¹",
+    color = :black,
+    fontsize=18,
+)
 
-ax2 = Axis(fig[1, 2], title = "Normal mode splitting at θ ≈ $(round(Int, θ_plot))°",
+ax2 = Axis(f[1, 2],
+    title = "Normal mode splitting at θ ≈ $(round(Int, θ_plot))°",
     xlabel = "Frequency (cm⁻¹)",
-    ylabel = "Transmittance")
+    ylabel = "Transmittance",
+)
 lines!(νs, T_plot)
 # scatter!(νs[peaks], T_plot[peaks], color = :red, marker = 'x', markersize = 15)
 text!(1960, 0.013, text="LP", color = :black, fontsize=18)
 text!(2020, 0.013, text="UP", color = :black, fontsize=18)
 
-fig
-save("docs/src/assets/polariton_dispersion.svg", fig)
+f
+# save("docs/src/assets/polariton_dispersion.svg", f)
 
 ##
 
-fig = Figure(size = (450, 500))
+f = Figure(size = (450, 500))
 
-ax1 = Axis(fig[1, 1], title = "Electric field penetration in DBR", ylabel = "Photon field")
+ax1 = Axis(f[1, 1],
+    title = "Electric field penetration in DBR",
+    ylabel = "Photon field",
+)
 lines!(field1.z .* 1e3, real(field1.p[1, :]), label = "LP")
 lines!(field2.z .* 1e3, real(field2.p[1, :]), label = "UP")
 hlines!(0, color = :black, linestyle = :dash, linewidth = 0.5)
@@ -115,8 +128,11 @@ hlines!(0, color = :black, linestyle = :dash, linewidth = 0.5)
 n1 = round(real(sio2.dispersion(λ_0)), digits=2)
 n2 = round(real(tio2.dispersion(λ_0)), digits=2)
 
-ax2 = Axis(fig[2, 1],
-    xlabel = "Distance (μm)", ylabel = "Refractive index", yticks = [n1, n2])
+ax2 = Axis(f[2, 1],
+    xlabel = "Distance (μm)",
+    ylabel = "Refractive index",
+    yticks = [n1, n2],
+)
 
 # Draw DBR cavity structure
 refractive_indices = [real(layer.dispersion(λ_0)) for layer in layers[2:end-1]]
@@ -130,7 +146,7 @@ hideydecorations!(ax1, label = false, ticks = false, ticklabels = false)
 hidexdecorations!(ax2, label = false, ticks = false, ticklabels = false)
 hideydecorations!(ax2, label = false, ticks = false, ticklabels = false)
 
-rowgap!(fig.layout, 1, 0)
+rowgap!(f.layout, 1, 0)
 
-fig
-save("docs/src/assets/polariton_field.svg", fig)
+f
+# save("docs/src/assets/polariton_field.svg", f)

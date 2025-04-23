@@ -10,7 +10,9 @@ air = RefractiveMaterial("other", "air", "Ciddor")
 
 λ_0 = 5.0
 t_middle = λ_0 / 2
-layers = [Layer(air, 8.0), Layer(au, 0.01), Layer(air, t_middle), Layer(au, 0.01),  Layer(air, 8.0)];
+air = Layer(air, t_middle)
+au = Layer(au, 0.01)
+layers = [air, au, air, au, air]
 
 λs = range(2.0, 6.0, length = 500)
 νs = 10^4 ./ λs
@@ -35,22 +37,35 @@ peak = findmax(Tpp[λ_min:λ_max])[2] + λ_min - 1
 field = electric_field(λ, layers)
 
 
-fig = Figure(size = (450, 600))
+f = Figure(size = (450, 600))
 DataInspector()
 
-ax1 = Axis(fig[1, 1], title = "Fabry-Pérot Cavity", xlabel = "Wavelength (μm)", ylabel = "Transmittance / Reflectance",
-            yticks = LinearTicks(5), 
-            xticks = LinearTicks(10))
-
+ax1 = Axis(f[1, 1],
+    title = "Fabry-Pérot Cavity",
+    xlabel = "Wavelength (μm)",
+    ylabel = "Transmittance / Reflectance",
+    yticks = LinearTicks(5), 
+    xticks = LinearTicks(10),
+)
 lines!(νs, Tpp, label = "T")
-scatter!(10^4 / λs[peak], Tpp[peak], color = :red, markersize = 5)
-# lines!(νs, Rpp, label = "R")
-axislegend(ax1, position = :rc)
+lines!(νs, Rpp, label = "R")
+scatter!(
+    10^4 / λs[peak],
+    Tpp[peak],
+    color = :red, 
+    # marker = 'x',
+    markersize = 10
+)
 
-ax2 = Axis(fig[2, 1], title = "Electric Field at λ = $(round(Int, λ * 1e3)) nm", xlabel = "z position (nm)", ylabel = "Field intensity (a.u.)")
+ax2 = Axis(f[2, 1],
+    title = "Electric Field at λ = $(round(Int, λ * 1e3)) nm",
+    xlabel = "z position (nm)",
+    ylabel = "Field intensity (a.u.)",
+)
 
 lines!(field.z .* 1e3, real(field.p[1, :]))
 vlines!(field.boundaries[1], color = :black, linestyle = :dash)
 vlines!(field.boundaries[end] .* 1e3, color = :black, linestyle = :dash)
 
-fig
+axislegend(ax1, position = :rc)
+f

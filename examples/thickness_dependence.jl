@@ -52,10 +52,13 @@ layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperio
 ##
 res = tune_thickness(λs, thicknesses, layers, 14)
 
-fig = Figure()
-ax = Axis(fig[1, 1], xlabel = "Thickness (μm)", ylabel = "Frequency (cm⁻¹)")
+f = Figure()
+ax = Axis(f[1, 1],
+    xlabel = "Thickness (μm)",
+    ylabel = "Frequency (cm⁻¹)",
+)
 heatmap!(thicknesses, νs, res.Tpp, colormap = :deep)
-fig
+f
 
 ##
-save("docs/src/assets/thickness_dependence.svg", fig, backend = CairoMakie)
+save("docs/src/assets/thickness_dependence.svg", f, backend = CairoMakie)
