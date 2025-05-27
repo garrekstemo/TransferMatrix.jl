@@ -18,7 +18,7 @@ struct ElectricField
     boundaries::Array{Float64}
 end
 
-struct AngleResolvedResult
+struct Spectra
     Rpp::Matrix{Float64}
     Rss::Matrix{Float64}
     Tpp::Matrix{Float64}
@@ -353,16 +353,16 @@ function angle_resolved(λs, θs, layers)
     Rpp = Array{Float64}(undef, length(θs), length(λs))
     Rss = Array{Float64}(undef, length(θs), length(λs))
     
-    Threads.@threads for (i, θ) in collect(enumerate(θs))
-        for (j, λ) in collect(enumerate(λs))
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers, θ)
+    Threads.@threads for i in eachindex(θs)
+        Threads.@threads for j in eachindex(λs)
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λs[j], layers, θs[i])
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
             Rpp[i, j] = Rpp_
             Rss[i, j] = Rss_
         end
     end
-    return AngleResolvedResult(Rpp, Rss, Tpp, Tss)
+    return Spectra(Rpp, Rss, Tpp, Tss)
 end
 
 
@@ -384,18 +384,18 @@ function tune_thickness(λs, ts, layers, t_index::Int, θ=0.0)
     Rpp = Matrix{Float64}(undef, length(ts), length(λs))
     Rss = Matrix{Float64}(undef, length(ts), length(λs))
     
-    Threads.@threads for (i, t) in collect(enumerate(ts))
-        changing_layer = Layer(layers[t_index].dispersion, t)
+    Threads.@threads for i in eachindex(ts)
+        changing_layer = Layer(layers[t_index].dispersion, ts[i])
         new_layers = [layers[1:t_index-1]; changing_layer; layers[t_index+1:end]]
-        for (j, λ) in collect(enumerate(λs))
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, new_layers, θ)
+        Threads.@threads for j in eachindex(λs[j])
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λs[j], new_layers, θ)
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
             Rpp[i, j] = Rpp_
             Rss[i, j] = Rss_
         end
     end
-    return AngleResolvedResult(Rpp, Rss, Tpp, Tss)
+    return Spectra(Rpp, Rss, Tpp, Tss)
 end
 
 
