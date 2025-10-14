@@ -18,9 +18,9 @@ n_tio2 = RefractiveMaterial("main", "TiO2", "Kischkat")
 n_sio2 = RefractiveMaterial("main", "SiO2", "Kischkat")
 
 λ_0 = 5.0
-λs = range(4.8, 5.2, length = 300)
+λs = range(4.8, 5.2, length = 100)
 νs = 10^4 ./ λs
-thicknesses = 0.2:0.01:3
+thicknesses = range(0.2, 2.0, length = 200)
 length(thicknesses)
 
 # absorbing material
@@ -53,13 +53,13 @@ layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperio
 res = tune_thickness(λs, thicknesses, layers, 14)
 ##
 
-f = Figure()
-ax = Axis(f[1, 1],
+fig = Figure()
+ax = Axis(fig[1, 1],
     xlabel = "Thickness (μm)",
     ylabel = "Frequency (cm⁻¹)",
 )
 heatmap!(thicknesses, νs, res.Tpp, colormap = :deep)
-f
+fig
 
 ##
-save("docs/src/assets/thickness_dependence.png", f, backend = CairoMakie)
+save("docs/src/assets/thickness_dependence.png", fig, backend = CairoMakie)
