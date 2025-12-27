@@ -387,7 +387,7 @@ function tune_thickness(λs, ts, layers, t_index::Int, θ=0.0)
     Threads.@threads for i in eachindex(ts)
         changing_layer = Layer(layers[t_index].dispersion, ts[i])
         new_layers = [layers[1:t_index-1]; changing_layer; layers[t_index+1:end]]
-        Threads.@threads for j in eachindex(λs[j])
+        Threads.@threads for j in eachindex(λs)
             Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λs[j], new_layers, θ)
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
