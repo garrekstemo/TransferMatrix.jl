@@ -290,11 +290,11 @@ function calculate_tr(Γ)
     Tps = abs2(tps)
     Tsp = abs2(tsp)
 
-    r = [rpp, rps, rss, rsp]
-    R = [Rpp, Rss, Rsp, Rps]
+    r = SVector(rpp, rps, rss, rsp)
+    R = SVector(Rpp, Rss, Rsp, Rps)
 
-    t = [tpp, tps, tsp, tss]
-    T = [Tpp, Tss, Tsp, Tps]
+    t = SVector(tpp, tps, tsp, tss)
+    T = SVector(Tpp, Tss, Tsp, Tps)
 
     return r, R, t, T
 end

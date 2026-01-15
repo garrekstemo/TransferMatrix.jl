@@ -60,6 +60,21 @@ function construct_M(ε, μ=Diagonal(ones(3)), ρ1=zeros(3, 3), ρ2=zeros(3, 3))
     return [ε ρ1; ρ2 μ]
 end
 
+# Specialized method for isotropic materials without magnetoelectric coupling (ρ₁ = ρ₂ = 0)
+# This is the common case and avoids heap allocations from zeros() and hvcat
+function construct_M(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}},
+                     μ::Diagonal{ComplexF64,SVector{3,ComplexF64}})
+    z = zero(ComplexF64)
+    return @SMatrix [
+        ε[1,1] z z z z z;
+        z ε[2,2] z z z z;
+        z z ε[3,3] z z z;
+        z z z μ[1,1] z z;
+        z z z z μ[2,2] z;
+        z z z z z μ[3,3]
+    ]
+end
+
 
 """
     construct_a(ξ, M)
