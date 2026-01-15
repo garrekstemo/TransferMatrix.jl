@@ -45,6 +45,7 @@ function layer_matrices(layer, λ, ξ, μ_i)
     a = construct_a(ξ, M)
     Δ = construct_Δ(ξ, M, a)
     q, S = calculate_q(Δ, a)
+    q = ComplexF64.(q)
     γ = calculate_γ(ξ, q, ε, μ_i)
     D = dynamical_matrix(ξ, q, γ, μ_i)
     P = propagation_matrix(ω, q)
@@ -247,12 +248,13 @@ function calculate_γ(ξ, q, ε, μ)
     γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / (μ * ε[3,3] - ξ^2)
     γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / (μ * ε[3,3] - ξ^2)
 
-    # normalize γ
+    # normalize γ (use SVector to avoid slice allocations)
     for i in 1:4
-        Z = √(γ[i, :] ⋅ γ[i, :]')
-        for j in 1:3
-            γ[i, j] /= Z
-        end
+        v = SVector(γ[i,1], γ[i,2], γ[i,3])
+        Z = √(v ⋅ v')
+        γ[i,1] /= Z
+        γ[i,2] /= Z
+        γ[i,3] /= Z
     end
 
     return SMatrix(γ)
@@ -285,13 +287,18 @@ function dynamical_matrix(ξ, q, γ, μ)
 end
 
 
+struct PropagationMatrix{Tω,Tq}
+    ω::Tω
+    q::Tq
+end
+
 """
     propagation_matrix(ω, q)
 
-Returns a function that propagates the electromagnetic
+Returns a callable object that propagates the electromagnetic
 field a distance z through a material for a frequency ω
 and wavevector ``q``.
 """
-function propagation_matrix(ω, q)
-    return z -> Diagonal(exp.(-im * ω * q * z / c_0))
-end
+propagation_matrix(ω, q) = PropagationMatrix(ω, q)
+
+(P::PropagationMatrix)(z) = Diagonal(exp.(-im * P.ω * P.q * z / c_0))

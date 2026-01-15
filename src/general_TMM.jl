@@ -229,7 +229,7 @@ function propagate(λ, layers, θ, μ)
     # Preallocate arrays with known size
     n_layers = length(layers)
     Ds = Vector{typeof(D_0)}(undef, n_layers)
-    Ps = Vector{Function}(undef, n_layers)
+    Ps = Vector{typeof(P_0)}(undef, n_layers)
     γs = Vector{typeof(γ_0)}(undef, n_layers)
 
     Ds[1] = D_0
