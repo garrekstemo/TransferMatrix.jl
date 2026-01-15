@@ -226,7 +226,7 @@ function propagate(λ, layers, θ, μ)
     D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
     D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
     
-    Γ = I
+    Γ = SMatrix{4,4,ComplexF64}(I)
     Ds = [D_0]
     Ps = Function[P_0]
     γs = [γ_0]
