@@ -6,7 +6,6 @@ Manifest.toml
 .DS_Store
 
 scratch/
-benchmarking/
 untracked_refractiveindex/
 
 ### VisualStudioCode ###
@@ -25,4 +24,3 @@ untracked_refractiveindex/
 # Ignore all local history of files
 .history
 .ionide
-

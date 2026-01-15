@@ -73,7 +73,7 @@ nperiods = 6
 unit = [tio2, sio2]
 layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air]
 
-res = angle_resolved(λs, deg2rad.(θs), layers)
+res = sweep_angle(λs, deg2rad.(θs), layers)
 θ_idx, peaks = find_resonance(res.Tpp)
 T_plot = res.Tpp[θ_idx, :]
 θ_plot = θs[θ_idx]

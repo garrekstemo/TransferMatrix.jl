@@ -44,7 +44,7 @@ Now that we have our glass and air layers, we can iterate over the angles of inc
 ```@example tutorial
 λ = 1.0
 θs = 0.0:1:85.0
-result = angle_resolved([λ], deg2rad.(θs), layers);
+result = sweep_angle([λ], deg2rad.(θs), layers; verbose=true);
 ```
 
 Let's now plot the result using the [Makie.jl](https://makie.juliaplots.org/) data visualization package.
@@ -70,7 +70,7 @@ f
 We can see that the result of the angle-resolved calculation has four solutions: the s-wave and p-wave for both the reflected and transmitted waves. And we see that the Brewster angle
 is ``\arctan\left( n_\text{glass} /n_\text{air} \right) \approx 56^{\circ}``, as expected.
 Simultaneous calculation of s- and p-polarized incident waves is a feature of the 
-general 4x4 transfer matrix method being used. The `angle_resolved` function
+general 4x4 transfer matrix method being used. The `sweep_angle` function
 will also loop through all wavelengths so that you can plot
 a color plot of wavelength and angle versus transmittance (or reflectance).
 
@@ -197,12 +197,12 @@ A complete example calculating dispersion of a polaritonic system is provided in
 ## Thickness-dependent calculations
 
 Instead of angle-resolved, you might want to vary the thickness of a particular layer.
-A convenience function, `tune_thickness` is provided to do this.
+A convenience function, `sweep_thickness` is provided to do this.
 It takes a list of wavelengths, a list of thicknesses, the layers, and the index of the layer to vary.
 For example, if you want to vary the 14th layer in the `layers` array, you might do the following:
 
 ```julia
-tune_thickness(λs, thicknesses, layers, 14)
+sweep_thickness(λs, thicknesses, layers, 14; verbose=true)
 ```
 
 A complete example using this is provided in the examples folder of the package source code.

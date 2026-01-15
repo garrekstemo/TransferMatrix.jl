@@ -50,7 +50,7 @@ unit = [tio2, sio2]
 layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air];
 
 ##
-res = tune_thickness(λs, thicknesses, layers, 14)
+res = sweep_thickness(λs, thicknesses, layers, 14)
 ##
 
 fig = Figure()

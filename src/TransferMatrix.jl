@@ -6,7 +6,7 @@ using RefractiveIndex
 using StaticArrays
 
 export Layer,
-       angle_resolved,
+       sweep_angle,
        calculate_tr,
        dielectric_constant,
        dielectric_tensor,
@@ -16,7 +16,7 @@ export Layer,
        stopband,
        dbr_reflectivity,
        refractive_index,
-       tune_thickness
+       sweep_thickness
 
 include("matrix_constructors.jl")
 include("layer.jl")

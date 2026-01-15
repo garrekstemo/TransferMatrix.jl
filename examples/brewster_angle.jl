@@ -10,7 +10,7 @@ layers = [air, glass]
 
 λ = 1.0
 θs = 0.0:1:85.0
-res = angle_resolved([λ], deg2rad.(θs), layers)
+res = sweep_angle([λ], deg2rad.(θs), layers)
 brewster = rad2deg(atan(n_glass(λ)))
 air.dispersion(λ)
 glass.dispersion(λ)
