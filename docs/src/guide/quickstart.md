@@ -60,6 +60,9 @@ ax.ylabel = "Reflectance"
 f
 ```
 
+Note: `Layer` is parametric as `Layer{F,T}`. When annotating collections, prefer
+`AbstractVector{<:Layer}` rather than `Vector{Layer}`.
+
 Now let's try a few more periods and plot them all together
 to see how the reflectance changes with increasing number of layers.
 Notice that we are adding new layers directly to the structure and

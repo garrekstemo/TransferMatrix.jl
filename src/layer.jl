@@ -5,6 +5,8 @@ Construct a single layer with keywords:
 
 * `material`: refractive material containing dispersion and extinction data (if available)
 * `thickness`: thickness of the layer
+
+`Layer` is parametric as `Layer{F,T}` where `F` is the dispersion function type and `T` is the thickness type.
 """
 struct Layer{F,T<:Real}
     dispersion::F

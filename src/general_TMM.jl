@@ -16,6 +16,12 @@ struct ElectricField
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}
     boundaries::Vector{Float64}
+
+    function ElectricField(z, p, s, boundaries)
+        size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
+        size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
+        new(z, p, s, boundaries)
+    end
 end
 
 struct Spectra
@@ -353,7 +359,7 @@ Calculate the transmission and reflection at different angles of incidence and w
 # Arguments
 - `λs`: Vector of wavelengths.
 - `θs`: Vector of angles of incidence in radians.
-- `layers`: Vector of `Layer` objects representing the stack.
+- `layers`: `AbstractVector{<:Layer}` representing the stack.
 """
 function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
     Tpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
@@ -405,7 +411,7 @@ Tune the thickness of a specific layer in a stack and calculate the transmission
 # Arguments
 - `λs`: Vector of wavelengths.
 - `ts`: Vector of thicknesses.
-- `layers`: Vector of `Layer` objects representing the stack.
+- `layers`: `AbstractVector{<:Layer}` representing the stack.
 - `t_index`: Index of the layer in the stack to tune the thickness of.
 - `θ`: Angle of incidence in radians. Default is 0.0 (normal incidence).
 """
