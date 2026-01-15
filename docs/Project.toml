@@ -6,4 +6,8 @@ RefractiveIndex = "97a43521-7681-4ec2-835f-5b8ab7e7617e"
 TransferMatrix = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
 
 [compat]
+CairoMakie = "0.15.8"
 Documenter = "1"
+DocumenterTools = "0.1.21"
+RefractiveIndex = "0.5.0"
+TransferMatrix = "2.1.1"

@@ -4,3 +4,10 @@ GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 RefractiveIndex = "97a43521-7681-4ec2-835f-5b8ab7e7617e"
 TransferMatrix = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
+
+[compat]
+CairoMakie = "0.15.8"
+GLMakie = "0.13.8"
+Peaks = "0.6.0"
+RefractiveIndex = "0.5.0"
+TransferMatrix = "2.1.1"
