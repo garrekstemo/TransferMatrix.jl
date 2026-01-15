@@ -12,10 +12,10 @@ struct Poynting
 end
 
 struct ElectricField
-    z::Array{Float64}
+    z::Vector{Float64}
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}
-    boundaries::Array{Float64}
+    boundaries::Vector{Float64}
 end
 
 struct Spectra
