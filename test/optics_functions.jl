@@ -11,13 +11,11 @@
     Rs, Rp = fresnel(θ, n1, n2)
 
     @test Rp ≈ Rs^2  # expected reflectance for s-polarized light
-    # @test Rp ≈ 0.11  # expected reflectance for p-polarized light
 
-    θ = π / 2  # 90 degrees
-    Rs, Rp = fresnel(θ, n1, n2)
-
-    @test Rs ≈ 1.0  # expected reflectance for s-polarized light at Brewster's angle
-    @test Rp ≈ 1.0  # expected reflectance for p-polarized light at Brewster's angle
+    θB = atan(n2 / n1)  # Brewster angle
+    Rs, Rp = fresnel(θB, n1, n2)
+    @test Rp ≈ 0.0  # p-polarized reflectance vanishes at Brewster's angle
+    @test Rs > 0.0  # s-polarized reflectance remains nonzero
 end
 
 @testset "stopband" begin

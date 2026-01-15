@@ -45,6 +45,7 @@ function layer_matrices(layer, λ, ξ, μ_i)
     a = construct_a(ξ, M)
     Δ = construct_Δ(ξ, M, a)
     q, S = calculate_q(Δ, a)
+    q = ComplexF64.(q)
     γ = calculate_γ(ξ, q, ε, μ_i)
     D = dynamical_matrix(ξ, q, γ, μ_i)
     P = propagation_matrix(ω, q)
@@ -58,6 +59,21 @@ Construct the 6x6 matrix M from the dielectric and permeability tensors.
 """
 function construct_M(ε, μ=Diagonal(ones(3)), ρ1=zeros(3, 3), ρ2=zeros(3, 3))
     return [ε ρ1; ρ2 μ]
+end
+
+# Specialized method for isotropic materials without magnetoelectric coupling (ρ₁ = ρ₂ = 0)
+# This is the common case and avoids heap allocations from zeros() and hvcat
+function construct_M(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}},
+                     μ::Diagonal{ComplexF64,SVector{3,ComplexF64}})
+    z = zero(ComplexF64)
+    return @SMatrix [
+        ε[1,1] z z z z z;
+        z ε[2,2] z z z z;
+        z z ε[3,3] z z z;
+        z z z μ[1,1] z z;
+        z z z z μ[2,2] z;
+        z z z z z μ[3,3]
+    ]
 end
 
 
@@ -83,14 +99,14 @@ function construct_a(ξ, M)
     a64 = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / d
     a65 = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / d
     
-    return SMatrix{6, 6}([
+    return @SMatrix [
         0 0 0 0 0 0;
         0 0 0 0 0 0;
         a31 a32 0 a34 a35 0;
         0 0 0 0 0 0;
         0 0 0 0 0 0;
         a61 a62 0 a64 a65 0
-    ])
+    ]
 end
 
 
@@ -131,12 +147,12 @@ function construct_Δ(ξ, M, a)
     Δ43 =  M[2,2] + M[2,3] * a[3,2] + (M[2,6] - ξ) * a[6,2]
     Δ44 = -M[2,4] - M[2,3] * a[3,4] - (M[2,6] - ξ) * a[6,4]
 
-    return SMatrix{4, 4}([
+    return @SMatrix [
         Δ11 Δ12 Δ13 Δ14;
         Δ21 Δ22 Δ23 Δ24;
         Δ31 Δ32 Δ33 Δ34;
         Δ41 Δ42 Δ43 Δ44
-    ])
+    ]
 end
 
 
@@ -153,8 +169,8 @@ Li et al, 1988, https://doi.org/10.1364/AO.27.001334
 function calculate_q(Δ, a)
 
     q_unsorted, Ψ_unsorted = eigen(Δ)
-    transmitted_mode = [0, 0]
-    reflected_mode = [0, 0]
+    transmitted_mode = MVector(0, 0)
+    reflected_mode = MVector(0, 0)
 
     kt = 1
     kr = 1
@@ -232,12 +248,13 @@ function calculate_γ(ξ, q, ε, μ)
     γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / (μ * ε[3,3] - ξ^2)
     γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / (μ * ε[3,3] - ξ^2)
 
-    # normalize γ
+    # normalize γ (use SVector to avoid slice allocations)
     for i in 1:4
-        Z = √(γ[i, :] ⋅ γ[i, :]')
-        for j in 1:3
-            γ[i, j] /= Z
-        end
+        v = SVector(γ[i,1], γ[i,2], γ[i,3])
+        Z = √(v ⋅ v')
+        γ[i,1] /= Z
+        γ[i,2] /= Z
+        γ[i,3] /= Z
     end
 
     return SMatrix(γ)
@@ -261,22 +278,27 @@ function dynamical_matrix(ξ, q, γ, μ)
     A_3 = (γ[:, 1] .* q .- ξ * γ[:, 3]) ./ μ
     A_4 = γ[:, 2] .* q ./ μ
 
-    return SMatrix{4, 4}([
+    return @SMatrix [
         γ[1, 1] γ[2, 1] γ[3, 1] γ[4, 1];
         γ[1, 2] γ[2, 2] γ[3, 2] γ[4, 2];
         A_3[1] A_3[2] A_3[3] A_3[4];
         A_4[1] A_4[2] A_4[3] A_4[4]
-    ])
+    ]
 end
 
+
+struct PropagationMatrix{Tω,Tq}
+    ω::Tω
+    q::Tq
+end
 
 """
     propagation_matrix(ω, q)
 
-Returns a function that propagates the electromagnetic
+Returns a callable object that propagates the electromagnetic
 field a distance z through a material for a frequency ω
 and wavevector ``q``.
 """
-function propagation_matrix(ω, q)
-    return z -> Diagonal(exp.(-im * ω * q * z / c_0))
-end
+propagation_matrix(ω, q) = PropagationMatrix(ω, q)
+
+(P::PropagationMatrix)(z) = Diagonal(exp.(-im * P.ω * P.q * z / c_0))

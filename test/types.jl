@@ -24,4 +24,7 @@
     @test layer.dispersion(1.0) == 1.5 + 0.5im
     @test layer.dispersion(2.0) == 2.0 + 1.0im
     @test layer.dispersion(3.0) == 2.5 + 1.5im
+
+    zero_layer = TransferMatrix.Layer(λs, dispersion, extinction, 0.0)
+    @test zero_layer.thickness == 0.0
 end

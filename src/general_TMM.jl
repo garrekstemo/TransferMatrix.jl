@@ -12,10 +12,10 @@ struct Poynting
 end
 
 struct ElectricField
-    z::Array{Float64}
+    z::Vector{Float64}
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}
-    boundaries::Array{Float64}
+    boundaries::Vector{Float64}
 end
 
 struct Spectra
@@ -225,25 +225,33 @@ function propagate(λ, layers, θ, μ)
    
     D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
     D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
-    
-    Γ = I
-    Ds = [D_0]
-    Ps = Function[P_0]
-    γs = [γ_0]
-    for layer in layers[2:end - 1]
+
+    # Preallocate arrays with known size
+    n_layers = length(layers)
+    Ds = Vector{typeof(D_0)}(undef, n_layers)
+    Ps = Vector{typeof(P_0)}(undef, n_layers)
+    γs = Vector{typeof(γ_0)}(undef, n_layers)
+
+    Ds[1] = D_0
+    Ps[1] = P_0
+    γs[1] = γ_0
+
+    Γ = SMatrix{4,4,ComplexF64}(I)
+    for (i, layer) in enumerate(layers[2:end - 1])
         D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
-        T_i = D_i * P_i(layer.thickness) * inv(D_i)
+        # Prefer solves over inv() for stability and fewer allocations.
+        T_i = D_i * (P_i(layer.thickness) / D_i)
         Γ *= T_i
-        push!(Ds, D_i)
-        push!(Ps, P_i)
-        push!(γs, γ_i)
+        Ds[i + 1] = D_i
+        Ps[i + 1] = P_i
+        γs[i + 1] = γ_i
     end
 
-    push!(Ds, D_f)
-    push!(Ps, P_f)
-    push!(γs, γ_f)
+    Ds[n_layers] = D_f
+    Ps[n_layers] = P_f
+    γs[n_layers] = γ_f
 
-    Γ = inv(Λ_1324) * inv(D_0) * Γ * D_f * Λ_1324
+    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
     S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
 
@@ -289,11 +297,11 @@ function calculate_tr(Γ)
     Tps = abs2(tps)
     Tsp = abs2(tsp)
 
-    r = [rpp, rps, rss, rsp]
-    R = [Rpp, Rss, Rsp, Rps]
+    r = SVector(rpp, rps, rss, rsp)
+    R = SVector(Rpp, Rss, Rsp, Rps)
 
-    t = [tpp, tps, tsp, tss]
-    T = [Tpp, Tss, Tsp, Tps]
+    t = SVector(tpp, tps, tsp, tss)
+    T = SVector(Tpp, Tss, Tsp, Tps)
 
     return r, R, t, T
 end
@@ -437,8 +445,9 @@ function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
     Eplus_s[end, :] = [t[3], t[4], 0, 0]
     
     P_f = Ps[end]
-    Eminus_p[end, :] = inv(P_f(last_layer.thickness)) * Eplus_p[end, :]
-    Eminus_s[end, :] = inv(P_f(last_layer.thickness)) * Eplus_s[end, :]
+    # Avoid inv() here too; P_f is diagonal so the solve is cheap and stable.
+    Eminus_p[end, :] = P_f(last_layer.thickness) \ Eplus_p[end, :]
+    Eminus_s[end, :] = P_f(last_layer.thickness) \ Eplus_s[end, :]
 
     D_i = Ds[end]
 
@@ -447,7 +456,7 @@ function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
             layer = layers[l - 1]
             D_prev = Ds[l - 1]
             P_prev = Ps[l - 1]
-            L_i = inv(Ds[l - 1]) * D_i
+            L_i = Ds[l - 1] \ D_i
 
             Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
             Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
@@ -462,9 +471,6 @@ function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
     interface_positions .-= first_layer.thickness
 
     zs = range(-first_layer.thickness, interface_positions[end], step=dz)
-
-    field_p = []
-    field_s = []
 
     field = zeros(ComplexF64, 6, length(zs))
 

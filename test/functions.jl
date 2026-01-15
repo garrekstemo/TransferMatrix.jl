@@ -62,49 +62,84 @@ end
 end
 
 
-# @testset "poynting" begin
+@testset "poynting(Ψ, a)" begin
 
-#     M = Array{ComplexF64}(undef, 6, 6)
-#     ε = Diagonal([1, 1, 1])
-#     μ = Diagonal([1, 1, 1])
-#     M[1:3, 1:3] = ε
-#     M[4:6, 4:6] = μ
+    M = Array{ComplexF64}(undef, 6, 6)
+    ε = Diagonal([1, 1, 1])
+    μ = Diagonal([1, 1, 1])
+    M[1:3, 1:3] = ε
+    M[4:6, 4:6] = μ
     
-#     a = TransferMatrix.construct_a(0., M)
-#     Δ = TransferMatrix.construct_Δ(0., M, a)
-#     q, Ψ = eigen(Δ)
+    a = Matrix(TransferMatrix.construct_a(0., M))
 
-#     # This just makes the elements of Ψ all 1 or -1
-#     # for convenience when calculating by hand.
-#     Ψ ./= √2 / 2 
+    # Use a fixed Ψ to keep the expected Poynting result stable.
+    Ψ = ComplexF64[
+        1  0  1  0;
+       -1  0  1  0;
+        0  1  0  1;
+        0 -1  0  1
+    ]
 
-#     # Ψ now looks like the following:
-#     # Ψ = [1  0  1  0;
-#     #     -1  0  1  0;
-#     #      0  1  0  1;
-#     #      0 -1  0  1]
-
-#     # The relevant indices of the matrix, a, above are zero,
-#     # so we give them arbitrary values here to check that
-#     # all elements of the Poynting vector are calculated:
+    # The relevant indices of the matrix, a, above are zero,
+    # so we give them arbitrary values here to check that
+    # all elements of the Poynting vector are calculated:
     
-#     a[3,1] = 1
-#     a[3,2] = 2
-#     a[3,4] = 3
-#     a[3,5] = 4
+    a[3,1] = 1
+    a[3,2] = 2
+    a[3,4] = 3
+    a[3,5] = 4
     
-#     a[6,1] = 5
-#     a[6,2] = 6
-#     a[6,4] = 7
-#     a[6,5] = 8
+    a[6,1] = 5
+    a[6,2] = 6
+    a[6,4] = 7
+    a[6,5] = 8
               
-#     S = TransferMatrix.poynting(Ψ, a)
+    S = TransferMatrix.poynting(Ψ, a)
 
-#     # Calculated by hand with the above a and Ψ following Passler et al. 2017.
-#     S_test = ComplexF64[
-#         -3  13 -5  -1;
-#          3  5  -13  1;
-#         -1 -1   1   1]
+    # Calculated by hand with the above a and Ψ following Passler et al. 2017.
+    S_test = ComplexF64[
+        -3  13 -5  -1;
+         3  5  -13  1;
+        -1 -1   1   1]
 
-#     @test isapprox(S, S_test, atol=1e-13)
-# end
+    @test isapprox(S, S_test, atol=1e-13)
+end
+
+@testset "poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)" begin
+    ξ = 0.0
+    q_in = SVector(1.0, 1.0, 1.0, 1.0)
+    q_out = SVector(1.0, 1.0, 1.0, 1.0)
+    γ_in = @SMatrix [1.0 0.0 0.0;
+                     0.0 1.0 0.0;
+                     0.0 0.0 1.0;
+                     1.0 0.0 0.0]
+    γ_out = γ_in
+    t_coefs = zeros(4)
+    r_coefs = zeros(4)
+
+    S = TransferMatrix.poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
+    @test norm(S.in_p) > 0
+    @test norm(S.in_s) > 0
+    @test isapprox(S.out_p, SVector(0.0, 0.0, 0.0); atol=1e-12)
+    @test isapprox(S.out_s, SVector(0.0, 0.0, 0.0); atol=1e-12)
+    @test isapprox(S.refl_p, SVector(0.0, 0.0, 0.0); atol=1e-12)
+    @test isapprox(S.refl_s, SVector(0.0, 0.0, 0.0); atol=1e-12)
+end
+
+@testset "calculate_q sorting" begin
+    Δ = Diagonal([1.0, 2.0, -1.0, -2.0])
+    a = zeros(ComplexF64, 6, 6)
+    q, S = TransferMatrix.calculate_q(Matrix(Δ), a)
+    @test length(q) == 4
+    @test all(q[1:2] .> 0)
+    @test all(q[3:4] .< 0)
+end
+
+@testset "calculate_q complex sorting" begin
+    Δ = Diagonal(ComplexF64[1 + 1im, 2 + 2im, 3 - 1im, 4 - 2im])
+    a = zeros(ComplexF64, 6, 6)
+    q, S = TransferMatrix.calculate_q(Matrix(Δ), a)
+    @test length(q) == 4
+    @test all(imag.(q[1:2]) .>= 0)
+    @test all(imag.(q[3:4]) .<= 0)
+end
