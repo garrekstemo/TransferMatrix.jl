@@ -9,6 +9,12 @@
 
     @test interface_positions == [1.0, 3.0, 6.0]
     @test total_thickness == 6.0
+
+    single_layer = [TransferMatrix.Layer(RefractiveMaterial("main", "SiO2", "Malitson"), 1.5)]
+    single_positions, single_total = TransferMatrix.find_bounds(single_layer)
+
+    @test single_positions == [1.5]
+    @test single_total == 1.5
 end
 
 
@@ -16,6 +22,8 @@ end
     air = RefractiveMaterial("other", "air", "Ciddor")
     au = RefractiveMaterial("main", "Au", "Rakic-LD")
 
+    @test_throws ArgumentError extinction(air, 1.0)
+    @test TransferMatrix.refractive_index(air)(1.0) == dispersion(air, 1.0) + 0.0im
     @test TransferMatrix.refractive_index(air)(1.0) == 1.0002741661312147 + 0.0im
     @test TransferMatrix.refractive_index(au)(1.0) == 0.2557301597051597 + 5.986408108108109im
     

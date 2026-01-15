@@ -134,3 +134,12 @@ end
     @test all(q[1:2] .> 0)
     @test all(q[3:4] .< 0)
 end
+
+@testset "calculate_q complex sorting" begin
+    Δ = Diagonal(ComplexF64[1 + 1im, 2 + 2im, 3 - 1im, 4 - 2im])
+    a = zeros(ComplexF64, 6, 6)
+    q, S = TransferMatrix.calculate_q(Matrix(Δ), a)
+    @test length(q) == 4
+    @test all(imag.(q[1:2]) .>= 0)
+    @test all(imag.(q[3:4]) .<= 0)
+end
