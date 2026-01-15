@@ -168,8 +168,8 @@ Li et al, 1988, https://doi.org/10.1364/AO.27.001334
 function calculate_q(Δ, a)
 
     q_unsorted, Ψ_unsorted = eigen(Δ)
-    transmitted_mode = [0, 0]
-    reflected_mode = [0, 0]
+    transmitted_mode = MVector(0, 0)
+    reflected_mode = MVector(0, 0)
 
     kt = 1
     kr = 1
