@@ -225,24 +225,31 @@ function propagate(λ, layers, θ, μ)
    
     D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
     D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
-    
+
+    # Preallocate arrays with known size
+    n_layers = length(layers)
+    Ds = Vector{typeof(D_0)}(undef, n_layers)
+    Ps = Vector{Function}(undef, n_layers)
+    γs = Vector{typeof(γ_0)}(undef, n_layers)
+
+    Ds[1] = D_0
+    Ps[1] = P_0
+    γs[1] = γ_0
+
     Γ = SMatrix{4,4,ComplexF64}(I)
-    Ds = [D_0]
-    Ps = Function[P_0]
-    γs = [γ_0]
-    for layer in layers[2:end - 1]
+    for (i, layer) in enumerate(layers[2:end - 1])
         D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
         # Prefer solves over inv() for stability and fewer allocations.
         T_i = D_i * (P_i(layer.thickness) / D_i)
         Γ *= T_i
-        push!(Ds, D_i)
-        push!(Ps, P_i)
-        push!(γs, γ_i)
+        Ds[i + 1] = D_i
+        Ps[i + 1] = P_i
+        γs[i + 1] = γ_i
     end
 
-    push!(Ds, D_f)
-    push!(Ps, P_f)
-    push!(γs, γ_f)
+    Ds[n_layers] = D_f
+    Ps[n_layers] = P_f
+    γs[n_layers] = γ_f
 
     Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
@@ -464,9 +471,6 @@ function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
     interface_positions .-= first_layer.thickness
 
     zs = range(-first_layer.thickness, interface_positions[end], step=dz)
-
-    field_p = []
-    field_s = []
 
     field = zeros(ComplexF64, 6, length(zs))
 
