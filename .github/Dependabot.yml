@@ -1,6 +1,0 @@
-version: 2
-updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"  # Root directory where workflows are stored
-    schedule:
-      interval: "month"  # Check for updates once a month

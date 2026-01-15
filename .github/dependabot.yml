@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"  # Root directory where workflows are stored
+    schedule:
+      interval: "monthly"  # Check for updates once a month
+  - package-ecosystem: "julia"
+    directories:
+      - "/"
+      - "/docs"
+      - "/examples"
+    schedule:
+      interval: "weekly"
+    groups: # group all julia package updates into a single PR
+      all-julia-packages:
+        patterns:
+          - "*"
