@@ -338,7 +338,7 @@ end
 
 
 """
-    angle_resolved(λs, θs, layers)
+    sweep_angle(λs, θs, layers; threads=true, verbose=false)
 
 Calculate the transmission and reflection at different angles of incidence and wavelengths for a stack of layers.
 
@@ -347,27 +347,50 @@ Calculate the transmission and reflection at different angles of incidence and w
 - `θs`: Vector of angles of incidence in radians.
 - `layers`: Vector of `Layer` objects representing the stack.
 """
-function angle_resolved(λs, θs, layers)
-    Tpp = Array{Float64}(undef, length(θs), length(λs))
-    Tss = Array{Float64}(undef, length(θs), length(λs))
-    Rpp = Array{Float64}(undef, length(θs), length(λs))
-    Rss = Array{Float64}(undef, length(θs), length(λs))
-    
-    Threads.@threads for i in eachindex(θs)
-        Threads.@threads for j in eachindex(λs)
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λs[j], layers, θs[i])
+function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
+    Tpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
+    Tss = Array{Float64}(undef, length(outer_vals), length(inner_vals))
+    Rpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
+    Rss = Array{Float64}(undef, length(outer_vals), length(inner_vals))
+
+    if verbose
+        println("Threads: ", Threads.nthreads())
+    end
+
+    function compute_row(i)
+        layers_i = make_layers(i)
+        θ = angle_for(i)
+        for j in eachindex(inner_vals)
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(inner_vals[j], layers_i, θ)
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
             Rpp[i, j] = Rpp_
             Rss[i, j] = Rss_
         end
     end
+
+    if threads
+        Threads.@threads for i in eachindex(outer_vals)
+            compute_row(i)
+        end
+    else
+        for i in eachindex(outer_vals)
+            compute_row(i)
+        end
+    end
+
     return Spectra(Rpp, Rss, Tpp, Tss)
+end
+
+function sweep_angle(λs, θs, layers; threads::Bool=true, verbose::Bool=false)
+    return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
+        make_layers = _ -> layers,
+        angle_for = i -> θs[i])
 end
 
 
 """
-    tune_thickness(λs, ts, layers, t_index, θ=0.0)
+    sweep_thickness(λs, ts, layers, t_index, θ=0.0; threads=true, verbose=false)
 
 Tune the thickness of a specific layer in a stack and calculate the transmission and reflection.
 
@@ -378,25 +401,17 @@ Tune the thickness of a specific layer in a stack and calculate the transmission
 - `t_index`: Index of the layer in the stack to tune the thickness of.
 - `θ`: Angle of incidence in radians. Default is 0.0 (normal incidence).
 """
-function tune_thickness(λs, ts, layers, t_index::Int, θ=0.0)
-    Tpp = Matrix{Float64}(undef, length(ts), length(λs))
-    Tss = Matrix{Float64}(undef, length(ts), length(λs))
-    Rpp = Matrix{Float64}(undef, length(ts), length(λs))
-    Rss = Matrix{Float64}(undef, length(ts), length(λs))
-    
-    Threads.@threads for i in eachindex(ts)
-        changing_layer = Layer(layers[t_index].dispersion, ts[i])
-        new_layers = [layers[1:t_index-1]; changing_layer; layers[t_index+1:end]]
-        Threads.@threads for j in eachindex(λs)
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λs[j], new_layers, θ)
-            Tpp[i, j] = Tpp_
-            Tss[i, j] = Tss_
-            Rpp[i, j] = Rpp_
-            Rss[i, j] = Rss_
-        end
-    end
-    return Spectra(Rpp, Rss, Tpp, Tss)
+function sweep_thickness(λs, ts, layers, t_index::Int, θ=0.0; threads::Bool=true, verbose::Bool=false)
+    return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
+        make_layers = i -> begin
+            changing_layer = Layer(layers[t_index].dispersion, ts[i])
+            [layers[1:t_index-1]; changing_layer; layers[t_index+1:end]]
+        end,
+        angle_for = _ -> θ)
 end
+
+@deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)
+@deprecate tune_thickness(λs, ts, layers, t_index::Int, θ=0.0; kwargs...) sweep_thickness(λs, ts, layers, t_index, θ; kwargs...)
 
 
 """

@@ -24,8 +24,8 @@
     @test isapprox(Rss, Rs; atol=1e-8)
 end
 
-@testset "angle_resolved interface" begin
-    # angle_resolved should reproduce the same interface reflectance/transmittance
+@testset "sweep_angle interface" begin
+    # sweep_angle should reproduce the same interface reflectance/transmittance
     # as calculate_tr when evaluated at a fixed angle and wavelength grid.
     λs = [1.2, 1.6]
     θs = [0.0]
@@ -36,7 +36,7 @@ end
     glass = Layer(λs, fill(n2, length(λs)), zeros(length(λs)), 0.0)
     layers = [air, glass]
 
-    spectra = angle_resolved(λs, θs, layers)
+    spectra = sweep_angle(λs, θs, layers)
 
     expected_R = ((n1 - n2) / (n1 + n2))^2
     expected_T = 1 - expected_R
@@ -270,8 +270,8 @@ end
     @test R[1] < R[2] < R[3]
 end
 
-@testset "angle_resolved off-normal consistency" begin
-    # angle_resolved at a nonzero angle should agree with calculate_tr
+@testset "sweep_angle off-normal consistency" begin
+    # sweep_angle at a nonzero angle should agree with calculate_tr
     # for the same configuration, and conserve energy for lossless stacks.
     λs = [1.0, 1.2]
     θs = [0.3]
@@ -283,7 +283,7 @@ end
     film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
     layers = [air, film, air]
 
-    spectra = angle_resolved(λs, θs, layers)
+    spectra = sweep_angle(λs, θs, layers)
 
     for (j, λ) in enumerate(λs)
         Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers, θs[1])
@@ -335,4 +335,33 @@ end
 
     @test isapprox(maximum(p_mag), minimum(p_mag); rtol=1e-5, atol=1e-6)
     @test isapprox(maximum(s_mag), minimum(s_mag); rtol=1e-5, atol=1e-6)
+end
+
+@testset "threads toggle consistency" begin
+    λs = [1.0, 1.2]
+    θs = [0.0, 0.2]
+    n_air = 1.0
+    n_film = 1.4
+    d = 0.3
+
+    air = Layer(λs, fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
+    layers = [air, film, air]
+
+    spectra_threads = sweep_angle(λs, θs, layers; threads=true)
+    spectra_serial = sweep_angle(λs, θs, layers; threads=false)
+
+    @test spectra_threads.Rpp ≈ spectra_serial.Rpp
+    @test spectra_threads.Rss ≈ spectra_serial.Rss
+    @test spectra_threads.Tpp ≈ spectra_serial.Tpp
+    @test spectra_threads.Tss ≈ spectra_serial.Tss
+
+    ts = [0.1, 0.2, 0.3]
+    spec_threads = sweep_thickness(λs, ts, layers, 2, 0.0; threads=true)
+    spec_serial = sweep_thickness(λs, ts, layers, 2, 0.0; threads=false)
+
+    @test spec_threads.Rpp ≈ spec_serial.Rpp
+    @test spec_threads.Rss ≈ spec_serial.Rss
+    @test spec_threads.Tpp ≈ spec_serial.Tpp
+    @test spec_threads.Tss ≈ spec_serial.Tss
 end
