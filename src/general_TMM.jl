@@ -359,7 +359,7 @@ Calculate the transmission and reflection at different angles of incidence and w
 # Arguments
 - `λs`: Vector of wavelengths.
 - `θs`: Vector of angles of incidence in radians.
-- `layers`: Vector of `Layer` objects representing the stack.
+- `layers`: `AbstractVector{<:Layer}` representing the stack.
 """
 function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
     Tpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
@@ -411,7 +411,7 @@ Tune the thickness of a specific layer in a stack and calculate the transmission
 # Arguments
 - `λs`: Vector of wavelengths.
 - `ts`: Vector of thicknesses.
-- `layers`: Vector of `Layer` objects representing the stack.
+- `layers`: `AbstractVector{<:Layer}` representing the stack.
 - `t_index`: Index of the layer in the stack to tune the thickness of.
 - `θ`: Angle of incidence in radians. Default is 0.0 (normal incidence).
 """

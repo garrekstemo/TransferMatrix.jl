@@ -45,6 +45,9 @@ unit = [tio2, sio2]
 periods = 3
 layers = [air, repeat(unit, periods)...]
 
+Note: `Layer` is parametric as `Layer{F,T}`. When annotating collections, prefer
+`AbstractVector{<:Layer}` rather than `Vector{Layer}`.
+
 λs = 0.4:0.002:1.0
 Rpp = Float64[]
 for λ in λs
