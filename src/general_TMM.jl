@@ -16,6 +16,12 @@ struct ElectricField
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}
     boundaries::Vector{Float64}
+
+    function ElectricField(z, p, s, boundaries)
+        size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
+        size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
+        new(z, p, s, boundaries)
+    end
 end
 
 struct Spectra
