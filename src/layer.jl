@@ -6,13 +6,13 @@ Construct a single layer with keywords:
 * `material`: refractive material containing dispersion and extinction data (if available)
 * `thickness`: thickness of the layer
 """
-struct Layer
-    dispersion::Function
-    thickness::Real
+struct Layer{F,T<:Real}
+    dispersion::F
+    thickness::T
 
-    function Layer(material, thickness)
+    function Layer(material::F, thickness::T) where {F,T<:Real}
         thickness ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
-        new(material, thickness)
+        new{F,T}(material, thickness)
     end
 end
 
