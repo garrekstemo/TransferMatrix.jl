@@ -232,7 +232,8 @@ function propagate(λ, layers, θ, μ)
     γs = [γ_0]
     for layer in layers[2:end - 1]
         D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
-        T_i = D_i * P_i(layer.thickness) * inv(D_i)
+        # Prefer solves over inv() for stability and fewer allocations.
+        T_i = D_i * (P_i(layer.thickness) / D_i)
         Γ *= T_i
         push!(Ds, D_i)
         push!(Ps, P_i)
@@ -243,7 +244,7 @@ function propagate(λ, layers, θ, μ)
     push!(Ps, P_f)
     push!(γs, γ_f)
 
-    Γ = inv(Λ_1324) * inv(D_0) * Γ * D_f * Λ_1324
+    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
     S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
 
@@ -437,8 +438,9 @@ function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
     Eplus_s[end, :] = [t[3], t[4], 0, 0]
     
     P_f = Ps[end]
-    Eminus_p[end, :] = inv(P_f(last_layer.thickness)) * Eplus_p[end, :]
-    Eminus_s[end, :] = inv(P_f(last_layer.thickness)) * Eplus_s[end, :]
+    # Avoid inv() here too; P_f is diagonal so the solve is cheap and stable.
+    Eminus_p[end, :] = P_f(last_layer.thickness) \ Eplus_p[end, :]
+    Eminus_s[end, :] = P_f(last_layer.thickness) \ Eplus_s[end, :]
 
     D_i = Ds[end]
 
@@ -447,7 +449,7 @@ function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
             layer = layers[l - 1]
             D_prev = Ds[l - 1]
             P_prev = Ps[l - 1]
-            L_i = inv(Ds[l - 1]) * D_i
+            L_i = Ds[l - 1] \ D_i
 
             Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
             Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
