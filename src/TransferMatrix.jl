@@ -6,18 +6,27 @@ using RefractiveIndex
 using StaticArrays
 
 export Layer,
+       TransferResult,
        sweep_angle,
-       calculate_tr,
+       transfer,
        dielectric_constant,
        dielectric_tensor,
        ElectricField,
-       electric_field,
+       efield,
        find_bounds,
        fresnel,
+       fresnel_coefficients,
+       airy,
        stopband,
        dbr_reflectivity,
        refractive_index,
-       sweep_thickness
+       sweep_thickness,
+       isanisotropic,
+       get_refractive_indices,
+       get_euler_angles,
+       isrotated,
+       euler_rotation_matrix,
+       rotate_dielectric_tensor
 
 include("matrix_constructors.jl")
 include("layer.jl")

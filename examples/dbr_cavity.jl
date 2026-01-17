@@ -27,7 +27,7 @@ Tss = Float64[]
 Rpp = Float64[]
 Rss = Float64[]
 for λ in λs
-    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+    Tpp_, Tss_, Rpp_, Rss_ = transfer(λ, layers)
     push!(Tpp, Tpp_)
     push!(Tss, Tss_)
     push!(Rpp, Rpp_)
@@ -36,7 +36,7 @@ end
 
 
 λ = 1.0
-field = electric_field(λ_0, layers)
+field = efield(λ_0, layers)
 ns = [real(layer.dispersion(λ_0)) for layer in layers]
 bounds = [-layers[1].thickness, field.boundaries..., field.boundaries[end] + layers[end].thickness]
 pushfirst!(ns, ns[1])  # Add the refractive index of the first layer for negative z

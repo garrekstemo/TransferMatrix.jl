@@ -22,7 +22,7 @@ Tss = Float64[]
 Rpp = Float64[]
 Rss = Float64[]
 for λ in λs
-    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+    Tpp_, Tss_, Rpp_, Rss_ = transfer(λ, layers)
     push!(Tpp, Tpp_)
     push!(Tss, Tss_)
     push!(Rpp, Rpp_)
@@ -34,7 +34,7 @@ end
 peak = findmax(Tpp[λ_min:λ_max])[2] + λ_min - 1
 λ = λs[peak]
 
-field = electric_field(λ, layers)
+field = efield(λ, layers)
 
 
 f = Figure(size = (450, 600))

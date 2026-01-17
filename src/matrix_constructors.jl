@@ -17,6 +17,63 @@ dielectric_tensor(ε1, ε2, ε3) = Diagonal(SVector{3, ComplexF64}(ε1, ε2, ε3
 
 
 """
+    euler_rotation_matrix(φ, θ, ψ)
+
+Return the 3×3 rotation matrix for ZYZ Euler angles (in radians).
+
+This transforms vectors from the crystal frame to the lab frame:
+`v_lab = R * v_crystal`
+
+The rotation is performed as: R = Rz(φ) * Ry(θ) * Rz(ψ)
+
+# Convention
+- φ (phi): First rotation about z-axis (0 to 2π)
+- θ (theta): Rotation about new y-axis (0 to π) - the tilt angle
+- ψ (psi): Second rotation about new z-axis (0 to 2π)
+
+# Common cases
+- Optic axis along z: `(0, 0, 0)` - no rotation needed
+- Optic axis in xz-plane at angle θ from z: `(0, θ, 0)`
+- Quarter-wave plate at 45°: `(π/4, π/2, 0)` for optic axis in xy-plane
+"""
+function euler_rotation_matrix(φ::Real, θ::Real, ψ::Real)
+    cφ, sφ = cos(φ), sin(φ)
+    cθ, sθ = cos(θ), sin(θ)
+    cψ, sψ = cos(ψ), sin(ψ)
+
+    # ZYZ convention: R = Rz(φ) * Ry(θ) * Rz(ψ)
+    @SMatrix [
+        cφ*cθ*cψ - sφ*sψ   -cφ*cθ*sψ - sφ*cψ   cφ*sθ;
+        sφ*cθ*cψ + cφ*sψ   -sφ*cθ*sψ + cφ*cψ   sφ*sθ;
+        -sθ*cψ              sθ*sψ               cθ
+    ]
+end
+
+
+"""
+    rotate_dielectric_tensor(ε_diag, R)
+
+Rotate a diagonal dielectric tensor from crystal frame to lab frame.
+
+Given a diagonal tensor ε in the crystal's principal axis frame and a rotation
+matrix R, returns the rotated tensor: `ε_lab = R * ε * R'`
+
+# Arguments
+- `ε_diag`: Diagonal dielectric tensor in crystal frame
+- `R`: 3×3 rotation matrix from `euler_rotation_matrix`
+
+# Returns
+Full 3×3 SMatrix (may have off-diagonal elements after rotation)
+"""
+function rotate_dielectric_tensor(ε_diag::Diagonal, R::SMatrix{3,3})
+    # ε_lab = R * ε_crystal * R'
+    # For diagonal ε, this is equivalent to: R * Diagonal(ε) * R'
+    ε_full = SMatrix{3,3,ComplexF64}(ε_diag)
+    return R * ε_full * R'
+end
+
+
+"""
     permeability_tensor(μ1, μ2, μ3)
 
 This produces the diagonal permeability tensor, 
@@ -32,13 +89,29 @@ permeability_tensor(μ1, μ2, μ3) = Diagonal(SVector{3, ComplexF64}(μ1, μ2, �
 Calculate all parameters for a single layer, particularly
 the propagation matrix and dynamical matrix so that
 the overall transfer matrix can be calculated.
+
+Supports both isotropic layers (single refractive index) and anisotropic layers
+(different refractive indices along principal axes), with optional crystal rotation
+via Euler angles.
 """
 function layer_matrices(layer, λ, ξ, μ_i)
 
     ω = 2π * c_0 / λ
-    n_i = layer.dispersion(λ)
-    ε_i = dielectric_constant(n_i)
-    ε = dielectric_tensor(ε_i, ε_i, ε_i)
+    nx, ny, nz = get_refractive_indices(layer, λ)
+    εx = dielectric_constant(nx)
+    εy = dielectric_constant(ny)
+    εz = dielectric_constant(nz)
+    ε_diag = dielectric_tensor(εx, εy, εz)
+
+    # Apply rotation if layer has non-zero Euler angles
+    φ, θ, ψ = get_euler_angles(layer)
+    if φ != 0.0 || θ != 0.0 || ψ != 0.0
+        R = euler_rotation_matrix(φ, θ, ψ)
+        ε = rotate_dielectric_tensor(ε_diag, R)
+    else
+        ε = ε_diag
+    end
+
     μ = permeability_tensor(μ_i, μ_i, μ_i)
 
     M = construct_M(ε, μ)
@@ -70,6 +143,20 @@ function construct_M(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}},
         ε[1,1] z z z z z;
         z ε[2,2] z z z z;
         z z ε[3,3] z z z;
+        z z z μ[1,1] z z;
+        z z z z μ[2,2] z;
+        z z z z z μ[3,3]
+    ]
+end
+
+# Specialized method for rotated anisotropic materials (full 3×3 dielectric tensor)
+function construct_M(ε::SMatrix{3,3,ComplexF64},
+                     μ::Diagonal{ComplexF64,SVector{3,ComplexF64}})
+    z = zero(ComplexF64)
+    return @SMatrix [
+        ε[1,1] ε[1,2] ε[1,3] z z z;
+        ε[2,1] ε[2,2] ε[2,3] z z z;
+        ε[3,1] ε[3,2] ε[3,3] z z z;
         z z z μ[1,1] z z;
         z z z z μ[2,2] z;
         z z z z z μ[3,3]
@@ -177,23 +264,31 @@ function calculate_q(Δ, a)
     if isreal(q_unsorted)
         for m in 1:4
             if real(q_unsorted[m]) >= 0.0
-                transmitted_mode[kt] = m
+                kt <= 2 && (transmitted_mode[kt] = m)
                 kt += 1
             else
-                reflected_mode[kr] = m
+                kr <= 2 && (reflected_mode[kr] = m)
                 kr += 1
             end
         end
     else
         for m in 1:4
             if imag(q_unsorted[m]) >= 0.0
-                transmitted_mode[kt] = m
+                kt <= 2 && (transmitted_mode[kt] = m)
                 kt += 1
             else
-                reflected_mode[kr] = m
+                kr <= 2 && (reflected_mode[kr] = m)
                 kr += 1
             end
         end
+    end
+
+    # Verify invariant: exactly 2 transmitted and 2 reflected modes
+    if kt != 3 || kr != 3
+        throw(ArgumentError(
+            "Mode sorting failed: expected 2 transmitted and 2 reflected modes, " *
+            "got $(kt-1) transmitted and $(kr-1) reflected. Eigenvalues: $q_unsorted"
+        ))
     end
 
     S_unsorted = poynting(Ψ_unsorted, a)
@@ -226,35 +321,54 @@ function calculate_γ(ξ, q, ε, μ)
     γ[4,2] = 1
     γ[3,1] = -1
 
+    # Common denominator term - can become singular at specific angles
+    denom_33 = μ * ε[3,3] - ξ^2
+    singular_33 = abs(denom_33) < eps(Float64)
+
     if isapprox(q[1], q[2])
         γ[1,2] = 0
         γ[2,1] = 0
     else
-        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1]) - μ * ε[2,1] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]))
+        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1]) - μ * ε[2,1] * denom_33) / (denom_33 * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]))
     end
 
-    γ[1,3] = (-μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2]) / (μ * ε[3,3] - ξ^2)
-    γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / (μ * ε[3,3] - ξ^2)
+    # γ[i,3] components use denom_33 directly - set to zero if singular
+    if singular_33
+        γ[1,3] = 0
+        γ[2,3] = 0
+    else
+        γ[1,3] = (-μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2]) / denom_33
+        γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / denom_33
+    end
 
     if isapprox(q[3], q[4])
         γ[3,2] = 0.0
         γ[4,1] = 0.0
     else
-        γ[3,2] = (μ * ε[2,1] * (μ * ε[3,3] - ξ^2) - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3])) / ((μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]))
+        γ[3,2] = (μ * ε[2,1] * denom_33 - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3])) / (denom_33 * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]))
     end
 
-    γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / (μ * ε[3,3] - ξ^2)
-    γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / (μ * ε[3,3] - ξ^2)
+    # γ[i,3] components for backward modes - set to zero if singular
+    if singular_33
+        γ[3,3] = 0
+        γ[4,3] = 0
+    else
+        γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / denom_33
+        γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
+    end
 
     # normalize γ (use SVector to avoid slice allocations)
+    # Skip normalization if the row is effectively zero to avoid NaN from 0/0
     for i in 1:4
         v = SVector(γ[i,1], γ[i,2], γ[i,3])
         Z = √(v ⋅ v')
-        γ[i,1] /= Z
-        γ[i,2] /= Z
-        γ[i,3] /= Z
+        if abs(Z) > eps(Float64)
+            γ[i,1] /= Z
+            γ[i,2] /= Z
+            γ[i,3] /= Z
+        end
     end
 
     return SMatrix(γ)
@@ -297,7 +411,16 @@ end
 
 Returns a callable object that propagates the electromagnetic
 field a distance z through a material for a frequency ω
-and wavevector ``q``.
+and wavevector `q`.
+
+The propagation matrix is diagonal with elements:
+```
+P(z) = diag(exp(-iωq₁z/c), exp(-iωq₂z/c), exp(-iωq₃z/c), exp(-iωq₄z/c))
+```
+
+This uses the **exp(-iωt)** time convention, consistent with Berreman (1972)
+and Passler & Paarmann (2017). Note that Yeh uses exp(+iωt), which would
+flip the sign in the exponent.
 """
 propagation_matrix(ω, q) = PropagationMatrix(ω, q)
 

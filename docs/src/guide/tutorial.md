@@ -104,11 +104,11 @@ Ts = Float64[]
 Rp = Float64[]
 Rs = Float64[]
 for λ in λs
-    Tp_, Ts_, Rp_, Rs_ = calculate_tr(λ, layers)
-    push!(Tp, Tp_)
-    push!(Ts, Ts_)
-    push!(Rp, Rp_)
-    push!(Rs, Rs_)
+    result = transfer(λ, layers)
+    push!(Tp, result.Tpp)
+    push!(Ts, result.Tss)
+    push!(Rp, result.Rpp)
+    push!(Rs, result.Rss)
 end
 
 f, ax, l = lines(frequencies, Ts)
@@ -120,7 +120,7 @@ f
 
 ## Electric field calculation
 
-The wavelength-dependent electric field is the cavity is provided by the `electric_field` function.
+The wavelength-dependent electric field is the cavity is provided by the `efield` function.
 We can calculate the electric field at the first peak in the above plot using
 
 ```@example tutorial
@@ -129,7 +129,7 @@ We can calculate the electric field at the first peak in the above plot using
 peak = findmax(Ts[λ_min:λ_max])[2] + λ_min - 1
 λ = λs[peak]
 
-field = electric_field(λ, layers)
+field = efield(λ, layers)
 
 f, ax, l = lines(field.z .* 1e3, real(field.p[1, :]))
 vlines!(field.boundaries[1], color = :black, linestyle = :dash)
@@ -196,13 +196,19 @@ A complete example calculating dispersion of a polaritonic system is provided in
 
 ## Thickness-dependent calculations
 
-Instead of angle-resolved, you might want to vary the thickness of a particular layer.
-A convenience function, `sweep_thickness` is provided to do this.
-It takes a list of wavelengths, a list of thicknesses, the layers, and the index of the layer to vary.
-For example, if you want to vary the 14th layer in the `layers` array, you might do the following:
+Similar to `sweep_angle`, you can vary the thickness of a particular layer using `sweep_thickness`.
+You specify which layer to vary by its index in the layers array.
 
 ```julia
-sweep_thickness(λs, thicknesses, layers, 14; verbose=true)
+λs = range(0.8, 1.2, length=100)
+thicknesses = range(0.3, 0.7, length=100)
+
+# Vary layer 9 (the cavity air gap)
+res = sweep_thickness(λs, thicknesses, layers, 9)
+
+heatmap(thicknesses, λs, res.Tpp')
 ```
 
-A complete example using this is provided in the examples folder of the package source code.
+![Thickness dependence](../assets/thickness_dependence.png)
+
+A complete example is provided in the examples folder of the package source code.

@@ -48,8 +48,8 @@ layers = [air, repeat(unit, periods)...]
 λs = 0.4:0.002:1.0
 Rpp = Float64[]
 for λ in λs
-    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
-    push!(Rpp, Rpp_)
+    result = transfer(λ, layers)
+    push!(Rpp, result.Rpp)
 end
 
 
@@ -77,8 +77,8 @@ for i in 1:nperiods
     Rpp = Float64[]
     if i%3 == 0
         for λ in λs
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
-            push!(Rpp, Rpp_)
+            result = transfer(λ, layers)
+            push!(Rpp, result.Rpp)
         end
         lines!(ax, λs .* 1e3, Rpp, label = "$(i + 3) periods")
     end
@@ -87,3 +87,18 @@ end
 axislegend(ax)
 f
 ```
+
+## Physics Validation
+
+When developing or debugging, enable physics validation to catch numerical issues early:
+
+```julia
+result = transfer(λ, layers; validate=true)
+```
+
+With `validate=true`, the function checks:
+- **Bounds**: 0 ≤ R, T ≤ 1 (catches NaN, negative values, numerical instability)
+- **Energy conservation**: R + T ≈ 1 for non-absorbing media
+- **Absorption bound**: R + T ≤ 1 for absorbing media
+
+Warnings are issued for any violations, helping you identify problems with layer definitions or edge cases in your simulation.
