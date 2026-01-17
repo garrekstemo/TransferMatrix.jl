@@ -143,3 +143,38 @@ end
     @test all(imag.(q[1:2]) .>= 0)
     @test all(imag.(q[3:4]) .<= 0)
 end
+
+@testset "calculate_q mode sorting error" begin
+    a = zeros(ComplexF64, 6, 6)
+
+    # All real eigenvalues positive → 4 transmitted, 0 reflected
+    Δ_all_positive = Diagonal([1.0, 2.0, 3.0, 4.0])
+    @test_throws ArgumentError TransferMatrix.calculate_q(Matrix(Δ_all_positive), a)
+
+    # All real eigenvalues negative → 0 transmitted, 4 reflected
+    Δ_all_negative = Diagonal([-1.0, -2.0, -3.0, -4.0])
+    @test_throws ArgumentError TransferMatrix.calculate_q(Matrix(Δ_all_negative), a)
+
+    # 3 positive, 1 negative → 3 transmitted, 1 reflected
+    Δ_three_one = Diagonal([1.0, 2.0, 3.0, -1.0])
+    @test_throws ArgumentError TransferMatrix.calculate_q(Matrix(Δ_three_one), a)
+
+    # Complex: all positive imaginary → 4 transmitted, 0 reflected
+    Δ_complex_all_pos = Diagonal(ComplexF64[1 + 1im, 2 + 2im, 3 + 3im, 4 + 4im])
+    @test_throws ArgumentError TransferMatrix.calculate_q(Matrix(Δ_complex_all_pos), a)
+
+    # Complex: all negative imaginary → 0 transmitted, 4 reflected
+    Δ_complex_all_neg = Diagonal(ComplexF64[1 - 1im, 2 - 2im, 3 - 3im, 4 - 4im])
+    @test_throws ArgumentError TransferMatrix.calculate_q(Matrix(Δ_complex_all_neg), a)
+
+    # Verify error message contains eigenvalue info
+    try
+        TransferMatrix.calculate_q(Matrix(Δ_all_positive), a)
+        @test false  # Should not reach here
+    catch e
+        @test e isa ArgumentError
+        @test occursin("Mode sorting failed", e.msg)
+        @test occursin("4 transmitted", e.msg)
+        @test occursin("0 reflected", e.msg)
+    end
+end

@@ -177,23 +177,31 @@ function calculate_q(Δ, a)
     if isreal(q_unsorted)
         for m in 1:4
             if real(q_unsorted[m]) >= 0.0
-                transmitted_mode[kt] = m
+                kt <= 2 && (transmitted_mode[kt] = m)
                 kt += 1
             else
-                reflected_mode[kr] = m
+                kr <= 2 && (reflected_mode[kr] = m)
                 kr += 1
             end
         end
     else
         for m in 1:4
             if imag(q_unsorted[m]) >= 0.0
-                transmitted_mode[kt] = m
+                kt <= 2 && (transmitted_mode[kt] = m)
                 kt += 1
             else
-                reflected_mode[kr] = m
+                kr <= 2 && (reflected_mode[kr] = m)
                 kr += 1
             end
         end
+    end
+
+    # Verify invariant: exactly 2 transmitted and 2 reflected modes
+    if kt != 3 || kr != 3
+        throw(ArgumentError(
+            "Mode sorting failed: expected 2 transmitted and 2 reflected modes, " *
+            "got $(kt-1) transmitted and $(kr-1) reflected. Eigenvalues: $q_unsorted"
+        ))
     end
 
     S_unsorted = poynting(Ψ_unsorted, a)
@@ -226,35 +234,54 @@ function calculate_γ(ξ, q, ε, μ)
     γ[4,2] = 1
     γ[3,1] = -1
 
+    # Common denominator term - can become singular at specific angles
+    denom_33 = μ * ε[3,3] - ξ^2
+    singular_33 = abs(denom_33) < eps(Float64)
+
     if isapprox(q[1], q[2])
         γ[1,2] = 0
         γ[2,1] = 0
     else
-        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1]) - μ * ε[2,1] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]))
+        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1]) - μ * ε[2,1] * denom_33) / (denom_33 * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]))
     end
 
-    γ[1,3] = (-μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2]) / (μ * ε[3,3] - ξ^2)
-    γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / (μ * ε[3,3] - ξ^2)
+    # γ[i,3] components use denom_33 directly - set to zero if singular
+    if singular_33
+        γ[1,3] = 0
+        γ[2,3] = 0
+    else
+        γ[1,3] = (-μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2]) / denom_33
+        γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / denom_33
+    end
 
     if isapprox(q[3], q[4])
         γ[3,2] = 0.0
         γ[4,1] = 0.0
     else
-        γ[3,2] = (μ * ε[2,1] * (μ * ε[3,3] - ξ^2) - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3])) / ((μ * ε[3,3] - ξ^2) * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * (μ * ε[3,3] - ξ^2)) / ((μ * ε[3,3] - ξ^2) * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]))
+        γ[3,2] = (μ * ε[2,1] * denom_33 - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3])) / (denom_33 * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]))
     end
 
-    γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / (μ * ε[3,3] - ξ^2)
-    γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / (μ * ε[3,3] - ξ^2)
+    # γ[i,3] components for backward modes - set to zero if singular
+    if singular_33
+        γ[3,3] = 0
+        γ[4,3] = 0
+    else
+        γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / denom_33
+        γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
+    end
 
     # normalize γ (use SVector to avoid slice allocations)
+    # Skip normalization if the row is effectively zero to avoid NaN from 0/0
     for i in 1:4
         v = SVector(γ[i,1], γ[i,2], γ[i,3])
         Z = √(v ⋅ v')
-        γ[i,1] /= Z
-        γ[i,2] /= Z
-        γ[i,3] /= Z
+        if abs(Z) > eps(Float64)
+            γ[i,1] /= Z
+            γ[i,2] /= Z
+            γ[i,3] /= Z
+        end
     end
 
     return SMatrix(γ)
