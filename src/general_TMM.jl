@@ -322,15 +322,22 @@ end
 """
     calculate_tr(S::Poynting)
 
-Calculate transmittance from the Poynting vector struct,
-which contains incident and transmitted energy for both
+Calculate transmittance and reflectance from the Poynting vector struct,
+which contains incident, transmitted, and reflected energy flux for both
 p-polarized and s-polarized waves.
+
+Returns `(Tpp, Tss, Rpp, Rss)`.
+
+# Sign Convention
+The reflected Poynting vector z-component is negative (pointing in -z direction),
+so the negative sign in `Rpp = -S.refl_p[3] / S.in_p[3]` yields positive reflectance.
 """
 function calculate_tr(S::Poynting)
 
     Tpp = S.out_p[3] / S.in_p[3]
     Tss = S.out_s[3] / S.in_s[3]
-    
+
+    # Reflected Poynting vector points in -z, so negate to get positive R
     Rpp = -S.refl_p[3] / S.in_p[3]
     Rss = -S.refl_s[3] / S.in_s[3]
 
