@@ -1,6 +1,6 @@
 # Physics Validation
 
-TransferMatrix.jl includes built-in physics validation to help catch numerical issues and verify that results are physically meaningful. This page explains what gets validated, why each check matters, and how to interpret warnings.
+TransferMatrix.jl includes built-in physics validation to help catch numerical issues and verify that results are physically meaningful. This page explains what gets validated and how to interpret warnings.
 
 ## Enabling Validation
 
@@ -16,12 +16,11 @@ Validation is disabled by default to avoid performance overhead in production ca
 
 The validation checks four physical constraints:
 
-### 1. NaN Detection
+### NaN Detection
 
-Detects whether any of `Tpp`, `Tss`, `Rpp`, `Rss` are `NaN`. `NaN` values indicate a numerical failure somewhere in the calculation pipeline—typically a division by zero. This can occur when:
-- The denominator in the γ-matrix calculation approaches zero (see [Issue #5](https://github.com/garrekstemo/TransferMatrix.jl/issues) in ISSUES.md)
-- Eigenvalue sorting produces degenerate modes that aren't handled correctly
-- Layer parameters create a singular transfer matrix
+Detects whether any of `Tpp`, `Tss`, `Rpp`, `Rss` are `NaN`. `NaN` values indicate a numerical failure somewhere in the calculation pipeline. This can occur when:
+- Layer parameters create a singular or near-singular transfer matrix
+- Extreme refractive index values or layer thicknesses cause numerical overflow
 
 **Example warning:**
 ```
@@ -33,7 +32,7 @@ Detects whether any of `Tpp`, `Tss`, `Rpp`, `Rss` are `NaN`. `NaN` values indica
 └ @ TransferMatrix
 ```
 
-### 2. Bounds Check: 0 ≤ R, T ≤ 1
+### Bounds Check: 0 ≤ R, T ≤ 1
 
 Reflectance and transmittance must be between 0 and 1. These are ratios of energy flux. Negative values indicate a sign error in the Poynting vector calculation. Values greater than 1 indicate numerical instability or an error in the transfer matrix construction.
 
@@ -49,7 +48,7 @@ Reflectance and transmittance must be between 0 and 1. These are ratios of energ
 └ @ TransferMatrix
 ```
 
-### 3. Energy Conservation: R + T = 1 (Lossless Media)
+### Energy Conservation: R + T = 1 (Lossless Media)
 
 For non-absorbing media, the sum of reflectance and transmittance must equal 1.
 This is a fundamental consequence of energy conservation. In a lossless system, all incident power must either be reflected or transmitted—none is absorbed.
@@ -84,7 +83,7 @@ This is why TransferMatrix.jl uses Poynting vector calculations rather than simp
 └ @ TransferMatrix
 ```
 
-### 4. Absorption Bound: R + T ≤ 1 (Lossy Media)
+### Absorption Bound: R + T ≤ 1 (Lossy Media)
 
 For absorbing media (where any layer has a non-zero extinction coefficient), the sum R + T must not exceed 1.
 In absorbing media, some energy is converted to heat. The absorbed fraction is:
@@ -140,7 +139,7 @@ If you see validation warnings, here are some debugging steps:
 
 Validation does **not** catch all possible errors:
 
-- **Field continuity:** Tangential E and H fields should be continuous across interfaces. This is tested in the test suite but not validated at runtime (too expensive).
+- **Field continuity:** Tangential E and H fields should be continuous across interfaces. This is tested in the test suite but not validated at runtime.
 - **Incorrect but consistent results:** If there's a systematic error that affects both R and T equally, energy conservation might still hold.
 - **Material data errors:** Validation can't detect if your refractive index data is wrong—only that the calculation is self-consistent.
 - **Anisotropic media issues:** The validation assumes isotropic materials. For birefringent media, additional checks may be needed.
@@ -153,5 +152,3 @@ The internal `_validate_physics` function uses these default tolerances:
 |-----------|---------|---------|
 | `atol` | 1e-6 | Absolute tolerance for R + T ≈ 1 |
 | `k_threshold` | 1e-10 | Threshold for considering a layer lossless |
-
-These are not currently exposed to users but could be made configurable if needed.

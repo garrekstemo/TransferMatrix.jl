@@ -196,13 +196,19 @@ A complete example calculating dispersion of a polaritonic system is provided in
 
 ## Thickness-dependent calculations
 
-Instead of angle-resolved, you might want to vary the thickness of a particular layer.
-A convenience function, `sweep_thickness` is provided to do this.
-It takes a list of wavelengths, a list of thicknesses, the layers, and the index of the layer to vary.
-For example, if you want to vary the 14th layer in the `layers` array, you might do the following:
+Similar to `sweep_angle`, you can vary the thickness of a particular layer using `sweep_thickness`.
+You specify which layer to vary by its index in the layers array.
 
 ```julia
-sweep_thickness(λs, thicknesses, layers, 14; verbose=true)
+λs = range(0.8, 1.2, length=100)
+thicknesses = range(0.3, 0.7, length=100)
+
+# Vary layer 9 (the cavity air gap)
+res = sweep_thickness(λs, thicknesses, layers, 9)
+
+heatmap(thicknesses, λs, res.Tpp')
 ```
 
-A complete example using this is provided in the examples folder of the package source code.
+![Thickness dependence](../assets/thickness_dependence.png)
+
+A complete example is provided in the examples folder of the package source code.
