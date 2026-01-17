@@ -374,10 +374,13 @@ Reflectance is calculated directly from transfer matrix elements.
 - Angle: radians
 - Transmittance/Reflectance: dimensionless (0 to 1)
 
-# Energy Conservation Validation
-When `validate=true`, the function checks if all layers are non-absorbing (imaginary part
-of refractive index < 1e-10) and verifies that R + T ≈ 1 (within tolerance of 1e-6).
-A warning is issued if energy conservation is violated.
+# Physics Validation
+When `validate=true`, the function checks:
+1. **Bounds**: 0 ≤ R, T ≤ 1 (catches NaN, negative values, numerical instability)
+2. **Energy conservation**: R + T ≈ 1 for non-absorbing media (imag(n) < 1e-10)
+3. **Absorption bound**: R + T ≤ 1 for absorbing media
+
+Warnings are issued for any violations.
 """
 function calculate_tr(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
 
@@ -388,7 +391,7 @@ function calculate_tr(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
     Rss = R[2]
 
     if validate
-        _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss)
+        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss)
     end
 
     return Tpp, Tss, Rpp, Rss
@@ -396,14 +399,37 @@ end
 
 
 """
-    _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+    _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
 
-Check energy conservation (R + T ≈ 1) for non-absorbing media.
-Issues a warning if energy is not conserved within tolerance.
+Validate physical constraints on R and T values:
+1. Bounds check: 0 ≤ R, T ≤ 1 (always)
+2. Energy conservation: R + T ≈ 1 (for non-absorbing media only)
+
+Issues warnings if constraints are violated.
 
 Internal function called by `calculate_tr` when `validate=true`.
 """
-function _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+    # Check for NaN values (indicates numerical failure)
+    if any(isnan, (Tpp, Tss, Rpp, Rss))
+        @warn "NaN detected in R/T values" Tpp Tss Rpp Rss
+        return nothing
+    end
+
+    # Check physical bounds: 0 ≤ R, T ≤ 1
+    if Tpp < 0 || Tpp > 1
+        @warn "Transmittance Tpp out of bounds [0, 1]" Tpp
+    end
+    if Tss < 0 || Tss > 1
+        @warn "Transmittance Tss out of bounds [0, 1]" Tss
+    end
+    if Rpp < 0 || Rpp > 1
+        @warn "Reflectance Rpp out of bounds [0, 1]" Rpp
+    end
+    if Rss < 0 || Rss > 1
+        @warn "Reflectance Rss out of bounds [0, 1]" Rss
+    end
+
     # Check if all layers are non-absorbing
     is_lossless = all(layers) do layer
         n = layer.dispersion(λ)
@@ -411,6 +437,7 @@ function _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6
     end
 
     if is_lossless
+        # Energy conservation: R + T = 1 for lossless media
         sum_p = Tpp + Rpp
         sum_s = Tss + Rss
 
@@ -420,6 +447,17 @@ function _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6
 
         if !isapprox(sum_s, 1.0; atol=atol)
             @warn "Energy conservation violated for s-polarization" Tss Rss sum=sum_s expected=1.0 deviation=abs(sum_s - 1.0)
+        end
+    else
+        # For lossy media: R + T ≤ 1
+        sum_p = Tpp + Rpp
+        sum_s = Tss + Rss
+
+        if sum_p > 1.0 + atol
+            @warn "Absorption violation: R + T > 1 for p-polarization" Tpp Rpp sum=sum_p
+        end
+        if sum_s > 1.0 + atol
+            @warn "Absorption violation: R + T > 1 for s-polarization" Tss Rss sum=sum_s
         end
     end
 
