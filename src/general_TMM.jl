@@ -548,11 +548,9 @@ function electric_field(λ, layers; θ=0.0, μ=1.0, dz=0.001)
     field = zeros(ComplexF64, 6, length(zs))
 
     i = 1
-    currentlayer = layers[i]
     for (j, z) in enumerate(zs)
-        if z > interface_positions[i]
+        if i < length(layers) && z > interface_positions[i]
             i += 1
-            currentlayer = layers[i]
         end
 
         P_i = Ps[i]
