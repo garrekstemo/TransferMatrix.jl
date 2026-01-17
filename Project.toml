@@ -1,16 +1,18 @@
 name = "TransferMatrix"
 uuid = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
-authors = ["Garrek Stemo <8449000+garrekstemo@users.noreply.github.com>"]
 version = "3.0.0"
+authors = ["Garrek Stemo <8449000+garrekstemo@users.noreply.github.com>"]
 
 [deps]
 DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 RefractiveIndex = "97a43521-7681-4ec2-835f-5b8ab7e7617e"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 DataInterpolations = "8"
+PrecompileTools = "1"
 RefractiveIndex = "0.5"
 StaticArrays = "1"
 julia = "1.10"
