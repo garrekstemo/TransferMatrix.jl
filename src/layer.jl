@@ -37,23 +37,26 @@ Layer(material::RefractiveMaterial, thickness::Real) = Layer(refractive_index(ma
 Layer(λs::AbstractVector, dispersion::AbstractVector, extinction::AbstractVector, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
 
 """
-    refractive_index()
+    refractive_index(material::RefractiveMaterial)
 
-Return a function that takes a wavelength and gives the real and imaginary parts of the refractive index
+Return a function that takes a wavelength and gives the complex refractive index.
+
+The extinction coefficient availability is checked once at construction time to avoid
+try-catch overhead in the inner loop of spectral calculations.
 """
 function refractive_index(material::RefractiveMaterial)
-    return λ -> begin
-        n_imag = 0.0im  # Define n_imag before the try block
-        try
-            n_imag = im * extinction(material, λ)
-        catch e
-            if isa(e, ArgumentError)
-                n_imag = 0.0im
-            else
-                rethrow(e)
-            end
-        end
-        return dispersion(material, λ) + n_imag
+    # Check at construction time whether extinction data is available
+    has_extinction = try
+        extinction(material, 1.0)  # Probe with test wavelength
+        true
+    catch e
+        isa(e, ArgumentError) ? false : rethrow(e)
+    end
+
+    if has_extinction
+        return λ -> dispersion(material, λ) + im * extinction(material, λ)
+    else
+        return λ -> dispersion(material, λ) + 0.0im
     end
 end
 
