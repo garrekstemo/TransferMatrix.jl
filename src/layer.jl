@@ -1,12 +1,27 @@
 """
     Layer(material, thickness)
 
-Construct a single layer with keywords:
+Construct a single layer for transfer matrix calculations.
 
-* `material`: refractive material containing dispersion and extinction data (if available)
-* `thickness`: thickness of the layer
+# Arguments
+- `material`: Refractive material (from RefractiveIndex.jl) or a dispersion function `λ -> n(λ)`
+- `thickness`: Layer thickness in the same units as wavelength (typically μm)
+
+# Units Convention
+All length quantities (wavelength `λ`, thickness, `dz`) must use consistent units.
+Following RefractiveIndex.jl conventions, **micrometers (μm)** are recommended.
 
 `Layer` is parametric as `Layer{F,T}` where `F` is the dispersion function type and `T` is the thickness type.
+
+# Example
+```julia
+# Using RefractiveIndex.jl material (wavelength in μm)
+n_sio2 = RefractiveMaterial("main", "SiO2", "Malitson")
+layer = Layer(n_sio2, 0.1)  # 100 nm = 0.1 μm
+
+# Using custom dispersion function
+layer = Layer(λ -> 1.5 + 0.01im, 0.25)  # constant n = 1.5 + 0.01i
+```
 """
 struct Layer{F,T<:Real}
     dispersion::F

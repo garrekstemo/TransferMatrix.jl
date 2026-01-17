@@ -210,12 +210,18 @@ abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
 
 
 """
-    propagate(λ, layers, θ, μ)
+    propagate(λ, layers; θ=0.0, μ=1.0)
 
 Calculate the transfer matrix for the entire structure,
 as well as the Poynting vector for the structure.
+
+# Arguments
+- `λ`: Wavelength
+- `layers`: Vector of `Layer` objects representing the stack
+- `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
+- `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 """
-function propagate(λ, layers, θ, μ)
+function propagate(λ, layers; θ=0.0, μ=1.0)
 
     first_layer = layers[1]
     last_layer = layers[end]
@@ -333,16 +339,36 @@ end
 
 
 """
-    calculate_tr(λ, layers, θ, μ)
+    calculate_tr(λ, layers; θ=0.0, μ=1.0)
 
-Calculate the transmittance and reflectance spectrum
-of the structure at a single incidence angle θ.
-Accurate transmittance must be calculated via the Poynting
-vector. Reflectance is calculated directly from the transfer matrix elements.
+Calculate the transmittance and reflectance of a layered structure.
+
+Returns `(Tpp, Tss, Rpp, Rss)` where:
+- `Tpp`, `Tss`: p- and s-polarized transmittance
+- `Rpp`, `Rss`: p- and s-polarized reflectance
+
+Transmittance is calculated via Poynting vectors for accurate energy flow.
+Reflectance is calculated directly from transfer matrix elements.
+
+# Arguments
+- `λ`: Wavelength in μm (must match units used for layer thicknesses)
+- `layers`: Vector of `Layer` objects representing the stack
+- `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
+- `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
+
+# Wave Propagation Convention
+- Light propagates in the **+z direction** (from first layer toward last layer)
+- The first and last layers are treated as semi-infinite media
+- θ is measured from the surface normal (z-axis)
+
+# Units
+- Wavelength and thicknesses: μm (micrometers) recommended
+- Angle: radians
+- Transmittance/Reflectance: dimensionless (0 to 1)
 """
-function calculate_tr(λ, layers, θ=0.0, μ=1.0+0.0im)
-    
-    Γ, S, Ds, Ps, γs = propagate(λ, layers, θ, μ)
+function calculate_tr(λ, layers; θ=0.0, μ=1.0)
+
+    Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
     Rpp = R[1]
@@ -354,12 +380,21 @@ end
 """
     sweep_angle(λs, θs, layers; threads=true, verbose=false)
 
-Calculate the transmission and reflection at different angles of incidence and wavelengths for a stack of layers.
+Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
+
+Returns a `Spectra` struct with fields `Rpp`, `Rss`, `Tpp`, `Tss`, each a matrix
+of size `(length(θs), length(λs))`.
 
 # Arguments
-- `λs`: Vector of wavelengths.
-- `θs`: Vector of angles of incidence in radians.
-- `layers`: `AbstractVector{<:Layer}` representing the stack.
+- `λs`: Vector of wavelengths in μm
+- `θs`: Vector of angles of incidence in radians
+- `layers`: `AbstractVector{<:Layer}` representing the stack
+- `threads`: Enable multithreading (default: true)
+- `verbose`: Print thread count info (default: false)
+
+# Units
+- Wavelengths: μm (micrometers) recommended
+- Angles: radians
 """
 function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
     Tpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
@@ -375,7 +410,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(inner_vals[j], layers_i, θ)
+            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(inner_vals[j], layers_i; θ=θ)
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
             Rpp[i, j] = Rpp_
@@ -404,18 +439,27 @@ end
 
 
 """
-    sweep_thickness(λs, ts, layers, t_index, θ=0.0; threads=true, verbose=false)
+    sweep_thickness(λs, ts, layers, t_index; θ=0.0, threads=true, verbose=false)
 
-Tune the thickness of a specific layer in a stack and calculate the transmission and reflection.
+Sweep the thickness of a specific layer and calculate transmittance/reflectance spectra.
+
+Returns a `Spectra` struct with fields `Rpp`, `Rss`, `Tpp`, `Tss`, each a matrix
+of size `(length(ts), length(λs))`.
 
 # Arguments
-- `λs`: Vector of wavelengths.
-- `ts`: Vector of thicknesses.
-- `layers`: `AbstractVector{<:Layer}` representing the stack.
-- `t_index`: Index of the layer in the stack to tune the thickness of.
-- `θ`: Angle of incidence in radians. Default is 0.0 (normal incidence).
+- `λs`: Vector of wavelengths in μm
+- `ts`: Vector of thicknesses in μm to sweep
+- `layers`: `AbstractVector{<:Layer}` representing the stack
+- `t_index`: Index of the layer (1-based) whose thickness to vary
+- `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
+- `threads`: Enable multithreading (default: true)
+- `verbose`: Print thread count info (default: false)
+
+# Units
+- Wavelengths and thicknesses: μm (micrometers) recommended
+- Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int, θ=0.0; threads::Bool=true, verbose::Bool=false)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=true, verbose::Bool=false)
     return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
         make_layers = i -> begin
             changing_layer = Layer(layers[t_index].dispersion, ts[i])
@@ -425,18 +469,41 @@ function sweep_thickness(λs, ts, layers, t_index::Int, θ=0.0; threads::Bool=tr
 end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)
-@deprecate tune_thickness(λs, ts, layers, t_index::Int, θ=0.0; kwargs...) sweep_thickness(λs, ts, layers, t_index, θ; kwargs...)
+@deprecate tune_thickness(λs, ts, layers, t_index::Int, θ=0.0; kwargs...) sweep_thickness(λs, ts, layers, t_index; θ=θ, kwargs...)
 
 
 """
-    electric_field(λ, layers, θ; dz)
+    electric_field(λ, layers; θ=0.0, μ=1.0, dz=0.001)
 
-Calculate the electric field profile for the entire structure
-as a function of z for a given incidence angle θ.
+Calculate the electric field profile throughout the layered structure.
+
+Returns an `ElectricField` struct containing:
+- `z`: Position coordinates along the structure
+- `p`: Electric field components (Ex, Ey, Ez) for p-polarized incidence
+- `s`: Electric field components (Ex, Ey, Ez) for s-polarized incidence
+- `boundaries`: z-positions of layer interfaces
+
+# Arguments
+- `λ`: Wavelength in μm (must match units used for layer thicknesses)
+- `layers`: Vector of `Layer` objects representing the stack
+- `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
+- `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
+- `dz`: Spatial step size in μm for field sampling (default: 0.001)
+
+# Wave Propagation Convention
+- Light propagates in the **+z direction** (from first layer toward last layer)
+- z = 0 is at the first interface (between layer 1 and layer 2)
+- Negative z values are inside the first (incident) layer
+- θ is measured from the surface normal (z-axis)
+
+# Units
+- All lengths (λ, thickness, dz, z): μm (micrometers) recommended
+- Angle: radians
+- Electric field: arbitrary units (normalized to incident field)
 """
-function electric_field(λ, layers, θ=0.0, μ=1.0+0.0im; dz=0.001)
+function electric_field(λ, layers; θ=0.0, μ=1.0, dz=0.001)
 
-    Γ, S, Ds, Ps, γs = propagate(λ, layers, θ, μ)
+    Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
     first_layer = layers[1]
     last_layer = layers[end]

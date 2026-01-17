@@ -297,7 +297,16 @@ end
 
 Returns a callable object that propagates the electromagnetic
 field a distance z through a material for a frequency ω
-and wavevector ``q``.
+and wavevector `q`.
+
+The propagation matrix is diagonal with elements:
+```
+P(z) = diag(exp(-iωq₁z/c), exp(-iωq₂z/c), exp(-iωq₃z/c), exp(-iωq₄z/c))
+```
+
+This uses the **exp(-iωt)** time convention, consistent with Berreman (1972)
+and Passler & Paarmann (2017). Note that Yeh uses exp(+iωt), which would
+flip the sign in the exponent.
 """
 propagation_matrix(ω, q) = PropagationMatrix(ω, q)
 

@@ -10,7 +10,7 @@
     layers = [air, glass]
 
     λ = 1.5
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers, 0.0)
+    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers)
 
     expected_R = ((n1 - n2) / (n1 + n2))^2
     expected_T = 1 - expected_R
@@ -61,7 +61,7 @@ end
     layers = [air, film, air]
 
     λ = 1.0
-    Γ, S, Ds, Ps, γs = TransferMatrix.propagate(λ, layers, 0.0, 1.0 + 0.0im)
+    Γ, S, Ds, Ps, γs = TransferMatrix.propagate(λ, layers)
     _, _, _, _ = calculate_tr(Γ)
     Tpp, Tss, Rpp, Rss = calculate_tr(S)
 
@@ -72,7 +72,7 @@ end
     @test length(Ps) == length(layers)
     @test length(γs) == length(layers)
 
-    ef = electric_field(λ, layers, 0.0; dz=d / 10)
+    ef = electric_field(λ, layers; dz=d / 10)
     @test size(ef.p, 1) == 3
     @test size(ef.s, 1) == 3
     @test size(ef.p, 2) == length(ef.z)
@@ -100,8 +100,8 @@ end
     layers_quarter = [air0, film_quarter, air0]
     layers_half = [air0, film_half, air0]
 
-    Tpp_q, _, Rpp_q, _ = calculate_tr(λ, layers_quarter, 0.0)
-    Tpp_h, _, Rpp_h, _ = calculate_tr(λ, layers_half, 0.0)
+    Tpp_q, _, Rpp_q, _ = calculate_tr(λ, layers_quarter)
+    Tpp_h, _, Rpp_h, _ = calculate_tr(λ, layers_half)
 
     @test Rpp_q > Rpp_h
     @test Tpp_q < Tpp_h
@@ -111,7 +111,7 @@ end
     film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d_quarter)
     layers = [air, film, air]
 
-    ef = electric_field(λ, layers, 0.0; dz=d_quarter / 40)
+    ef = electric_field(λ, layers; dz=d_quarter / 40)
 
     function boundary_jump(field, z, boundary)
         left = findlast(<(boundary), z)
@@ -142,7 +142,7 @@ end
     film = Layer(λs, fill(n_film, length(λs)), fill(k_film, length(λs)), d)
     layers = [air, film, air]
 
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers, 0.0)
+    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers)
 
     @test Rpp + Tpp < 1.0
     @test Rss + Tss < 1.0
@@ -170,7 +170,7 @@ end
 
     # Rebuild the modal amplitudes per layer, mirroring electric_field internals,
     # so we can evaluate the Berreman state vector Ψ on either side of interfaces.
-    Γ, S, Ds, Ps, γs = TransferMatrix.propagate(λ, layers, 0.0, 1.0 + 0.0im)
+    Γ, S, Ds, Ps, γs = TransferMatrix.propagate(λ, layers)
     r, R, t, T = calculate_tr(Γ)
     first_layer = layers[1]
     last_layer = layers[end]
@@ -262,7 +262,7 @@ end
 
     R = Float64[]
     for pairs in (2, 4, 6)
-        Tpp, Tss, Rpp, Rss = calculate_tr(λ, stack_for_pairs(pairs), 0.0)
+        Tpp, Tss, Rpp, Rss = calculate_tr(λ, stack_for_pairs(pairs))
         push!(R, Rpp)
         @test isapprox(Rpp, Rss; atol=1e-8)
     end
@@ -286,7 +286,7 @@ end
     spectra = sweep_angle(λs, θs, layers)
 
     for (j, λ) in enumerate(λs)
-        Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers, θs[1])
+        Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; θ=θs[1])
         @test isapprox(spectra.Tpp[1, j], Tpp; atol=1e-8)
         @test isapprox(spectra.Tss[1, j], Tss; atol=1e-8)
         @test isapprox(spectra.Rpp[1, j], Rpp; atol=1e-8)
@@ -328,13 +328,47 @@ end
     layer = Layer(λs, fill(n, length(λs)), zeros(length(λs)), d)
     layers = [layer, layer, layer]
 
-    ef = electric_field(λ, layers, 0.0; dz=d / 50)
+    ef = electric_field(λ, layers; dz=d / 50)
 
     p_mag = abs.(ef.p[1, :])
     s_mag = abs.(ef.s[1, :])
 
     @test isapprox(maximum(p_mag), minimum(p_mag); rtol=1e-5, atol=1e-6)
     @test isapprox(maximum(s_mag), minimum(s_mag); rtol=1e-5, atol=1e-6)
+end
+
+@testset "keyword argument API" begin
+    # Test that keyword arguments work correctly for θ and μ
+    λ = 1.0
+    λs = [λ, 1.1]
+    n_air = 1.0
+    n_film = 1.5
+    d = λ / (4 * n_film)
+
+    air = Layer(λs, fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
+    layers = [air, film, air]
+
+    # Test calculate_tr with explicit θ
+    θ_test = 0.3
+    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; θ=θ_test)
+    @test Tpp + Rpp ≈ 1.0 atol=1e-6
+    @test Rpp != Rss  # At oblique incidence, p and s differ
+
+    # Test calculate_tr with explicit μ (non-magnetic, should be same as default)
+    Tpp2, Tss2, Rpp2, Rss2 = calculate_tr(λ, layers; θ=θ_test, μ=1.0)
+    @test Tpp ≈ Tpp2
+    @test Rpp ≈ Rpp2
+
+    # Test electric_field with explicit θ
+    ef = electric_field(λ, layers; θ=θ_test, dz=d / 10)
+    @test length(ef.z) > 0
+    @test size(ef.p, 2) == length(ef.z)
+
+    # Test sweep_thickness with explicit θ
+    ts = [d, 2d]
+    spectra = sweep_thickness(λs, ts, layers, 2; θ=θ_test)
+    @test size(spectra.Rpp) == (2, 2)
 end
 
 @testset "threads toggle consistency" begin
@@ -357,8 +391,8 @@ end
     @test spectra_threads.Tss ≈ spectra_serial.Tss
 
     ts = [0.1, 0.2, 0.3]
-    spec_threads = sweep_thickness(λs, ts, layers, 2, 0.0; threads=true)
-    spec_serial = sweep_thickness(λs, ts, layers, 2, 0.0; threads=false)
+    spec_threads = sweep_thickness(λs, ts, layers, 2; threads=true)
+    spec_serial = sweep_thickness(λs, ts, layers, 2; threads=false)
 
     @test spec_threads.Rpp ≈ spec_serial.Rpp
     @test spec_threads.Rss ≈ spec_serial.Rss
