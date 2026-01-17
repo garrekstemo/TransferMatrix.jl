@@ -432,3 +432,57 @@ end
     @test Tpp + Rpp < 1.0  # Absorption means R + T < 1
     @test Tss + Rss < 1.0
 end
+
+@testset "_validate_physics warnings" begin
+    λ = 1.0
+    λs = [λ, 1.1]
+    n_air = 1.0
+    n_film = 1.5
+    d = 0.1
+
+    # Lossless layers for energy conservation tests
+    air = Layer(λs, fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
+    lossless_layers = [air, film, air]
+
+    # Lossy layers for absorption bound tests
+    lossy_film = Layer(λs, fill(n_film, length(λs)), fill(0.1, length(λs)), d)
+    lossy_layers = [air, lossy_film, air]
+
+    # Test NaN detection (NaN triggers early return, so only one warning)
+    @test_logs (:warn, r"NaN detected") TransferMatrix._validate_physics(λ, lossless_layers, NaN, 0.5, 0.3, 0.5)
+    @test_logs (:warn, r"NaN detected") TransferMatrix._validate_physics(λ, lossless_layers, 0.5, NaN, 0.3, 0.5)
+    @test_logs (:warn, r"NaN detected") TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, NaN, 0.5)
+    @test_logs (:warn, r"NaN detected") TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, 0.3, NaN)
+
+    # Test bounds violations with match_mode=:any (multiple warnings may be issued)
+    # T < 0
+    @test_logs (:warn, r"Transmittance Tpp out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, -0.1, 0.5, 0.3, 0.5)
+    @test_logs (:warn, r"Transmittance Tss out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, -0.1, 0.3, 0.5)
+
+    # T > 1
+    @test_logs (:warn, r"Transmittance Tpp out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 1.1, 0.5, 0.3, 0.5)
+    @test_logs (:warn, r"Transmittance Tss out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 1.1, 0.3, 0.5)
+
+    # R < 0
+    @test_logs (:warn, r"Reflectance Rpp out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, -0.1, 0.5)
+    @test_logs (:warn, r"Reflectance Rss out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, 0.3, -0.1)
+
+    # R > 1
+    @test_logs (:warn, r"Reflectance Rpp out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, 1.1, 0.5)
+    @test_logs (:warn, r"Reflectance Rss out of bounds") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, 0.3, 1.1)
+
+    # Test energy conservation violation (lossless media, R + T ≠ 1)
+    @test_logs (:warn, r"Energy conservation violated for p-polarization") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, 0.3, 0.5)
+    @test_logs (:warn, r"Energy conservation violated for s-polarization") match_mode=:any TransferMatrix._validate_physics(λ, lossless_layers, 0.5, 0.5, 0.5, 0.3)
+
+    # Test absorption violation (lossy media, R + T > 1)
+    @test_logs (:warn, r"Absorption violation.*p-polarization") match_mode=:any TransferMatrix._validate_physics(λ, lossy_layers, 0.7, 0.5, 0.5, 0.3)
+    @test_logs (:warn, r"Absorption violation.*s-polarization") match_mode=:any TransferMatrix._validate_physics(λ, lossy_layers, 0.5, 0.7, 0.3, 0.5)
+
+    # Test valid cases produce no warnings
+    # Lossless: R + T = 1
+    @test_logs TransferMatrix._validate_physics(λ, lossless_layers, 0.7, 0.6, 0.3, 0.4)
+    # Lossy: R + T < 1 (absorption is fine)
+    @test_logs TransferMatrix._validate_physics(λ, lossy_layers, 0.5, 0.5, 0.3, 0.3)
+end
