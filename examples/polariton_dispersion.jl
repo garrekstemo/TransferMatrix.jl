@@ -78,8 +78,8 @@ res = sweep_angle(λs, deg2rad.(θs), layers)
 T_plot = res.Tpp[θ_idx, :]
 θ_plot = θs[θ_idx]
 
-field1 = electric_field(λs[peaks[1]], layers)
-field2 = electric_field(λs[peaks[2]], layers)
+field1 = efield(λs[peaks[1]], layers)
+field2 = efield(λs[peaks[2]], layers)
 
 ##
 

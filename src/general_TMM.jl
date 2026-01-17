@@ -346,7 +346,7 @@ end
 
 
 """
-    calculate_tr(λ, layers; θ=0.0, μ=1.0, validate=false)
+    transfer(λ, layers; θ=0.0, μ=1.0, validate=false)
 
 Calculate the transmittance and reflectance of a layered structure.
 
@@ -382,7 +382,7 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function calculate_tr(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
+function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
 
     Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
@@ -407,7 +407,7 @@ Validate physical constraints on R and T values:
 
 Issues warnings if constraints are violated.
 
-Internal function called by `calculate_tr` when `validate=true`.
+Internal function called by `transfer` when `validate=true`.
 """
 function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
     # Check for NaN values (indicates numerical failure)
@@ -498,7 +498,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(inner_vals[j], layers_i; θ=θ)
+            Tpp_, Tss_, Rpp_, Rss_ = transfer(inner_vals[j], layers_i; θ=θ)
             Tpp[i, j] = Tpp_
             Tss[i, j] = Tss_
             Rpp[i, j] = Rpp_
@@ -562,10 +562,12 @@ end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)
 @deprecate tune_thickness(λs, ts, layers, t_index::Int, θ=0.0; kwargs...) sweep_thickness(λs, ts, layers, t_index; θ=θ, kwargs...)
+@deprecate calculate_tr(λ, layers; kwargs...) transfer(λ, layers; kwargs...)
+@deprecate electric_field(λ, layers; kwargs...) efield(λ, layers; kwargs...)
 
 
 """
-    electric_field(λ, layers; θ=0.0, μ=1.0, dz=0.001)
+    efield(λ, layers; θ=0.0, μ=1.0, dz=0.001)
 
 Calculate the electric field profile throughout the layered structure.
 
@@ -593,7 +595,7 @@ Returns an `ElectricField` struct containing:
 - Angle: radians
 - Electric field: arbitrary units (normalized to incident field)
 """
-function electric_field(λ, layers; θ=0.0, μ=1.0, dz=0.001)
+function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001)
 
     Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)

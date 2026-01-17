@@ -4,10 +4,10 @@ TransferMatrix.jl includes built-in physics validation to help catch numerical i
 
 ## Enabling Validation
 
-Enable validation by passing `validate=true` to `calculate_tr`:
+Enable validation by passing `validate=true` to `transfer`:
 
 ```julia
-Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; validate=true)
+Tpp, Tss, Rpp, Rss = transfer(λ, layers; validate=true)
 ```
 
 Validation is disabled by default to avoid performance overhead in production calculations.

@@ -104,7 +104,7 @@ Ts = Float64[]
 Rp = Float64[]
 Rs = Float64[]
 for λ in λs
-    Tp_, Ts_, Rp_, Rs_ = calculate_tr(λ, layers)
+    Tp_, Ts_, Rp_, Rs_ = transfer(λ, layers)
     push!(Tp, Tp_)
     push!(Ts, Ts_)
     push!(Rp, Rp_)
@@ -120,7 +120,7 @@ f
 
 ## Electric field calculation
 
-The wavelength-dependent electric field is the cavity is provided by the `electric_field` function.
+The wavelength-dependent electric field is the cavity is provided by the `efield` function.
 We can calculate the electric field at the first peak in the above plot using
 
 ```@example tutorial
@@ -129,7 +129,7 @@ We can calculate the electric field at the first peak in the above plot using
 peak = findmax(Ts[λ_min:λ_max])[2] + λ_min - 1
 λ = λs[peak]
 
-field = electric_field(λ, layers)
+field = efield(λ, layers)
 
 f, ax, l = lines(field.z .* 1e3, real(field.p[1, :]))
 vlines!(field.boundaries[1], color = :black, linestyle = :dash)

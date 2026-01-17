@@ -10,7 +10,7 @@
     layers = [air, glass]
 
     λ = 1.5
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers)
+    Tpp, Tss, Rpp, Rss = transfer(λ, layers)
 
     expected_R = ((n1 - n2) / (n1 + n2))^2
     expected_T = 1 - expected_R
@@ -26,7 +26,7 @@ end
 
 @testset "sweep_angle interface" begin
     # sweep_angle should reproduce the same interface reflectance/transmittance
-    # as calculate_tr when evaluated at a fixed angle and wavelength grid.
+    # as transfer when evaluated at a fixed angle and wavelength grid.
     λs = [1.2, 1.6]
     θs = [0.0]
     n1 = 1.0
@@ -50,7 +50,7 @@ end
 
 @testset "single thin film propagate and field" begin
     # Quarter-wave film at normal incidence: energy conservation and basic field
-    # shape/metadata checks to ensure propagate/electric_field are coherent.
+    # shape/metadata checks to ensure propagate/efield are coherent.
     λs = [1.0, 1.1]
     n_air = 1.0
     n_film = 1.5
@@ -62,8 +62,8 @@ end
 
     λ = 1.0
     Γ, S, Ds, Ps, γs = TransferMatrix.propagate(λ, layers)
-    _, _, _, _ = calculate_tr(Γ)
-    Tpp, Tss, Rpp, Rss = calculate_tr(S)
+    _, _, _, _ = TransferMatrix.calculate_tr(Γ)
+    Tpp, Tss, Rpp, Rss = TransferMatrix.calculate_tr(S)
 
     @test isapprox(Rpp, Rss; atol=1e-10)
     @test isapprox(Tpp + Rpp, 1.0; atol=1e-6)
@@ -72,7 +72,7 @@ end
     @test length(Ps) == length(layers)
     @test length(γs) == length(layers)
 
-    ef = electric_field(λ, layers; dz=d / 10)
+    ef = efield(λ, layers; dz=d / 10)
     @test size(ef.p, 1) == 3
     @test size(ef.s, 1) == 3
     @test size(ef.p, 2) == length(ef.z)
@@ -100,8 +100,8 @@ end
     layers_quarter = [air0, film_quarter, air0]
     layers_half = [air0, film_half, air0]
 
-    Tpp_q, _, Rpp_q, _ = calculate_tr(λ, layers_quarter)
-    Tpp_h, _, Rpp_h, _ = calculate_tr(λ, layers_half)
+    Tpp_q, _, Rpp_q, _ = transfer(λ, layers_quarter)
+    Tpp_h, _, Rpp_h, _ = transfer(λ, layers_half)
 
     @test Rpp_q > Rpp_h
     @test Tpp_q < Tpp_h
@@ -111,7 +111,7 @@ end
     film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d_quarter)
     layers = [air, film, air]
 
-    ef = electric_field(λ, layers; dz=d_quarter / 40)
+    ef = efield(λ, layers; dz=d_quarter / 40)
 
     function boundary_jump(field, z, boundary)
         left = findlast(<(boundary), z)
@@ -142,7 +142,7 @@ end
     film = Layer(λs, fill(n_film, length(λs)), fill(k_film, length(λs)), d)
     layers = [air, film, air]
 
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers)
+    Tpp, Tss, Rpp, Rss = transfer(λ, layers)
 
     @test Rpp + Tpp < 1.0
     @test Rss + Tss < 1.0
@@ -168,10 +168,10 @@ end
     film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
     layers = [air, film, air]
 
-    # Rebuild the modal amplitudes per layer, mirroring electric_field internals,
+    # Rebuild the modal amplitudes per layer, mirroring efield internals,
     # so we can evaluate the Berreman state vector Ψ on either side of interfaces.
     Γ, S, Ds, Ps, γs = TransferMatrix.propagate(λ, layers)
-    r, R, t, T = calculate_tr(Γ)
+    r, R, t, T = TransferMatrix.calculate_tr(Γ)
     first_layer = layers[1]
     last_layer = layers[end]
 
@@ -262,7 +262,7 @@ end
 
     R = Float64[]
     for pairs in (2, 4, 6)
-        Tpp, Tss, Rpp, Rss = calculate_tr(λ, stack_for_pairs(pairs))
+        Tpp, Tss, Rpp, Rss = transfer(λ, stack_for_pairs(pairs))
         push!(R, Rpp)
         @test isapprox(Rpp, Rss; atol=1e-8)
     end
@@ -271,7 +271,7 @@ end
 end
 
 @testset "sweep_angle off-normal consistency" begin
-    # sweep_angle at a nonzero angle should agree with calculate_tr
+    # sweep_angle at a nonzero angle should agree with transfer
     # for the same configuration, and conserve energy for lossless stacks.
     λs = [1.0, 1.2]
     θs = [0.3]
@@ -286,7 +286,7 @@ end
     spectra = sweep_angle(λs, θs, layers)
 
     for (j, λ) in enumerate(λs)
-        Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; θ=θs[1])
+        Tpp, Tss, Rpp, Rss = transfer(λ, layers; θ=θs[1])
         @test isapprox(spectra.Tpp[1, j], Tpp; atol=1e-8)
         @test isapprox(spectra.Tss[1, j], Tss; atol=1e-8)
         @test isapprox(spectra.Rpp[1, j], Rpp; atol=1e-8)
@@ -307,7 +307,7 @@ end
         0.3  0.0  0.0  1.0
     ]
 
-    r, R, t, T = calculate_tr(Γ)
+    r, R, t, T = TransferMatrix.calculate_tr(Γ)
 
     @test isapprox(r[1], -0.02; atol=1e-12)
     @test isapprox(r[2], 0.3; atol=1e-12)
@@ -317,7 +317,7 @@ end
     @test isapprox(R[4], 0.09; atol=1e-12)
 end
 
-@testset "electric_field uniform medium" begin
+@testset "efield uniform medium" begin
     # If all layers have identical refractive index, there are no reflections,
     # so the field magnitude should be constant along z (pure phase evolution).
     λ = 1.0
@@ -328,7 +328,7 @@ end
     layer = Layer(λs, fill(n, length(λs)), zeros(length(λs)), d)
     layers = [layer, layer, layer]
 
-    ef = electric_field(λ, layers; dz=d / 50)
+    ef = efield(λ, layers; dz=d / 50)
 
     p_mag = abs.(ef.p[1, :])
     s_mag = abs.(ef.s[1, :])
@@ -349,19 +349,19 @@ end
     film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
     layers = [air, film, air]
 
-    # Test calculate_tr with explicit θ
+    # Test transfer with explicit θ
     θ_test = 0.3
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; θ=θ_test)
+    Tpp, Tss, Rpp, Rss = transfer(λ, layers; θ=θ_test)
     @test Tpp + Rpp ≈ 1.0 atol=1e-6
     @test Rpp != Rss  # At oblique incidence, p and s differ
 
-    # Test calculate_tr with explicit μ (non-magnetic, should be same as default)
-    Tpp2, Tss2, Rpp2, Rss2 = calculate_tr(λ, layers; θ=θ_test, μ=1.0)
+    # Test transfer with explicit μ (non-magnetic, should be same as default)
+    Tpp2, Tss2, Rpp2, Rss2 = transfer(λ, layers; θ=θ_test, μ=1.0)
     @test Tpp ≈ Tpp2
     @test Rpp ≈ Rpp2
 
-    # Test electric_field with explicit θ
-    ef = electric_field(λ, layers; θ=θ_test, dz=d / 10)
+    # Test efield with explicit θ
+    ef = efield(λ, layers; θ=θ_test, dz=d / 10)
     @test length(ef.z) > 0
     @test size(ef.p, 2) == length(ef.z)
 
@@ -413,12 +413,12 @@ end
     layers = [air, film, air]
 
     # Should not produce warnings for lossless stack
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; validate=true)
+    Tpp, Tss, Rpp, Rss = transfer(λ, layers; validate=true)
     @test Tpp + Rpp ≈ 1.0 atol=1e-6
     @test Tss + Rss ≈ 1.0 atol=1e-6
 
     # Test at oblique incidence
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; θ=0.3, validate=true)
+    Tpp, Tss, Rpp, Rss = transfer(λ, layers; θ=0.3, validate=true)
     @test Tpp + Rpp ≈ 1.0 atol=1e-6
     @test Tss + Rss ≈ 1.0 atol=1e-6
 
@@ -428,7 +428,7 @@ end
     lossy_layers = [air, lossy_film, air]
 
     # Should complete without error; validation is skipped for absorbing media
-    Tpp, Tss, Rpp, Rss = calculate_tr(λ, lossy_layers; validate=true)
+    Tpp, Tss, Rpp, Rss = transfer(λ, lossy_layers; validate=true)
     @test Tpp + Rpp < 1.0  # Absorption means R + T < 1
     @test Tss + Rss < 1.0
 end

@@ -48,7 +48,7 @@ layers = [air, repeat(unit, periods)...]
 λs = 0.4:0.002:1.0
 Rpp = Float64[]
 for λ in λs
-    Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+    Tpp_, Tss_, Rpp_, Rss_ = transfer(λ, layers)
     push!(Rpp, Rpp_)
 end
 
@@ -77,7 +77,7 @@ for i in 1:nperiods
     Rpp = Float64[]
     if i%3 == 0
         for λ in λs
-            Tpp_, Tss_, Rpp_, Rss_ = calculate_tr(λ, layers)
+            Tpp_, Tss_, Rpp_, Rss_ = transfer(λ, layers)
             push!(Rpp, Rpp_)
         end
         lines!(ax, λs .* 1e3, Rpp, label = "$(i + 3) periods")
@@ -93,7 +93,7 @@ f
 When developing or debugging, enable physics validation to catch numerical issues early:
 
 ```julia
-Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; validate=true)
+Tpp, Tss, Rpp, Rss = transfer(λ, layers; validate=true)
 ```
 
 With `validate=true`, the function checks:
