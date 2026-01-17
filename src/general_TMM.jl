@@ -346,7 +346,7 @@ end
 
 
 """
-    calculate_tr(λ, layers; θ=0.0, μ=1.0)
+    calculate_tr(λ, layers; θ=0.0, μ=1.0, validate=false)
 
 Calculate the transmittance and reflectance of a layered structure.
 
@@ -362,6 +362,7 @@ Reflectance is calculated directly from transfer matrix elements.
 - `layers`: Vector of `Layer` objects representing the stack
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
+- `validate`: Check energy conservation R + T ≈ 1 for non-absorbing media (default: false)
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
@@ -372,15 +373,57 @@ Reflectance is calculated directly from transfer matrix elements.
 - Wavelength and thicknesses: μm (micrometers) recommended
 - Angle: radians
 - Transmittance/Reflectance: dimensionless (0 to 1)
+
+# Energy Conservation Validation
+When `validate=true`, the function checks if all layers are non-absorbing (imaginary part
+of refractive index < 1e-10) and verifies that R + T ≈ 1 (within tolerance of 1e-6).
+A warning is issued if energy conservation is violated.
 """
-function calculate_tr(λ, layers; θ=0.0, μ=1.0)
+function calculate_tr(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
 
     Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
     Rpp = R[1]
     Rss = R[2]
+
+    if validate
+        _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss)
+    end
+
     return Tpp, Tss, Rpp, Rss
+end
+
+
+"""
+    _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+
+Check energy conservation (R + T ≈ 1) for non-absorbing media.
+Issues a warning if energy is not conserved within tolerance.
+
+Internal function called by `calculate_tr` when `validate=true`.
+"""
+function _validate_energy_conservation(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+    # Check if all layers are non-absorbing
+    is_lossless = all(layers) do layer
+        n = layer.dispersion(λ)
+        abs(imag(n)) < k_threshold
+    end
+
+    if is_lossless
+        sum_p = Tpp + Rpp
+        sum_s = Tss + Rss
+
+        if !isapprox(sum_p, 1.0; atol=atol)
+            @warn "Energy conservation violated for p-polarization" Tpp Rpp sum=sum_p expected=1.0 deviation=abs(sum_p - 1.0)
+        end
+
+        if !isapprox(sum_s, 1.0; atol=atol)
+            @warn "Energy conservation violated for s-polarization" Tss Rss sum=sum_s expected=1.0 deviation=abs(sum_s - 1.0)
+        end
+    end
+
+    return nothing
 end
 
 

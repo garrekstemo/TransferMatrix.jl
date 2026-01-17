@@ -399,3 +399,36 @@ end
     @test spec_threads.Tpp ≈ spec_serial.Tpp
     @test spec_threads.Tss ≈ spec_serial.Tss
 end
+
+@testset "energy conservation validation" begin
+    # Test that validate=true works without warnings for lossless media
+    λ = 1.0
+    λs = [λ, 1.1]
+    n_air = 1.0
+    n_film = 1.5
+    d = λ / (4 * n_film)
+
+    air = Layer(λs, fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
+    layers = [air, film, air]
+
+    # Should not produce warnings for lossless stack
+    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; validate=true)
+    @test Tpp + Rpp ≈ 1.0 atol=1e-6
+    @test Tss + Rss ≈ 1.0 atol=1e-6
+
+    # Test at oblique incidence
+    Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; θ=0.3, validate=true)
+    @test Tpp + Rpp ≈ 1.0 atol=1e-6
+    @test Tss + Rss ≈ 1.0 atol=1e-6
+
+    # Test that validation is skipped for lossy media (no warning expected)
+    k_film = 0.1
+    lossy_film = Layer(λs, fill(n_film, length(λs)), fill(k_film, length(λs)), d)
+    lossy_layers = [air, lossy_film, air]
+
+    # Should complete without error; validation is skipped for absorbing media
+    Tpp, Tss, Rpp, Rss = calculate_tr(λ, lossy_layers; validate=true)
+    @test Tpp + Rpp < 1.0  # Absorption means R + T < 1
+    @test Tss + Rss < 1.0
+end
