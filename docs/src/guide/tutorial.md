@@ -75,6 +75,23 @@ will also loop through all wavelengths so that you can plot
 a color plot of wavelength and angle versus transmittance (or reflectance).
 
 
+## Using constant refractive indices
+
+If you don't need wavelength-dependent dispersion, you can create a layer with a constant refractive index by wrapping the value in a function:
+
+```julia
+# Constant real refractive index
+layer = Layer(λ -> 1.5, 0.1)
+
+# Constant complex refractive index (with absorption)
+layer = Layer(λ -> 1.5 + 0.01im, 0.25)
+```
+
+The `Layer` struct expects a dispersion function `λ -> n(λ)`, so a bare number like `Layer(1.5, 0.1)` will not work. The lambda wrapper `λ -> 1.5` creates a function that returns the same value for any wavelength.
+
+This is useful for quick calculations, testing, or when working with materials whose dispersion is negligible over your wavelength range of interest.
+
+
 ## A simple multi-layered structure
 
 Now that we can make `Layer`s, we can put them together to calculate 
