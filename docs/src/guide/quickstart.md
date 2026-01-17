@@ -87,3 +87,18 @@ end
 axislegend(ax)
 f
 ```
+
+## Physics Validation
+
+When developing or debugging, enable physics validation to catch numerical issues early:
+
+```julia
+Tpp, Tss, Rpp, Rss = calculate_tr(λ, layers; validate=true)
+```
+
+With `validate=true`, the function checks:
+- **Bounds**: 0 ≤ R, T ≤ 1 (catches NaN, negative values, numerical instability)
+- **Energy conservation**: R + T ≈ 1 for non-absorbing media
+- **Absorption bound**: R + T ≤ 1 for absorbing media
+
+Warnings are issued for any violations, helping you identify problems with layer definitions or edge cases in your simulation.
