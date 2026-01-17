@@ -137,7 +137,7 @@ d = λ / (4 * n_film)  # quarter-wave thickness
 Rs, Rp, Ts, Tp = airy(n_air, n_film, n_glass, d, λ)
 ```
 
-See also: [`fresnel`](@ref), [`fresnel_amplitude`](@ref)
+See also: [`fresnel`](@ref), [`fresnel_coefficients`](@ref)
 """
 function airy(n0, nf, ns, d, λ; θ=0.0)
     sinθ = sin(θ)
