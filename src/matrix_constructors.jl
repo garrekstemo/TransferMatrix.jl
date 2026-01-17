@@ -17,6 +17,63 @@ dielectric_tensor(ε1, ε2, ε3) = Diagonal(SVector{3, ComplexF64}(ε1, ε2, ε3
 
 
 """
+    euler_rotation_matrix(φ, θ, ψ)
+
+Return the 3×3 rotation matrix for ZYZ Euler angles (in radians).
+
+This transforms vectors from the crystal frame to the lab frame:
+`v_lab = R * v_crystal`
+
+The rotation is performed as: R = Rz(φ) * Ry(θ) * Rz(ψ)
+
+# Convention
+- φ (phi): First rotation about z-axis (0 to 2π)
+- θ (theta): Rotation about new y-axis (0 to π) - the tilt angle
+- ψ (psi): Second rotation about new z-axis (0 to 2π)
+
+# Common cases
+- Optic axis along z: `(0, 0, 0)` - no rotation needed
+- Optic axis in xz-plane at angle θ from z: `(0, θ, 0)`
+- Quarter-wave plate at 45°: `(π/4, π/2, 0)` for optic axis in xy-plane
+"""
+function euler_rotation_matrix(φ::Real, θ::Real, ψ::Real)
+    cφ, sφ = cos(φ), sin(φ)
+    cθ, sθ = cos(θ), sin(θ)
+    cψ, sψ = cos(ψ), sin(ψ)
+
+    # ZYZ convention: R = Rz(φ) * Ry(θ) * Rz(ψ)
+    @SMatrix [
+        cφ*cθ*cψ - sφ*sψ   -cφ*cθ*sψ - sφ*cψ   cφ*sθ;
+        sφ*cθ*cψ + cφ*sψ   -sφ*cθ*sψ + cφ*cψ   sφ*sθ;
+        -sθ*cψ              sθ*sψ               cθ
+    ]
+end
+
+
+"""
+    rotate_dielectric_tensor(ε_diag, R)
+
+Rotate a diagonal dielectric tensor from crystal frame to lab frame.
+
+Given a diagonal tensor ε in the crystal's principal axis frame and a rotation
+matrix R, returns the rotated tensor: `ε_lab = R * ε * R'`
+
+# Arguments
+- `ε_diag`: Diagonal dielectric tensor in crystal frame
+- `R`: 3×3 rotation matrix from `euler_rotation_matrix`
+
+# Returns
+Full 3×3 SMatrix (may have off-diagonal elements after rotation)
+"""
+function rotate_dielectric_tensor(ε_diag::Diagonal, R::SMatrix{3,3})
+    # ε_lab = R * ε_crystal * R'
+    # For diagonal ε, this is equivalent to: R * Diagonal(ε) * R'
+    ε_full = SMatrix{3,3,ComplexF64}(ε_diag)
+    return R * ε_full * R'
+end
+
+
+"""
     permeability_tensor(μ1, μ2, μ3)
 
 This produces the diagonal permeability tensor, 
@@ -32,13 +89,29 @@ permeability_tensor(μ1, μ2, μ3) = Diagonal(SVector{3, ComplexF64}(μ1, μ2, �
 Calculate all parameters for a single layer, particularly
 the propagation matrix and dynamical matrix so that
 the overall transfer matrix can be calculated.
+
+Supports both isotropic layers (single refractive index) and anisotropic layers
+(different refractive indices along principal axes), with optional crystal rotation
+via Euler angles.
 """
 function layer_matrices(layer, λ, ξ, μ_i)
 
     ω = 2π * c_0 / λ
-    n_i = layer.dispersion(λ)
-    ε_i = dielectric_constant(n_i)
-    ε = dielectric_tensor(ε_i, ε_i, ε_i)
+    nx, ny, nz = get_refractive_indices(layer, λ)
+    εx = dielectric_constant(nx)
+    εy = dielectric_constant(ny)
+    εz = dielectric_constant(nz)
+    ε_diag = dielectric_tensor(εx, εy, εz)
+
+    # Apply rotation if layer has non-zero Euler angles
+    φ, θ, ψ = get_euler_angles(layer)
+    if φ != 0.0 || θ != 0.0 || ψ != 0.0
+        R = euler_rotation_matrix(φ, θ, ψ)
+        ε = rotate_dielectric_tensor(ε_diag, R)
+    else
+        ε = ε_diag
+    end
+
     μ = permeability_tensor(μ_i, μ_i, μ_i)
 
     M = construct_M(ε, μ)
@@ -70,6 +143,20 @@ function construct_M(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}},
         ε[1,1] z z z z z;
         z ε[2,2] z z z z;
         z z ε[3,3] z z z;
+        z z z μ[1,1] z z;
+        z z z z μ[2,2] z;
+        z z z z z μ[3,3]
+    ]
+end
+
+# Specialized method for rotated anisotropic materials (full 3×3 dielectric tensor)
+function construct_M(ε::SMatrix{3,3,ComplexF64},
+                     μ::Diagonal{ComplexF64,SVector{3,ComplexF64}})
+    z = zero(ComplexF64)
+    return @SMatrix [
+        ε[1,1] ε[1,2] ε[1,3] z z z;
+        ε[2,1] ε[2,2] ε[2,3] z z z;
+        ε[3,1] ε[3,2] ε[3,3] z z z;
         z z z μ[1,1] z z;
         z z z z μ[2,2] z;
         z z z z z μ[3,3]

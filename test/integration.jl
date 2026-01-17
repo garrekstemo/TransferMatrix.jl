@@ -10,7 +10,7 @@
     layers = [air, glass]
 
     λ = 1.5
-    Tpp, Tss, Rpp, Rss = transfer(λ, layers)
+    (; Tpp, Tss, Rpp, Rss) = transfer(λ, layers)
 
     expected_R = ((n1 - n2) / (n1 + n2))^2
     expected_T = 1 - expected_R
@@ -100,8 +100,10 @@ end
     layers_quarter = [air0, film_quarter, air0]
     layers_half = [air0, film_half, air0]
 
-    Tpp_q, _, Rpp_q, _ = transfer(λ, layers_quarter)
-    Tpp_h, _, Rpp_h, _ = transfer(λ, layers_half)
+    result_q = transfer(λ, layers_quarter)
+    result_h = transfer(λ, layers_half)
+    Tpp_q, Rpp_q = result_q.Tpp, result_q.Rpp
+    Tpp_h, Rpp_h = result_h.Tpp, result_h.Rpp
 
     @test Rpp_q > Rpp_h
     @test Tpp_q < Tpp_h
@@ -142,7 +144,7 @@ end
     film = Layer(λs, fill(n_film, length(λs)), fill(k_film, length(λs)), d)
     layers = [air, film, air]
 
-    Tpp, Tss, Rpp, Rss = transfer(λ, layers)
+    (; Tpp, Tss, Rpp, Rss) = transfer(λ, layers)
 
     @test Rpp + Tpp < 1.0
     @test Rss + Tss < 1.0
@@ -262,9 +264,9 @@ end
 
     R = Float64[]
     for pairs in (2, 4, 6)
-        Tpp, Tss, Rpp, Rss = transfer(λ, stack_for_pairs(pairs))
-        push!(R, Rpp)
-        @test isapprox(Rpp, Rss; atol=1e-8)
+        result = transfer(λ, stack_for_pairs(pairs))
+        push!(R, result.Rpp)
+        @test isapprox(result.Rpp, result.Rss; atol=1e-8)
     end
 
     @test R[1] < R[2] < R[3]
@@ -286,13 +288,13 @@ end
     spectra = sweep_angle(λs, θs, layers)
 
     for (j, λ) in enumerate(λs)
-        Tpp, Tss, Rpp, Rss = transfer(λ, layers; θ=θs[1])
-        @test isapprox(spectra.Tpp[1, j], Tpp; atol=1e-8)
-        @test isapprox(spectra.Tss[1, j], Tss; atol=1e-8)
-        @test isapprox(spectra.Rpp[1, j], Rpp; atol=1e-8)
-        @test isapprox(spectra.Rss[1, j], Rss; atol=1e-8)
-        @test isapprox(Tpp + Rpp, 1.0; atol=1e-6)
-        @test isapprox(Tss + Rss, 1.0; atol=1e-6)
+        result = transfer(λ, layers; θ=θs[1])
+        @test isapprox(spectra.Tpp[1, j], result.Tpp; atol=1e-8)
+        @test isapprox(spectra.Tss[1, j], result.Tss; atol=1e-8)
+        @test isapprox(spectra.Rpp[1, j], result.Rpp; atol=1e-8)
+        @test isapprox(spectra.Rss[1, j], result.Rss; atol=1e-8)
+        @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+        @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
     end
 end
 
@@ -315,6 +317,65 @@ end
     @test isapprox(T[4], 0.01; atol=1e-12)
     @test isapprox(R[3], 0.04; atol=1e-12)
     @test isapprox(R[4], 0.09; atol=1e-12)
+end
+
+@testset "cross-polarization zero for isotropic media" begin
+    # For isotropic media, cross-polarization terms (Tps, Tsp, Rps, Rsp)
+    # should be zero since there is no polarization mixing.
+    λ = 1.0
+    λs = [λ, 1.1]
+    n_air = 1.0
+    n_film = 1.5
+    d = λ / (4 * n_film)
+
+    air = Layer(λs, fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(n_film, length(λs)), zeros(length(λs)), d)
+    layers = [air, film, air]
+
+    # Normal incidence
+    result = transfer(λ, layers)
+    @test isapprox(result.Tps, 0.0; atol=1e-12)
+    @test isapprox(result.Tsp, 0.0; atol=1e-12)
+    @test isapprox(result.Rps, 0.0; atol=1e-12)
+    @test isapprox(result.Rsp, 0.0; atol=1e-12)
+
+    # Oblique incidence - still zero for isotropic media
+    result = transfer(λ, layers; θ=0.3)
+    @test isapprox(result.Tps, 0.0; atol=1e-12)
+    @test isapprox(result.Tsp, 0.0; atol=1e-12)
+    @test isapprox(result.Rps, 0.0; atol=1e-12)
+    @test isapprox(result.Rsp, 0.0; atol=1e-12)
+
+    # Multi-layer DBR stack
+    n1 = 2.2
+    n2 = 1.5
+    d1 = λ / (4 * n1)
+    d2 = λ / (4 * n2)
+    layer1 = Layer(λs, fill(n1, length(λs)), zeros(length(λs)), d1)
+    layer2 = Layer(λs, fill(n2, length(λs)), zeros(length(λs)), d2)
+    dbr_layers = [air, layer1, layer2, layer1, layer2, air]
+
+    result = transfer(λ, dbr_layers; θ=0.2)
+    @test isapprox(result.Tps, 0.0; atol=1e-12)
+    @test isapprox(result.Tsp, 0.0; atol=1e-12)
+    @test isapprox(result.Rps, 0.0; atol=1e-12)
+    @test isapprox(result.Rsp, 0.0; atol=1e-12)
+
+    # sweep_angle should also return zero cross-polarization
+    θs = [0.0, 0.3]
+    spectra = sweep_angle(λs, θs, layers)
+    @test all(isapprox.(spectra.Tps, 0.0; atol=1e-12))
+    @test all(isapprox.(spectra.Tsp, 0.0; atol=1e-12))
+    @test all(isapprox.(spectra.Rps, 0.0; atol=1e-12))
+    @test all(isapprox.(spectra.Rsp, 0.0; atol=1e-12))
+
+    # sweep_thickness should also return zero cross-polarization
+    ts = [d, 2d]
+    spectra = sweep_thickness(λs, ts, layers, 2)
+    @test all(isapprox.(spectra.Tps, 0.0; atol=1e-12))
+    @test all(isapprox.(spectra.Tsp, 0.0; atol=1e-12))
+    @test all(isapprox.(spectra.Rps, 0.0; atol=1e-12))
+    @test all(isapprox.(spectra.Rsp, 0.0; atol=1e-12))
 end
 
 @testset "efield uniform medium" begin
@@ -351,14 +412,14 @@ end
 
     # Test transfer with explicit θ
     θ_test = 0.3
-    Tpp, Tss, Rpp, Rss = transfer(λ, layers; θ=θ_test)
-    @test Tpp + Rpp ≈ 1.0 atol=1e-6
-    @test Rpp != Rss  # At oblique incidence, p and s differ
+    result = transfer(λ, layers; θ=θ_test)
+    @test result.Tpp + result.Rpp ≈ 1.0 atol=1e-6
+    @test result.Rpp != result.Rss  # At oblique incidence, p and s differ
 
     # Test transfer with explicit μ (non-magnetic, should be same as default)
-    Tpp2, Tss2, Rpp2, Rss2 = transfer(λ, layers; θ=θ_test, μ=1.0)
-    @test Tpp ≈ Tpp2
-    @test Rpp ≈ Rpp2
+    result2 = transfer(λ, layers; θ=θ_test, μ=1.0)
+    @test result.Tpp ≈ result2.Tpp
+    @test result.Rpp ≈ result2.Rpp
 
     # Test efield with explicit θ
     ef = efield(λ, layers; θ=θ_test, dz=d / 10)
@@ -413,14 +474,14 @@ end
     layers = [air, film, air]
 
     # Should not produce warnings for lossless stack
-    Tpp, Tss, Rpp, Rss = transfer(λ, layers; validate=true)
-    @test Tpp + Rpp ≈ 1.0 atol=1e-6
-    @test Tss + Rss ≈ 1.0 atol=1e-6
+    result = transfer(λ, layers; validate=true)
+    @test result.Tpp + result.Rpp ≈ 1.0 atol=1e-6
+    @test result.Tss + result.Rss ≈ 1.0 atol=1e-6
 
     # Test at oblique incidence
-    Tpp, Tss, Rpp, Rss = transfer(λ, layers; θ=0.3, validate=true)
-    @test Tpp + Rpp ≈ 1.0 atol=1e-6
-    @test Tss + Rss ≈ 1.0 atol=1e-6
+    result = transfer(λ, layers; θ=0.3, validate=true)
+    @test result.Tpp + result.Rpp ≈ 1.0 atol=1e-6
+    @test result.Tss + result.Rss ≈ 1.0 atol=1e-6
 
     # Test that validation is skipped for lossy media (no warning expected)
     k_film = 0.1
@@ -428,9 +489,9 @@ end
     lossy_layers = [air, lossy_film, air]
 
     # Should complete without error; validation is skipped for absorbing media
-    Tpp, Tss, Rpp, Rss = transfer(λ, lossy_layers; validate=true)
-    @test Tpp + Rpp < 1.0  # Absorption means R + T < 1
-    @test Tss + Rss < 1.0
+    result = transfer(λ, lossy_layers; validate=true)
+    @test result.Tpp + result.Rpp < 1.0  # Absorption means R + T < 1
+    @test result.Tss + result.Rss < 1.0
 end
 
 @testset "_validate_physics warnings" begin
@@ -485,4 +546,210 @@ end
     @test_logs TransferMatrix._validate_physics(λ, lossless_layers, 0.7, 0.6, 0.3, 0.4)
     # Lossy: R + T < 1 (absorption is fine)
     @test_logs TransferMatrix._validate_physics(λ, lossy_layers, 0.5, 0.5, 0.3, 0.3)
+end
+
+@testset "anisotropic layer construction" begin
+    # Verify anisotropic layers can be constructed and used in transfer()
+    λ = 1.0
+
+    # Isotropic ambient
+    air = Layer(λ -> 1.0, 0.0)
+
+    # Uniaxial crystal: optic axis along z (calcite-like)
+    no = λ -> 1.658  # ordinary
+    ne = λ -> 1.486  # extraordinary
+    uniaxial = Layer(no, no, ne, 0.5)
+
+    layers = [air, uniaxial, air]
+
+    # Should run without error
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Tss >= 0.0
+    @test result.Rpp >= 0.0
+    @test result.Rss >= 0.0
+
+    # For uniaxial with optic axis along z at normal incidence,
+    # there should be no cross-polarization (principal axes aligned)
+    @test isapprox(result.Tps, 0.0; atol=1e-10)
+    @test isapprox(result.Tsp, 0.0; atol=1e-10)
+    @test isapprox(result.Rps, 0.0; atol=1e-10)
+    @test isapprox(result.Rsp, 0.0; atol=1e-10)
+end
+
+@testset "anisotropic layer birefringence" begin
+    # Birefringent layer should show different behavior for s and p polarizations
+    λ = 1.0
+
+    air = Layer(λ -> 1.0, 0.0)
+
+    # Biaxial crystal with distinct indices
+    nx = λ -> 1.5
+    ny = λ -> 1.6
+    nz = λ -> 1.7
+    biaxial = Layer(nx, ny, nz, 0.5)
+
+    layers = [air, biaxial, air]
+
+    # At normal incidence, x and y axes are in the plane of the interface
+    # s-polarization sees ny, p-polarization sees nx (for incidence along z)
+    result = transfer(λ, layers)
+
+    # Verify physical bounds
+    @test 0 ≤ result.Tpp ≤ 1
+    @test 0 ≤ result.Tss ≤ 1
+    @test 0 ≤ result.Rpp ≤ 1
+    @test 0 ≤ result.Rss ≤ 1
+
+    # Energy should be conserved (lossless)
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # With different nx and ny, s and p polarizations should see different media
+    # This means Tpp ≠ Tss and Rpp ≠ Rss (unless at special angles/thicknesses)
+    # We just verify they're both reasonable values here
+    @test result.Tpp > 0
+    @test result.Tss > 0
+end
+
+@testset "anisotropic vs isotropic equivalence" begin
+    # When all three indices are equal, anisotropic should give same result as isotropic
+    λ = 1.0
+    n = 1.5
+
+    air = Layer(λ -> 1.0, 0.0)
+    iso_film = Layer(λ -> n, 0.3)
+    aniso_film = Layer(λ -> n, λ -> n, λ -> n, 0.3)
+
+    layers_iso = [air, iso_film, air]
+    layers_aniso = [air, aniso_film, air]
+
+    result_iso = transfer(λ, layers_iso)
+    result_aniso = transfer(λ, layers_aniso)
+
+    @test isapprox(result_iso.Tpp, result_aniso.Tpp; atol=1e-12)
+    @test isapprox(result_iso.Tss, result_aniso.Tss; atol=1e-12)
+    @test isapprox(result_iso.Rpp, result_aniso.Rpp; atol=1e-12)
+    @test isapprox(result_iso.Rss, result_aniso.Rss; atol=1e-12)
+
+    # Also test at oblique incidence
+    θ = 0.3
+    result_iso = transfer(λ, layers_iso; θ=θ)
+    result_aniso = transfer(λ, layers_aniso; θ=θ)
+
+    @test isapprox(result_iso.Tpp, result_aniso.Tpp; atol=1e-12)
+    @test isapprox(result_iso.Tss, result_aniso.Tss; atol=1e-12)
+    @test isapprox(result_iso.Rpp, result_aniso.Rpp; atol=1e-12)
+    @test isapprox(result_iso.Rss, result_aniso.Rss; atol=1e-12)
+end
+
+@testset "rotated crystal orientation" begin
+    # Test that rotating a uniaxial crystal changes the optical response
+    λ = 1.0
+
+    air = Layer(λ -> 1.0, 0.0)
+
+    # Uniaxial crystal: ne along z (optic axis)
+    no = λ -> 1.658  # ordinary
+    ne = λ -> 1.486  # extraordinary
+
+    # Unrotated: optic axis along z
+    unrotated = Layer(no, no, ne, 0.5)
+
+    # Rotated: optic axis tilted 45° from z in xz-plane
+    rotated_45 = Layer(no, no, ne, 0.5; euler=(0.0, π/4, 0.0))
+
+    # Rotated: optic axis in xy-plane (90° tilt)
+    rotated_90 = Layer(no, no, ne, 0.5; euler=(0.0, π/2, 0.0))
+
+    layers_unrot = [air, unrotated, air]
+    layers_rot45 = [air, rotated_45, air]
+    layers_rot90 = [air, rotated_90, air]
+
+    result_unrot = transfer(λ, layers_unrot)
+    result_rot45 = transfer(λ, layers_rot45)
+    result_rot90 = transfer(λ, layers_rot90)
+
+    # All should satisfy energy conservation (lossless)
+    @test isapprox(result_unrot.Tpp + result_unrot.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result_unrot.Tss + result_unrot.Rss, 1.0; atol=1e-6)
+    @test isapprox(result_rot45.Tpp + result_rot45.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result_rot45.Tss + result_rot45.Rss, 1.0; atol=1e-6)
+    @test isapprox(result_rot90.Tpp + result_rot90.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result_rot90.Tss + result_rot90.Rss, 1.0; atol=1e-6)
+
+    # All should have valid physical bounds
+    for result in [result_unrot, result_rot45, result_rot90]
+        @test 0 ≤ result.Tpp ≤ 1
+        @test 0 ≤ result.Tss ≤ 1
+        @test 0 ≤ result.Rpp ≤ 1
+        @test 0 ≤ result.Rss ≤ 1
+    end
+
+    # Unrotated at normal incidence: no cross-polarization (principal axes aligned)
+    @test isapprox(result_unrot.Tps, 0.0; atol=1e-10)
+    @test isapprox(result_unrot.Tsp, 0.0; atol=1e-10)
+    @test isapprox(result_unrot.Rps, 0.0; atol=1e-10)
+    @test isapprox(result_unrot.Rsp, 0.0; atol=1e-10)
+
+    # Rotated crystals should give different results than unrotated
+    # (unless at special angles/thicknesses)
+    # At minimum, 90° rotation should change things significantly
+    @test result_unrot.Tpp != result_rot90.Tpp || result_unrot.Tss != result_rot90.Tss
+end
+
+@testset "rotated isotropic invariance" begin
+    # Rotating an isotropic material should give same result
+    # (since all three indices are equal, rotation doesn't matter)
+    λ = 1.0
+    n = 1.5
+
+    air = Layer(λ -> 1.0, 0.0)
+
+    # "Anisotropic" layer with equal indices, no rotation
+    aniso_unrot = Layer(λ -> n, λ -> n, λ -> n, 0.3)
+
+    # Same layer with rotation - should give identical results
+    aniso_rot = Layer(λ -> n, λ -> n, λ -> n, 0.3; euler=(π/6, π/4, π/3))
+
+    layers_unrot = [air, aniso_unrot, air]
+    layers_rot = [air, aniso_rot, air]
+
+    result_unrot = transfer(λ, layers_unrot)
+    result_rot = transfer(λ, layers_rot)
+
+    @test isapprox(result_unrot.Tpp, result_rot.Tpp; atol=1e-12)
+    @test isapprox(result_unrot.Tss, result_rot.Tss; atol=1e-12)
+    @test isapprox(result_unrot.Rpp, result_rot.Rpp; atol=1e-12)
+    @test isapprox(result_unrot.Rss, result_rot.Rss; atol=1e-12)
+
+    # Both should have zero cross-polarization
+    @test isapprox(result_unrot.Tps, 0.0; atol=1e-12)
+    @test isapprox(result_rot.Tps, 0.0; atol=1e-12)
+end
+
+@testset "euler angle symmetry" begin
+    # Test that 2π rotation gives same result as no rotation
+    λ = 1.0
+
+    air = Layer(λ -> 1.0, 0.0)
+    no = λ -> 1.658
+    ne = λ -> 1.486
+
+    # No rotation
+    layer0 = Layer(no, no, ne, 0.5; euler=(0.0, 0.0, 0.0))
+
+    # Full rotation about z (2π)
+    layer2pi = Layer(no, no, ne, 0.5; euler=(2π, 0.0, 0.0))
+
+    layers0 = [air, layer0, air]
+    layers2pi = [air, layer2pi, air]
+
+    result0 = transfer(λ, layers0)
+    result2pi = transfer(λ, layers2pi)
+
+    @test isapprox(result0.Tpp, result2pi.Tpp; atol=1e-12)
+    @test isapprox(result0.Tss, result2pi.Tss; atol=1e-12)
+    @test isapprox(result0.Rpp, result2pi.Rpp; atol=1e-12)
+    @test isapprox(result0.Rss, result2pi.Rss; atol=1e-12)
 end

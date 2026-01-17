@@ -24,11 +24,51 @@ struct ElectricField
     end
 end
 
-struct Spectra
-    Rpp::Matrix{Float64}
-    Rss::Matrix{Float64}
-    Tpp::Matrix{Float64}
-    Tss::Matrix{Float64}
+"""
+    TransferResult{T}
+
+Container for reflectance and transmittance results from transfer matrix calculations.
+
+# Fields
+- `Tpp::T`: p-polarized transmittance (p-in → p-out)
+- `Tss::T`: s-polarized transmittance (s-in → s-out)
+- `Tps::T`: cross-polarized transmittance (p-in → s-out)
+- `Tsp::T`: cross-polarized transmittance (s-in → p-out)
+- `Rpp::T`: p-polarized reflectance (p-in → p-out)
+- `Rss::T`: s-polarized reflectance (s-in → s-out)
+- `Rps::T`: cross-polarized reflectance (p-in → s-out)
+- `Rsp::T`: cross-polarized reflectance (s-in → p-out)
+
+For single-wavelength calculations via `transfer()`, `T` is `Float64`.
+For sweep calculations via `sweep_angle()` or `sweep_thickness()`, `T` is `Matrix{Float64}`.
+
+!!! note "Cross-polarization terms"
+    The cross-polarization terms (`Tps`, `Tsp`, `Rps`, `Rsp`) are zero for isotropic media
+    and become non-zero for anisotropic (birefringent) materials.
+
+# Examples
+```julia
+# Single wavelength - returns TransferResult{Float64}
+result = transfer(1.0, layers)
+result.Tpp  # Float64
+
+# Sweep - returns TransferResult{Matrix{Float64}}
+result = sweep_angle(λs, θs, layers)
+result.Tpp  # Matrix{Float64}
+
+# Destructuring works
+(; Tpp, Rpp) = transfer(1.0, layers)
+```
+"""
+struct TransferResult{T}
+    Tpp::T
+    Tss::T
+    Tps::T
+    Tsp::T
+    Rpp::T
+    Rss::T
+    Rps::T
+    Rsp::T
 end
 
 
@@ -387,14 +427,22 @@ function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
     Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
+
+    # Diagonal terms: Rpp, Rss from matrix calculation
     Rpp = R[1]
     Rss = R[2]
+    # Cross-polarization terms from matrix calculation
+    # R = SVector(Rpp, Rss, Rsp, Rps), T = SVector(Tpp, Tss, Tsp, Tps)
+    Rps = R[4]
+    Rsp = R[3]
+    Tps = T[4]
+    Tsp = T[3]
 
     if validate
         _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss)
     end
 
-    return Tpp, Tss, Rpp, Rss
+    return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
 
 
@@ -470,7 +518,7 @@ end
 
 Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
 
-Returns a `Spectra` struct with fields `Rpp`, `Rss`, `Tpp`, `Tss`, each a matrix
+Returns a `TransferResult` with fields `Tpp`, `Tss`, `Rpp`, `Rss`, each a matrix
 of size `(length(θs), length(λs))`.
 
 # Arguments
@@ -485,10 +533,15 @@ of size `(length(θs), length(λs))`.
 - Angles: radians
 """
 function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
-    Tpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
-    Tss = Array{Float64}(undef, length(outer_vals), length(inner_vals))
-    Rpp = Array{Float64}(undef, length(outer_vals), length(inner_vals))
-    Rss = Array{Float64}(undef, length(outer_vals), length(inner_vals))
+    dims = (length(outer_vals), length(inner_vals))
+    Tpp = Array{Float64}(undef, dims)
+    Tss = Array{Float64}(undef, dims)
+    Tps = Array{Float64}(undef, dims)
+    Tsp = Array{Float64}(undef, dims)
+    Rpp = Array{Float64}(undef, dims)
+    Rss = Array{Float64}(undef, dims)
+    Rps = Array{Float64}(undef, dims)
+    Rsp = Array{Float64}(undef, dims)
 
     if verbose
         println("Threads: ", Threads.nthreads())
@@ -498,11 +551,15 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            Tpp_, Tss_, Rpp_, Rss_ = transfer(inner_vals[j], layers_i; θ=θ)
-            Tpp[i, j] = Tpp_
-            Tss[i, j] = Tss_
-            Rpp[i, j] = Rpp_
-            Rss[i, j] = Rss_
+            result = transfer(inner_vals[j], layers_i; θ=θ)
+            Tpp[i, j] = result.Tpp
+            Tss[i, j] = result.Tss
+            Tps[i, j] = result.Tps
+            Tsp[i, j] = result.Tsp
+            Rpp[i, j] = result.Rpp
+            Rss[i, j] = result.Rss
+            Rps[i, j] = result.Rps
+            Rsp[i, j] = result.Rsp
         end
     end
 
@@ -516,7 +573,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         end
     end
 
-    return Spectra(Rpp, Rss, Tpp, Tss)
+    return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
 
 function sweep_angle(λs, θs, layers; threads::Bool=true, verbose::Bool=false)
@@ -531,7 +588,7 @@ end
 
 Sweep the thickness of a specific layer and calculate transmittance/reflectance spectra.
 
-Returns a `Spectra` struct with fields `Rpp`, `Rss`, `Tpp`, `Tss`, each a matrix
+Returns a `TransferResult` with fields `Tpp`, `Tss`, `Rpp`, `Rss`, each a matrix
 of size `(length(ts), length(λs))`.
 
 # Arguments

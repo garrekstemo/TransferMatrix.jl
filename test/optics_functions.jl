@@ -202,24 +202,24 @@ end
     layers = [air, film, substrate]
 
     # TMM calculation
-    Tpp_tmm, Tss_tmm, Rpp_tmm, Rss_tmm = transfer(λ, layers)
+    result = transfer(λ, layers)
 
     # Airy calculation
     Rs_airy, Rp_airy, Ts_airy, Tp_airy = airy(n_air, n_film, n_sub, d, λ)
 
-    # Compare - note TMM returns (Tpp, Tss, Rpp, Rss) order
-    @test Rss_tmm ≈ Rs_airy atol=1e-6
-    @test Rpp_tmm ≈ Rp_airy atol=1e-6
-    @test Tss_tmm ≈ Ts_airy atol=1e-6
-    @test Tpp_tmm ≈ Tp_airy atol=1e-6
+    # Compare
+    @test result.Rss ≈ Rs_airy atol=1e-6
+    @test result.Rpp ≈ Rp_airy atol=1e-6
+    @test result.Tss ≈ Ts_airy atol=1e-6
+    @test result.Tpp ≈ Tp_airy atol=1e-6
 
     # Test at oblique incidence
     θ = 0.3
-    Tpp_tmm, Tss_tmm, Rpp_tmm, Rss_tmm = transfer(λ, layers; θ=θ)
+    result = transfer(λ, layers; θ=θ)
     Rs_airy, Rp_airy, Ts_airy, Tp_airy = airy(n_air, n_film, n_sub, d, λ; θ=θ)
 
-    @test Rss_tmm ≈ Rs_airy atol=1e-6
-    @test Rpp_tmm ≈ Rp_airy atol=1e-6
-    @test Tss_tmm ≈ Ts_airy atol=1e-6
-    @test Tpp_tmm ≈ Tp_airy atol=1e-6
+    @test result.Rss ≈ Rs_airy atol=1e-6
+    @test result.Rpp ≈ Rp_airy atol=1e-6
+    @test result.Tss ≈ Ts_airy atol=1e-6
+    @test result.Tpp ≈ Tp_airy atol=1e-6
 end

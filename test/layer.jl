@@ -328,3 +328,100 @@ end
 
     @test P(d) ≈ P_test
 end
+
+@testset "Layer" begin
+    # Isotropic layer construction
+    iso_layer = Layer(λ -> 1.5, 0.1)
+    @test iso_layer.thickness == 0.1
+    @test !isanisotropic(iso_layer)
+
+    # Anisotropic layer construction
+    nx = λ -> 1.5
+    ny = λ -> 1.6
+    nz = λ -> 1.7
+    aniso_layer = Layer(nx, ny, nz, 0.2)
+    @test aniso_layer.thickness == 0.2
+    @test isanisotropic(aniso_layer)
+    @test aniso_layer.dispersion isa Tuple
+
+    # get_refractive_indices for isotropic
+    n_iso = get_refractive_indices(iso_layer, 1.0)
+    @test n_iso == (1.5, 1.5, 1.5)
+
+    # get_refractive_indices for anisotropic
+    n_aniso = get_refractive_indices(aniso_layer, 1.0)
+    @test n_aniso == (1.5, 1.6, 1.7)
+
+    # Negative thickness should throw
+    @test_throws DomainError Layer(λ -> 1.5, -0.1)
+    @test_throws DomainError Layer(nx, ny, nz, -0.1)
+
+    # Uniaxial construction (two indices equal)
+    no = λ -> 1.658
+    ne = λ -> 1.486
+    uniaxial = Layer(no, no, ne, 0.5)
+    @test isanisotropic(uniaxial)
+    n_uni = get_refractive_indices(uniaxial, 1.0)
+    @test n_uni[1] == n_uni[2]  # ordinary indices equal
+    @test n_uni[1] != n_uni[3]  # extraordinary different
+
+    # Rotated anisotropic layer
+    rotated = Layer(no, no, ne, 0.5; euler=(0.0, π/4, 0.0))
+    @test isanisotropic(rotated)
+    @test isrotated(rotated)
+    @test get_euler_angles(rotated) == (0.0, π/4, 0.0)
+
+    # Unrotated layer should not be flagged as rotated
+    @test !isrotated(uniaxial)
+    @test get_euler_angles(uniaxial) == (0.0, 0.0, 0.0)
+
+    # Isotropic layer should not be flagged as rotated
+    @test !isrotated(iso_layer)
+    @test get_euler_angles(iso_layer) == (0.0, 0.0, 0.0)
+end
+
+@testset "euler_rotation_matrix" begin
+    # Identity rotation (no angles)
+    R0 = euler_rotation_matrix(0.0, 0.0, 0.0)
+    @test R0 ≈ I(3) atol=1e-14
+
+    # Rotation matrix should be orthogonal: R * R' = I
+    φ, θ, ψ = π/6, π/4, π/3
+    R = euler_rotation_matrix(φ, θ, ψ)
+    @test R * R' ≈ I(3) atol=1e-14
+    @test R' * R ≈ I(3) atol=1e-14
+    @test det(R) ≈ 1.0 atol=1e-14  # proper rotation (not reflection)
+
+    # 90° rotation about z (φ=π/2, θ=0, ψ=0) should map x→y, y→-x
+    Rz90 = euler_rotation_matrix(π/2, 0.0, 0.0)
+    @test Rz90 * [1, 0, 0] ≈ [0, 1, 0] atol=1e-14
+    @test Rz90 * [0, 1, 0] ≈ [-1, 0, 0] atol=1e-14
+    @test Rz90 * [0, 0, 1] ≈ [0, 0, 1] atol=1e-14
+
+    # 90° rotation about y (φ=0, θ=π/2, ψ=0) should map z→x, x→-z
+    Ry90 = euler_rotation_matrix(0.0, π/2, 0.0)
+    @test Ry90 * [0, 0, 1] ≈ [1, 0, 0] atol=1e-14
+    @test Ry90 * [1, 0, 0] ≈ [0, 0, -1] atol=1e-14
+    @test Ry90 * [0, 1, 0] ≈ [0, 1, 0] atol=1e-14
+end
+
+@testset "rotate_dielectric_tensor" begin
+    # Rotation of isotropic tensor should give same tensor
+    ε_iso = TransferMatrix.dielectric_tensor(2.0 + 0im, 2.0 + 0im, 2.0 + 0im)
+    R = euler_rotation_matrix(π/6, π/4, π/3)
+    ε_rot = rotate_dielectric_tensor(ε_iso, R)
+    @test ε_rot ≈ SMatrix{3,3}(ε_iso) atol=1e-12
+
+    # Identity rotation should preserve tensor
+    ε_aniso = TransferMatrix.dielectric_tensor(1.5 + 0im, 2.0 + 0im, 2.5 + 0im)
+    R_id = euler_rotation_matrix(0.0, 0.0, 0.0)
+    ε_id = rotate_dielectric_tensor(ε_aniso, R_id)
+    @test ε_id ≈ SMatrix{3,3}(ε_aniso) atol=1e-14
+
+    # Rotated tensor should remain symmetric: ε_ij = ε_ji
+    ε_rot2 = rotate_dielectric_tensor(ε_aniso, R)
+    @test ε_rot2 ≈ ε_rot2' atol=1e-14
+
+    # Trace should be preserved under rotation (invariant)
+    @test tr(ε_rot2) ≈ tr(ε_aniso) atol=1e-12
+end

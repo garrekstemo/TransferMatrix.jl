@@ -104,11 +104,11 @@ Ts = Float64[]
 Rp = Float64[]
 Rs = Float64[]
 for λ in λs
-    Tp_, Ts_, Rp_, Rs_ = transfer(λ, layers)
-    push!(Tp, Tp_)
-    push!(Ts, Ts_)
-    push!(Rp, Rp_)
-    push!(Rs, Rs_)
+    result = transfer(λ, layers)
+    push!(Tp, result.Tpp)
+    push!(Ts, result.Tss)
+    push!(Rp, result.Rpp)
+    push!(Rs, result.Rss)
 end
 
 f, ax, l = lines(frequencies, Ts)
