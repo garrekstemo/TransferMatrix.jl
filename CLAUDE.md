@@ -231,14 +231,20 @@ Before fixing any issue in the codebase, follow this three-step explanation proc
 2. **Explain the problem and why it's a problem**: Identify what's wrong, when it manifests, and what consequences it has (crashes, incorrect results, performance issues, etc.).
 3. **Explain the fix and why it solves the problem**: Describe the proposed solution and how it addresses the root cause.
 
-This ensures understanding before modification and creates documentation for future reference. Document fixes in ISSUES.md with the same level of detail.
+This ensures understanding before modification and creates documentation for future reference. Document fixes in `errata.md` (gitignored) with the same level of detail.
 
 ### Technical Notes
 
 - The code handles numerical singularities (degenerate q-values) using the Xu et al. (2000) approach
 - Birefringence is detected automatically by comparing Poynting vector ratios
-- Mode sorting uses thresholds on real/imaginary parts to distinguish transmitted vs reflected modes
+- Mode sorting uses a tolerance-based effectively-real check (not `isreal()`) to distinguish transmitted vs reflected modes, avoiding misclassification from floating-point noise in eigenvalues
 - `sweep_angle` and `sweep_thickness` are designed to be thread-safe for parallel computation
+
+### Known Issues
+
+- **R+T ≈ 0.998** for strongly rotated lossless crystals — Poynting vector normalization limitation (#70)
+- **Anisotropic ambient at oblique incidence** → NaN from using nx for ξ (#71)
+- **Absorbing incident medium**: |r|² is not a true energy reflectance (#72)
 
 ## Mathematical Formalism (Passler & Paarmann 2017)
 
@@ -292,7 +298,13 @@ For singularity-free handling (Xu et al. 2000), the γ components have condition
 
 Similar formulas for γᵢ₂₁, γᵢ₂₃, γᵢ₃₂, γᵢ₃₃, γᵢ₄₁, γᵢ₄₃ (see Eq. 20 in paper).
 
-**Normalization (from 2019 erratum)**: γ_hat_ij = γ_vec_ij / |γ_vec_ij|
+**Critical correction**: Eq. 13 of Xu et al. 2000 (and Eq. 20 of Passler 2017) has a sign error in γᵢ₃₃. The coefficient of γᵢ₃₂ should be **minus**, not plus. All γⱼ₃ components must satisfy the z-constraint derived from Row 3 of the Maxwell eigenvalue system:
+```
+γⱼ₃ = −[(μεᵢ₃₁ + ξqⱼ) γⱼ₁ + μεᵢ₃₂ γⱼ₂] / (μεᵢ₃₃ − ξ²)
+```
+See `errata.md` for full derivation and provenance.
+
+**Normalization (from 2019 erratum)**: γ_hat_ij = γ_vec_ij / |γ_vec_ij| (Hermitian norm)
 
 ### D-matrix (Dynamical Matrix, 4×4)
 
