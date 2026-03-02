@@ -259,9 +259,15 @@ function calculate_q(Δ, a)
     transmitted_mode = MVector(0, 0)
     reflected_mode = MVector(0, 0)
 
+    # Determine whether eigenvalues are effectively real. The eigen decomposition
+    # of a real-valued Δ can produce tiny imaginary parts (≈ε_mach) due to floating
+    # point arithmetic. Using `isreal()` (exact zero check) misclassifies these as
+    # complex and sorts by imaginary part, which fails for nearly-real eigenvalues.
+    effectively_real = all(abs(imag(q)) < 1e-10 * max(abs(q), 1.0) for q in q_unsorted)
+
     kt = 1
     kr = 1
-    if isreal(q_unsorted)
+    if effectively_real
         for m in 1:4
             if real(q_unsorted[m]) >= 0.0
                 kt <= 2 && (transmitted_mode[kt] = m)
@@ -364,7 +370,7 @@ function calculate_γ(ξ, q, ε, μ)
         γ[3,3] = 0
         γ[4,3] = 0
     else
-        γ[3,3] = (μ * ε[3,1] + ξ * q[3] + μ * ε[3,2] * γ[3,2]) / denom_33
+        γ[3,3] = (μ * ε[3,1] + ξ * q[3] - μ * ε[3,2] * γ[3,2]) / denom_33
         γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
     end
 
