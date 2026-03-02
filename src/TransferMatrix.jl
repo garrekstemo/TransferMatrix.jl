@@ -29,14 +29,14 @@ export Layer,
        euler_rotation_matrix,
        rotate_dielectric_tensor
 
+const ε_0::Float64 = 8.8541878128e-12
+const μ_0::Float64 = 1.25663706212e-6
+const c_0::Float64 = 299792458
+
 include("matrix_constructors.jl")
 include("layer.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
-
-const ε_0::Float64 = 8.8541878128e-12
-const μ_0::Float64 = 1.25663706212e-6
-const c_0::Float64 = 299792458
 
 # Precompile common workloads to reduce time-to-first-execution
 @setup_workload begin

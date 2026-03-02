@@ -183,9 +183,12 @@ end
 """
     find_bounds(layers)
 
-Find the unitful z coordinate for all layer-layer interfaces in the structure,
-with the first interface starting at z = 0.
-(negative z corresponds to positions inside the first layer.)
+Return cumulative thickness positions measured from the start of layer 1, along with
+the total thickness.
+
+The returned vector has one entry per layer, where entry `i` is the sum of thicknesses
+from layer 1 through layer `i`. These are **not** interface positions relative to z = 0;
+callers that need z-coordinates (e.g., `efield`) must subtract the first layer thickness.
 """
 function find_bounds(layers)
     n_layers = length(layers)

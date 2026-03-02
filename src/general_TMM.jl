@@ -11,16 +11,16 @@ struct Poynting
     end
 end
 
-struct ElectricField
-    z::Vector{Float64}
+struct ElectricField{Z<:AbstractVector{Float64}}
+    z::Z
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}
     boundaries::Vector{Float64}
 
-    function ElectricField(z, p, s, boundaries)
+    function ElectricField(z::Z, p, s, boundaries) where {Z<:AbstractVector{Float64}}
         size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
         size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
-        new(z, p, s, boundaries)
+        new{Z}(z, p, s, boundaries)
     end
 end
 
@@ -481,7 +481,7 @@ Warnings are issued for any violations.
 """
 function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
 
-    Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
+    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
 
