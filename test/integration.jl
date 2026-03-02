@@ -815,8 +815,9 @@ end
     @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
     @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
 
-    # Oblique incidence with anisotropic incident medium
-    result_oblique = transfer(λ, layers; θ=0.3)
+    # Oblique incidence with anisotropic substrate (isotropic ambient)
+    layers_oblique = [Layer(λ -> 1.0, 0.0), iso_film, aniso_ambient]
+    result_oblique = transfer(λ, layers_oblique; θ=0.3)
     @test result_oblique.Tpp >= 0.0
     @test result_oblique.Rpp >= 0.0
 
