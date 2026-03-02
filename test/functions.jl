@@ -144,6 +144,23 @@ end
     @test all(imag.(q[3:4]) .<= 0)
 end
 
+@testset "calculate_q effectively-real sorting" begin
+    # Eigenvalues with tiny imaginary parts (numerical noise from eigen decomposition
+    # of real-valued Δ) should be sorted by real part, not imaginary part.
+    # This reproduces the failure seen with strongly birefringent rotated crystals.
+    Δ = Diagonal(ComplexF64[
+        1.5 - 4e-17im,
+        1.4 - 5e-18im,
+       -1.4 - 6e-18im,
+       -1.9 + 1e-18im
+    ])
+    a = zeros(ComplexF64, 6, 6)
+    q, S = TransferMatrix.calculate_q(Matrix(Δ), a)
+    @test length(q) == 4
+    @test all(real.(q[1:2]) .> 0)
+    @test all(real.(q[3:4]) .< 0)
+end
+
 @testset "calculate_q mode sorting error" begin
     a = zeros(ComplexF64, 6, 6)
 
@@ -304,6 +321,49 @@ end
     @test γ_singular[2,3] ≈ 0
     @test γ_singular[3,3] ≈ 0
     @test γ_singular[4,3] ≈ 0
+end
+
+@testset "calculate_γ z-constraint (Maxwell)" begin
+    # The z-component of E is constrained by Maxwell's equations:
+    #   (με₃₁ + ξqⱼ)γⱼ₁ + με₃₂γⱼ₂ + (με₃₃ - ξ²)γⱼ₃ = 0
+    # for all modes j. Test with a rotated uniaxial crystal so ε₃₂ ≠ 0.
+    using LinearAlgebra
+
+    εx = 2.25 + 0im
+    εy = 2.25 + 0im
+    εz = 5.0  + 0im
+    ε_diag = Diagonal(SVector{3, ComplexF64}(εx, εy, εz))
+
+    R = TransferMatrix.euler_rotation_matrix(π/6, π/4, 0.0)
+    ε = TransferMatrix.rotate_dielectric_tensor(ε_diag, R)
+
+    θ_inc = 0.5
+    ξ = sqrt(εx) * sin(θ_inc)
+    μ_val = 1.0
+
+    μ_tensor = TransferMatrix.permeability_tensor(μ_val, μ_val, μ_val)
+    M = TransferMatrix.construct_M(ε, μ_tensor)
+    a = TransferMatrix.construct_a(ξ, M)
+    Δ = TransferMatrix.construct_Δ(ξ, M, a)
+    q, _ = TransferMatrix.calculate_q(Matrix(Δ), a)
+    q_c = ComplexF64.(q)
+
+    γ = TransferMatrix.calculate_γ(ξ, q_c, ε, μ_val)
+
+    # Verify ε has off-diagonal elements (rotation worked)
+    @test abs(ε[3,2]) > 0.1
+
+    # Check z-constraint for all 4 modes (unnormalized γ would also work,
+    # but the normalized vectors still satisfy the constraint up to the norm factor).
+    # Reconstruct unnormalized γ to test the raw formula.
+    γ_raw = TransferMatrix.calculate_γ(ξ, q_c, ε, μ_val)
+
+    for j in 1:4
+        residual = (μ_val * ε[3,1] + ξ * q_c[j]) * γ_raw[j,1] +
+                    μ_val * ε[3,2] * γ_raw[j,2] +
+                   (μ_val * ε[3,3] - ξ^2) * γ_raw[j,3]
+        @test abs(residual) < 1e-10
+    end
 end
 
 @testset "dynamical_matrix" begin
