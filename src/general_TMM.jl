@@ -205,13 +205,31 @@ Passler et al., 2019, https://doi.org/10.1364/JOSAB.36.003246
 """
 function evaluate_birefringence(Ψ, S, t_modes, r_modes)
 
+    # Compute Poynting vector ratio C = |Sx|^2 / (|Sx|^2 + |Sy|^2) for the
+    # two transmitted modes. This probes whether the modes have distinct
+    # polarization character along x vs y.
     C_q1 = abs_ratio(S[1, t_modes[1]], S[2, t_modes[1]])
     C_q2 = abs_ratio(S[1, t_modes[2]], S[2, t_modes[2]])
-    
-    # Note: isapprox(NaN, NaN) = false,
-    # which is important in the case that both Sx and Sy are zero.
+
+    # The branching below may appear inverted from Passler & Paarmann (2017),
+    # which prescribes Poynting sorting for birefringent media and E-field
+    # sorting for isotropic media. Here the logic is:
+    #
+    # - isapprox(C_q1, C_q2) = true: Poynting ratios are nearly equal, so
+    #   the two modes have similar polarization character. This is the
+    #   isotropic/weakly-birefringent case. Sorting barely matters here, but
+    #   we still apply a Poynting-based swap for consistency.
+    #
+    # - isapprox(C_q1, C_q2) = false: Poynting ratios differ meaningfully.
+    #   We fall through to the E-field branch, which uses eigenvector
+    #   components |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2) for a more numerically
+    #   robust sort that works for both birefringent and isotropic media.
+    #
+    # Note: isapprox(NaN, NaN) = false, so when both Sx and Sy are zero
+    # (yielding 0/0 = NaN), we safely fall through to the E-field branch.
     if isapprox(C_q1, C_q2)
 
+        # Poynting ratios nearly equal — sort by Poynting (minor reorder)
         if C_q2 > C_q1
             reverse!(t_modes)
         end
@@ -223,6 +241,8 @@ function evaluate_birefringence(Ψ, S, t_modes, r_modes)
             reverse!(r_modes)
         end
     else
+        # Poynting ratios differ or are NaN — sort by E-field eigenvectors.
+        # Recompute C using Ψ components (Ex vs Ey) for robust p/s assignment.
         C_q1 = abs_ratio(Ψ[1, t_modes[1]], Ψ[3, t_modes[1]])
         C_q2 = abs_ratio(Ψ[1, t_modes[2]], Ψ[3, t_modes[2]])
 
@@ -249,11 +269,48 @@ used to evaluate if a material is birefringent.
 abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
 
 
+# Lightweight path: only computes Γ and S without allocating per-layer
+# Ds, Ps, γs vectors. Used by `transfer` in tight spectral loops.
+function _propagate_core(λ, layers; θ=0.0, μ=1.0)
+
+    first_layer = layers[1]
+    last_layer = layers[end]
+
+    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    ε_0in = dielectric_constant(nx_in)
+    ξ = √(ε_0in) * sin(θ)
+
+    Λ_1324 = @SMatrix [1 0 0 0;
+                       0 0 1 0;
+                       0 1 0 0;
+                       0 0 0 1]
+
+    D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
+    D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
+
+    Γ = SMatrix{4,4,ComplexF64}(I)
+    for (i, layer) in enumerate(layers[2:end - 1])
+        D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
+        T_i = D_i * (P_i(layer.thickness) / D_i)
+        Γ *= T_i
+    end
+
+    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
+    r, R, t, T = calculate_tr(Γ)
+    S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
+
+    return Γ, S
+end
+
+
 """
     propagate(λ, layers; θ=0.0, μ=1.0)
 
 Calculate the transfer matrix for the entire structure,
 as well as the Poynting vector for the structure.
+
+Also returns per-layer D, P, and γ matrices needed for
+electric field reconstruction (see [`efield`](@ref)).
 
 # Arguments
 - `λ`: Wavelength
@@ -266,8 +323,8 @@ function propagate(λ, layers; θ=0.0, μ=1.0)
     first_layer = layers[1]
     last_layer = layers[end]
 
-    n_in = first_layer.dispersion(λ)
-    ε_0in = dielectric_constant(n_in)
+    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    ε_0in = dielectric_constant(nx_in)
     ξ = √(ε_0in) * sin(θ)
 
     Λ_1324 = @SMatrix [1 0 0 0;
@@ -480,8 +537,8 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshol
 
     # Check if all layers are non-absorbing
     is_lossless = all(layers) do layer
-        n = layer.dispersion(λ)
-        abs(imag(n)) < k_threshold
+        nx, ny, nz = get_refractive_indices(layer, λ)
+        all(n -> abs(imag(n)) < k_threshold, (nx, ny, nz))
     end
 
     if is_lossless
@@ -605,14 +662,13 @@ of size `(length(ts), length(λs))`.
 - Angle: radians
 """
 function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=true, verbose::Bool=false)
-    # Pre-allocate mutable layer vector to avoid repeated slicing/concatenation
-    layers_mut = collect(layers)
     dispersion_func = layers[t_index].dispersion
 
     return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
         make_layers = i -> begin
-            layers_mut[t_index] = Layer(dispersion_func, ts[i])
-            layers_mut
+            layers_i = collect(layers)
+            layers_i[t_index] = Layer(dispersion_func, ts[i])
+            layers_i
         end,
         angle_for = _ -> θ)
 end

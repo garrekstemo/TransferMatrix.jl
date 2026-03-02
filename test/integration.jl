@@ -728,6 +728,33 @@ end
     @test isapprox(result_rot.Tps, 0.0; atol=1e-12)
 end
 
+@testset "sweep_thickness thread safety" begin
+    # Verify that sweep_thickness with threads=true produces results identical
+    # to threads=false even with many thickness values, which exercises the
+    # per-iteration layer copy (no shared mutable state between threads).
+    λs = range(0.8, 1.2, length=10)
+    n_air = 1.0
+    n_film = 1.5
+    d_center = 1.0 / (4 * n_film)
+    ts = range(0.5 * d_center, 2.0 * d_center, length=20)
+
+    air = Layer(collect(λs), fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(collect(λs), fill(n_film, length(λs)), zeros(length(λs)), d_center)
+    layers = [air, film, air]
+
+    result_serial = sweep_thickness(collect(λs), collect(ts), layers, 2; threads=false)
+    result_threaded = sweep_thickness(collect(λs), collect(ts), layers, 2; threads=true)
+
+    @test result_threaded.Tpp == result_serial.Tpp
+    @test result_threaded.Tss == result_serial.Tss
+    @test result_threaded.Rpp == result_serial.Rpp
+    @test result_threaded.Rss == result_serial.Rss
+    @test result_threaded.Tps == result_serial.Tps
+    @test result_threaded.Tsp == result_serial.Tsp
+    @test result_threaded.Rps == result_serial.Rps
+    @test result_threaded.Rsp == result_serial.Rsp
+end
+
 @testset "euler angle symmetry" begin
     # Test that 2π rotation gives same result as no rotation
     λ = 1.0
@@ -752,4 +779,69 @@ end
     @test isapprox(result0.Tss, result2pi.Tss; atol=1e-12)
     @test isapprox(result0.Rpp, result2pi.Rpp; atol=1e-12)
     @test isapprox(result0.Rss, result2pi.Rss; atol=1e-12)
+end
+
+@testset "anisotropic first/last layer" begin
+    # Anisotropic layers as first (incident) and last (substrate) should not crash.
+    # This tests the fix for propagate and _validate_physics using
+    # get_refractive_indices instead of calling layer.dispersion directly.
+    λ = 1.0
+
+    no = λ -> 1.658
+    ne = λ -> 1.486
+
+    aniso_ambient = Layer(no, no, ne, 0.0)
+    iso_film = Layer(λ -> 1.5, 0.3)
+
+    # Anisotropic first layer
+    layers = [aniso_ambient, iso_film, Layer(λ -> 1.0, 0.0)]
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # Anisotropic last layer
+    layers = [Layer(λ -> 1.0, 0.0), iso_film, aniso_ambient]
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+
+    # Both first and last anisotropic
+    layers = [aniso_ambient, iso_film, aniso_ambient]
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # Oblique incidence with anisotropic incident medium
+    result_oblique = transfer(λ, layers; θ=0.3)
+    @test result_oblique.Tpp >= 0.0
+    @test result_oblique.Rpp >= 0.0
+
+    # Validate flag should also work (tests _validate_physics path)
+    result_validated = transfer(λ, layers; validate=true)
+    @test result_validated.Tpp >= 0.0
+end
+
+@testset "_validate_physics with anisotropic layers" begin
+    # _validate_physics should handle anisotropic layers without crashing
+    λ = 1.0
+    no = λ -> 1.658
+    ne = λ -> 1.486
+
+    aniso = Layer(no, no, ne, 0.3)
+    air = Layer(λ -> 1.0, 0.0)
+    layers = [air, aniso, air]
+
+    # Should not throw for lossless anisotropic layers
+    @test_logs TransferMatrix._validate_physics(λ, layers, 0.8, 0.8, 0.2, 0.2)
+
+    # Lossy anisotropic layer (complex index)
+    lossy_aniso = Layer(λ -> 1.5 + 0.1im, λ -> 1.6 + 0.1im, λ -> 1.7 + 0.1im, 0.3)
+    lossy_layers = [air, lossy_aniso, air]
+
+    # Should detect lossy media and not warn about energy conservation
+    @test_logs TransferMatrix._validate_physics(λ, lossy_layers, 0.4, 0.4, 0.3, 0.3)
 end
