@@ -392,8 +392,8 @@ T_ss = S_trans_s[z] / S_inc_s[z]
 When k_∥/k₀ > 1 (e.g., prism coupling beyond critical angle), S_inc,z is purely imaginary.
 In this case, normalize to Im(S_inc,z) instead of Re(S_inc,z). This is noted as "empirically motivated."
 
-**Why pyGTM avoids reflected Poynting vectors:**
-The Python implementation (pyGTM) deliberately uses R = |r|² and only calculates Poynting vectors for transmittance. This is the correct approach—our code's S_refl calculations at lines 126-127 in `general_TMM.jl` are not used for the final R values (which come from the transfer matrix coefficients at lines 390-391).
+**Why reflectance uses |r|² instead of Poynting vectors:**
+Reflectance is computed as R = |r|² from the transfer matrix coefficients, not from Poynting vectors. For transparent incident media this is exact. For absorbing incident media, the Poynting vector is non-additive — it cannot be cleanly separated into incident and reflected contributions due to interference cross-terms (Ortiz & Mochan 2005, JOSA A 22, 2827). The Poynting-based reflected vectors are computed internally but only the transmitted Poynting vectors are used for the final output (transmittance T).
 
 ### Energy Conservation
 

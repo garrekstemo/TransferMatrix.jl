@@ -276,11 +276,11 @@ end
     ]
 
     for m in 1:4
-        γ2_test[m, :] /= √(γ2_test[m, :] ⋅ γ2_test[m, :]')
-        γ3_test[m, :] /= √(γ3_test[m, :] ⋅ γ3_test[m, :]')
-        γ4_test[m, :] /= √(γ4_test[m, :] ⋅ γ4_test[m, :]')
-        γ5_test[m, :] /= √(γ5_test[m, :] ⋅ γ5_test[m, :]')
-        γ6_test[m, :] /= √(γ6_test[m, :] ⋅ γ6_test[m, :]')
+        γ2_test[m, :] /= norm(γ2_test[m, :])
+        γ3_test[m, :] /= norm(γ3_test[m, :])
+        γ4_test[m, :] /= norm(γ4_test[m, :])
+        γ5_test[m, :] /= norm(γ5_test[m, :])
+        γ6_test[m, :] /= norm(γ6_test[m, :])
     end
 
     @test γ1 == γ1_test

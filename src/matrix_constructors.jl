@@ -304,11 +304,20 @@ end
 """
     calculate_γ(ξ, q, ε, μ)
 
-The 4 x 3 matrix γ contains vector components that belong 
+The 4 x 3 matrix γ contains vector components that belong
 to the electric field calculated such that singularities are identified and removed.
 
 `q[1]` and `q[2]` are forward-traveling modes and
 `q[3]` and `q[4]` are backward-traveling modes.
+
+Each row is normalized to unit length using the Hermitian norm
+``|γ| = √(Σ|γᵢ|²)`` as prescribed by the 2019 erratum (Passler &
+Paarmann, JOSAB 36, 3246). The Hermitian norm is the correct choice
+because γ represents an electric field polarization direction: its
+physical "length" is the field amplitude, which is ``√(E⋅E*) = √(Σ|Eᵢ|²)``.
+The bilinear form ``√(Σγᵢ²)`` has no physical meaning for complex fields
+and can vanish for nonzero vectors (e.g. circular polarization),
+making it unsuitable as a normalization factor.
 
 This is based on the work in
 Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
@@ -359,11 +368,21 @@ function calculate_γ(ξ, q, ε, μ)
         γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
     end
 
-    # normalize γ (use SVector to avoid slice allocations)
-    # Skip normalization if the row is effectively zero to avoid NaN from 0/0
+    # Normalize γ using the Hermitian norm: |v| = √(Σ|vᵢ|²).
+    #
+    # Each γ row is a polarization eigenvector of the electric field. The
+    # physical amplitude of a complex field E is √(E⋅E*) = √(Σ|Eᵢ|²),
+    # not √(Σ Eᵢ²). The bilinear form √(Σvᵢ²) conflates phase information
+    # with amplitude — for example, v = [1, i, 0] (circular polarization)
+    # gives Σvᵢ² = 0, a division-by-zero singularity, even though the field
+    # has unit amplitude. The Hermitian norm is positive-definite on nonzero
+    # vectors by construction, so it is always safe as a normalization factor.
+    #
+    # For real γ (lossless isotropic media) both norms coincide, so the
+    # distinction only matters for complex γ (absorbing or anisotropic media).
     for i in 1:4
         v = SVector(γ[i,1], γ[i,2], γ[i,3])
-        Z = √(v ⋅ v')
+        Z = norm(v)
         if abs(Z) > eps(Float64)
             γ[i,1] /= Z
             γ[i,2] /= Z

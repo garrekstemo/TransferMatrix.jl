@@ -826,6 +826,130 @@ end
     @test result_validated.Tpp >= 0.0
 end
 
+@testset "Brewster angle via TMM" begin
+    # At Brewster's angle, Rpp should vanish for a single interface between
+    # lossless dielectrics. The TMM should reproduce this fundamental result.
+    λ = 1.0
+    λs = [λ, 1.1]
+    n1 = 1.0
+    n2 = 1.5
+
+    air = Layer(λs, fill(n1, length(λs)), zeros(length(λs)), 0.0)
+    glass = Layer(λs, fill(n2, length(λs)), zeros(length(λs)), 0.0)
+    layers = [air, glass]
+
+    θ_B = atan(n2 / n1)
+    result = transfer(λ, layers; θ=θ_B)
+
+    @test isapprox(result.Rpp, 0.0; atol=1e-10)
+    @test result.Rss > 0.0
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-8)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-8)
+
+    # Also verify with different index contrast
+    n3 = 2.0
+    high_index = Layer(λs, fill(n3, length(λs)), zeros(length(λs)), 0.0)
+    layers2 = [air, high_index]
+
+    θ_B2 = atan(n3 / n1)
+    result2 = transfer(λ, layers2; θ=θ_B2)
+
+    @test isapprox(result2.Rpp, 0.0; atol=1e-10)
+    @test result2.Rss > 0.0
+end
+
+@testset "many-layer DBR stability" begin
+    # A 20-pair DBR exercises numerical stability of the matrix multiplication
+    # chain. At the design wavelength, R should approach 1 and R + T = 1.
+    λ = 1.0
+    n_air = 1.0
+    n1 = 2.2
+    n2 = 1.5
+
+    d1 = λ / (4 * n1)
+    d2 = λ / (4 * n2)
+
+    # Use function-based layers to avoid interpolation range issues
+    air = Layer(λ -> n_air + 0im, 0.0)
+    layer1 = Layer(λ -> n1 + 0im, d1)
+    layer2 = Layer(λ -> n2 + 0im, d2)
+
+    layers = Layer[air]
+    for _ in 1:20
+        push!(layers, layer1, layer2)
+    end
+    push!(layers, air)
+
+    result = transfer(λ, layers)
+
+    # 20-pair DBR with n1=2.2, n2=1.5 should have very high reflectance
+    @test result.Rpp > 0.999
+    @test result.Rss > 0.999
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # No NaN or negative values
+    @test !isnan(result.Tpp)
+    @test !isnan(result.Rpp)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+
+    # Off-design wavelength should have lower reflectance
+    result_off = transfer(0.8, layers)
+    @test result_off.Rpp < result.Rpp
+end
+
+@testset "lossy anisotropic media" begin
+    # Anisotropic layer with absorption (complex indices) — exercises multiple
+    # code paths simultaneously: anisotropic dielectric tensor construction,
+    # complex eigenvalue sorting, and Poynting vector calculation.
+    λ = 1.0
+
+    air = Layer(λ -> 1.0, 0.0)
+
+    # Dichroic crystal: different absorption along each axis
+    nx = λ -> 1.5 + 0.05im
+    ny = λ -> 1.6 + 0.10im
+    nz = λ -> 1.7 + 0.02im
+    lossy_aniso = Layer(nx, ny, nz, 0.5)
+
+    layers = [air, lossy_aniso, air]
+
+    result = transfer(λ, layers)
+
+    # Physical bounds
+    @test 0 ≤ result.Tpp ≤ 1
+    @test 0 ≤ result.Tss ≤ 1
+    @test 0 ≤ result.Rpp ≤ 1
+    @test 0 ≤ result.Rss ≤ 1
+
+    # Absorption means R + T < 1
+    @test result.Tpp + result.Rpp < 1.0
+    @test result.Tss + result.Rss < 1.0
+
+    # Absorption should be nonzero
+    A_p = 1.0 - result.Tpp - result.Rpp
+    A_s = 1.0 - result.Tss - result.Rss
+    @test A_p > 0.001
+    @test A_s > 0.001
+
+    # At oblique incidence
+    result_oblique = transfer(λ, layers; θ=0.3)
+    @test 0 ≤ result_oblique.Tpp ≤ 1
+    @test 0 ≤ result_oblique.Tss ≤ 1
+    @test result_oblique.Tpp + result_oblique.Rpp < 1.0
+
+    # With rotation — most demanding test case
+    lossy_rotated = Layer(nx, ny, nz, 0.5; euler=(π/6, π/4, 0.0))
+    layers_rot = [air, lossy_rotated, air]
+
+    result_rot = transfer(λ, layers_rot)
+    @test 0 ≤ result_rot.Tpp ≤ 1
+    @test 0 ≤ result_rot.Tss ≤ 1
+    @test result_rot.Tpp + result_rot.Rpp < 1.0
+    @test !isnan(result_rot.Tpp)
+end
+
 @testset "_validate_physics with anisotropic layers" begin
     # _validate_physics should handle anisotropic layers without crashing
     λ = 1.0

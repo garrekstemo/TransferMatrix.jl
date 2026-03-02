@@ -121,8 +121,18 @@ end
     poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
 Calculate the Poynting vector from wavevectors ``q``,
-componments of the electric field γ, and transmission
+components of the electric field γ, and transmission
 and reflection coefficients.
+
+Transmitted Poynting vectors use substrate wavevectors (`q_out`), while
+reflected Poynting vectors use incident-medium wavevectors (`k_in[3,:]`,
+`k_in[4,:]`), since reflected waves propagate in the incident medium.
+
+!!! note "Transmittance vs reflectance"
+    This function computes Poynting vectors for both transmitted and reflected
+    waves, but only the **transmitted** Poynting vectors are used for the final
+    output. Reflectance is computed as ``R = |r|^2`` from the transfer matrix
+    coefficients — see [`transfer`](@ref) for the rationale.
 """
 function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
@@ -161,10 +171,15 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     k_out ./= c_0
     k_out = SMatrix(k_out)
 
+    # Transmitted waves: use substrate wavevectors (k_out modes 1,2)
     S_out_p  = real(0.5 * E_out_p × conj(k_out[1, :] × E_out_p))
     S_out_s  = real(0.5 * E_out_s × conj(k_out[2, :] × E_out_s))
-    S_refl_p = real(0.5 * E_ref_p × conj(k_out[3, :] × E_ref_p))
-    S_refl_s = real(0.5 * E_ref_s × conj(k_out[4, :] × E_ref_s))
+
+    # Reflected waves: use incident-medium wavevectors (k_in modes 3,4),
+    # not substrate wavevectors, because reflected light propagates backward
+    # through the incident medium with its own q-values.
+    S_refl_p = real(0.5 * E_ref_p × conj(k_in[3, :] × E_ref_p))
+    S_refl_s = real(0.5 * E_ref_s × conj(k_in[4, :] × E_ref_s))
 
     return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s)
 end
@@ -447,12 +462,24 @@ end
 
 Calculate the transmittance and reflectance of a layered structure.
 
-Returns `(Tpp, Tss, Rpp, Rss)` where:
-- `Tpp`, `Tss`: p- and s-polarized transmittance
-- `Rpp`, `Rss`: p- and s-polarized reflectance
+Returns a [`TransferResult`](@ref) with fields `Tpp`, `Tss`, `Rpp`, `Rss`
+(and cross-polarization terms `Tps`, `Tsp`, `Rps`, `Rsp`).
 
-Transmittance is calculated via Poynting vectors for accurate energy flow.
-Reflectance is calculated directly from transfer matrix elements.
+# Reflectance and transmittance calculation
+
+**Reflectance** uses ``R = |r|^2`` from the transfer matrix coefficients
+(Passler & Paarmann 2017, Eq. 17). This is exact for transparent incident
+media. For absorbing incident media,
+``|r|^2`` is not a true energy ratio — Poynting vectors become non-additive
+due to interference cross-terms between incident and reflected waves
+(Ortiz & Mochan 2005, JOSA A 22, 2827). Proper treatment of that case
+requires the `power_entering` formalism (Byrnes 2016, arXiv:1603.02720),
+which is not yet implemented here.
+
+**Transmittance** uses Poynting vectors (energy flux ratio ``S_out / S_in``)
+rather than ``|t|^2``, because the transmitted wave propagates in a different
+medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
+``T ≠ |t|^2`` in general; only when the substrate is vacuum does ``T = |t|^2``.
 
 # Arguments
 - `λ`: Wavelength in μm (must match units used for layer thicknesses)
