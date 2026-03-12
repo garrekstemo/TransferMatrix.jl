@@ -2,7 +2,8 @@
 
 [![codecov](https://codecov.io/gh/garrekstemo/TransferMatrix.jl/graph/badge.svg?token=WO2ITE125C)](https://codecov.io/gh/garrekstemo/TransferMatrix.jl)
 [![CI](https://github.com/garrekstemo/TransferMatrix.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/garrekstemo/TransferMatrix.jl/actions/workflows/CI.yml)
-[![stable](https://img.shields.io/badge/docs-stable-blue)](https://garrek.org/TransferMatrix.jl/stable/)
+[![stable](https://img.shields.io/badge/docs-stable-blue)](https://garrekstemo.github.io/TransferMatrix.jl/stable/)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 A general 4x4 transfer-matrix optics for layered media in Julia, with support for
 isotropic stacks and polarization-resolved results.
@@ -61,8 +62,3 @@ Rpp = result.Rpp
 
 Check `examples/` for full scripts: DBR cavities, Brewster angle, Fabry-Perot,
 polariton dispersion, and thickness sweeps.
-
-## Documentation
-
-For tutorials, API reference, and validation tests, see
-https://garrek.org/TransferMatrix.jl.
