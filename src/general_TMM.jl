@@ -690,10 +690,11 @@ of size `(length(ts), length(λs))`.
 """
 function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=true, verbose::Bool=false)
     dispersion_func = layers[t_index].dispersion
+    layers_base = collect(layers)
 
     return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
         make_layers = i -> begin
-            layers_i = collect(layers)
+            layers_i = copy(layers_base)
             layers_i[t_index] = Layer(dispersion_func, ts[i])
             layers_i
         end,
