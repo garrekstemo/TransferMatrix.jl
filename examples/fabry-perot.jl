@@ -22,11 +22,11 @@ Tss = Float64[]
 Rpp = Float64[]
 Rss = Float64[]
 for λ in λs
-    Tpp_, Tss_, Rpp_, Rss_ = transfer(λ, layers)
-    push!(Tpp, Tpp_)
-    push!(Tss, Tss_)
-    push!(Rpp, Rpp_)
-    push!(Rss, Rss_)
+    res = transfer(λ, layers)
+    push!(Tpp, res.Tpp)
+    push!(Tss, res.Tss)
+    push!(Rpp, res.Rpp)
+    push!(Rss, res.Rss)
 end
 
 λ_min = findfirst(λs .> 4.9)
