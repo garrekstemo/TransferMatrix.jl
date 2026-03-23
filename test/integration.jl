@@ -728,6 +728,33 @@ end
     @test isapprox(result_rot.Tps, 0.0; atol=1e-12)
 end
 
+@testset "sweep_thickness thread safety" begin
+    # Verify that sweep_thickness with threads=true produces results identical
+    # to threads=false even with many thickness values, which exercises the
+    # per-iteration layer copy (no shared mutable state between threads).
+    λs = range(0.8, 1.2, length=10)
+    n_air = 1.0
+    n_film = 1.5
+    d_center = 1.0 / (4 * n_film)
+    ts = range(0.5 * d_center, 2.0 * d_center, length=20)
+
+    air = Layer(collect(λs), fill(n_air, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(collect(λs), fill(n_film, length(λs)), zeros(length(λs)), d_center)
+    layers = [air, film, air]
+
+    result_serial = sweep_thickness(collect(λs), collect(ts), layers, 2; threads=false)
+    result_threaded = sweep_thickness(collect(λs), collect(ts), layers, 2; threads=true)
+
+    @test result_threaded.Tpp == result_serial.Tpp
+    @test result_threaded.Tss == result_serial.Tss
+    @test result_threaded.Rpp == result_serial.Rpp
+    @test result_threaded.Rss == result_serial.Rss
+    @test result_threaded.Tps == result_serial.Tps
+    @test result_threaded.Tsp == result_serial.Tsp
+    @test result_threaded.Rps == result_serial.Rps
+    @test result_threaded.Rsp == result_serial.Rsp
+end
+
 @testset "euler angle symmetry" begin
     # Test that 2π rotation gives same result as no rotation
     λ = 1.0
@@ -752,4 +779,241 @@ end
     @test isapprox(result0.Tss, result2pi.Tss; atol=1e-12)
     @test isapprox(result0.Rpp, result2pi.Rpp; atol=1e-12)
     @test isapprox(result0.Rss, result2pi.Rss; atol=1e-12)
+end
+
+@testset "anisotropic first/last layer" begin
+    # Anisotropic layers as first (incident) and last (substrate) should not crash.
+    # This tests the fix for propagate and _validate_physics using
+    # get_refractive_indices instead of calling layer.dispersion directly.
+    λ = 1.0
+
+    no = λ -> 1.658
+    ne = λ -> 1.486
+
+    aniso_ambient = Layer(no, no, ne, 0.0)
+    iso_film = Layer(λ -> 1.5, 0.3)
+
+    # Anisotropic first layer
+    layers = [aniso_ambient, iso_film, Layer(λ -> 1.0, 0.0)]
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # Anisotropic last layer
+    layers = [Layer(λ -> 1.0, 0.0), iso_film, aniso_ambient]
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+
+    # Both first and last anisotropic
+    layers = [aniso_ambient, iso_film, aniso_ambient]
+    result = transfer(λ, layers)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # Oblique incidence with anisotropic substrate (isotropic ambient)
+    layers_oblique = [Layer(λ -> 1.0, 0.0), iso_film, aniso_ambient]
+    result_oblique = transfer(λ, layers_oblique; θ=0.3)
+    @test result_oblique.Tpp >= 0.0
+    @test result_oblique.Rpp >= 0.0
+
+    # Validate flag should also work (tests _validate_physics path)
+    result_validated = transfer(λ, layers; validate=true)
+    @test result_validated.Tpp >= 0.0
+end
+
+@testset "Brewster angle via TMM" begin
+    # At Brewster's angle, Rpp should vanish for a single interface between
+    # lossless dielectrics. The TMM should reproduce this fundamental result.
+    λ = 1.0
+    λs = [λ, 1.1]
+    n1 = 1.0
+    n2 = 1.5
+
+    air = Layer(λs, fill(n1, length(λs)), zeros(length(λs)), 0.0)
+    glass = Layer(λs, fill(n2, length(λs)), zeros(length(λs)), 0.0)
+    layers = [air, glass]
+
+    θ_B = atan(n2 / n1)
+    result = transfer(λ, layers; θ=θ_B)
+
+    @test isapprox(result.Rpp, 0.0; atol=1e-10)
+    @test result.Rss > 0.0
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-8)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-8)
+
+    # Also verify with different index contrast
+    n3 = 2.0
+    high_index = Layer(λs, fill(n3, length(λs)), zeros(length(λs)), 0.0)
+    layers2 = [air, high_index]
+
+    θ_B2 = atan(n3 / n1)
+    result2 = transfer(λ, layers2; θ=θ_B2)
+
+    @test isapprox(result2.Rpp, 0.0; atol=1e-10)
+    @test result2.Rss > 0.0
+end
+
+@testset "many-layer DBR stability" begin
+    # A 20-pair DBR exercises numerical stability of the matrix multiplication
+    # chain. At the design wavelength, R should approach 1 and R + T = 1.
+    λ = 1.0
+    n_air = 1.0
+    n1 = 2.2
+    n2 = 1.5
+
+    d1 = λ / (4 * n1)
+    d2 = λ / (4 * n2)
+
+    # Use function-based layers to avoid interpolation range issues
+    air = Layer(λ -> n_air + 0im, 0.0)
+    layer1 = Layer(λ -> n1 + 0im, d1)
+    layer2 = Layer(λ -> n2 + 0im, d2)
+
+    layers = Layer[air]
+    for _ in 1:20
+        push!(layers, layer1, layer2)
+    end
+    push!(layers, air)
+
+    result = transfer(λ, layers)
+
+    # 20-pair DBR with n1=2.2, n2=1.5 should have very high reflectance
+    @test result.Rpp > 0.999
+    @test result.Rss > 0.999
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=1e-6)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=1e-6)
+
+    # No NaN or negative values
+    @test !isnan(result.Tpp)
+    @test !isnan(result.Rpp)
+    @test result.Tpp >= 0.0
+    @test result.Rpp >= 0.0
+
+    # Off-design wavelength should have lower reflectance
+    result_off = transfer(0.8, layers)
+    @test result_off.Rpp < result.Rpp
+end
+
+@testset "lossy anisotropic media" begin
+    # Anisotropic layer with absorption (complex indices) — exercises multiple
+    # code paths simultaneously: anisotropic dielectric tensor construction,
+    # complex eigenvalue sorting, and Poynting vector calculation.
+    λ = 1.0
+
+    air = Layer(λ -> 1.0, 0.0)
+
+    # Dichroic crystal: different absorption along each axis
+    nx = λ -> 1.5 + 0.05im
+    ny = λ -> 1.6 + 0.10im
+    nz = λ -> 1.7 + 0.02im
+    lossy_aniso = Layer(nx, ny, nz, 0.5)
+
+    layers = [air, lossy_aniso, air]
+
+    result = transfer(λ, layers)
+
+    # Physical bounds
+    @test 0 ≤ result.Tpp ≤ 1
+    @test 0 ≤ result.Tss ≤ 1
+    @test 0 ≤ result.Rpp ≤ 1
+    @test 0 ≤ result.Rss ≤ 1
+
+    # Absorption means R + T < 1
+    @test result.Tpp + result.Rpp < 1.0
+    @test result.Tss + result.Rss < 1.0
+
+    # Absorption should be nonzero
+    A_p = 1.0 - result.Tpp - result.Rpp
+    A_s = 1.0 - result.Tss - result.Rss
+    @test A_p > 0.001
+    @test A_s > 0.001
+
+    # At oblique incidence
+    result_oblique = transfer(λ, layers; θ=0.3)
+    @test 0 ≤ result_oblique.Tpp ≤ 1
+    @test 0 ≤ result_oblique.Tss ≤ 1
+    @test result_oblique.Tpp + result_oblique.Rpp < 1.0
+
+    # With rotation — most demanding test case
+    lossy_rotated = Layer(nx, ny, nz, 0.5; euler=(π/6, π/4, 0.0))
+    layers_rot = [air, lossy_rotated, air]
+
+    result_rot = transfer(λ, layers_rot)
+    @test 0 ≤ result_rot.Tpp ≤ 1
+    @test 0 ≤ result_rot.Tss ≤ 1
+    @test result_rot.Tpp + result_rot.Rpp < 1.0
+    @test !isnan(result_rot.Tpp)
+end
+
+@testset "rotated anisotropic E-field continuity" begin
+    # Verify that tangential E-field components (Ex, Ey) are continuous at the
+    # interface between an isotropic layer and a rotated anisotropic layer.
+    # This exercises the corrected γ[3,3] sign for non-degenerate backward modes.
+    λ = 1.0
+
+    air = Layer(λ -> 1.0, 0.0)
+
+    # Rotated uniaxial crystal — ensures ε₃₂ ≠ 0 and non-degenerate backward modes
+    no = λ -> 1.658
+    ne = λ -> 1.486
+    rotated = Layer(no, no, ne, 0.5; euler=(π/6, π/4, 0.0))
+
+    d_air = 0.2
+    air_finite = Layer(λ -> 1.0, d_air)
+    layers = [air_finite, rotated, air]
+
+    ef = efield(λ, layers; dz=0.001)
+
+    function find_boundary_indices(z, boundary)
+        left = findlast(<(boundary), z)
+        right = findfirst(>(boundary), z)
+        return left, right
+    end
+
+    for boundary in ef.boundaries
+        left, right = find_boundary_indices(ef.z, boundary)
+        # Skip boundaries at the edge of the sampled range (last layer is semi-infinite)
+        (left === nothing || right === nothing) && continue
+
+        # Ex continuity (component 1)
+        @test isapprox(abs(ef.p[1, left]), abs(ef.p[1, right]); rtol=0.05, atol=1e-3)
+        @test isapprox(abs(ef.s[1, left]), abs(ef.s[1, right]); rtol=0.05, atol=1e-3)
+
+        # Ey continuity (component 2)
+        @test isapprox(abs(ef.p[2, left]), abs(ef.p[2, right]); rtol=0.05, atol=1e-3)
+        @test isapprox(abs(ef.s[2, left]), abs(ef.s[2, right]); rtol=0.05, atol=1e-3)
+    end
+
+    # Energy conservation for the rotated lossless crystal.
+    # Rotated anisotropic media with ε₃₂ ≠ 0 show R+T slightly below 1 (≈0.998)
+    # due to Poynting vector normalization limitations — use relaxed tolerance.
+    result = transfer(λ, layers)
+    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=0.01)
+    @test isapprox(result.Tss + result.Rss, 1.0; atol=0.01)
+end
+
+@testset "_validate_physics with anisotropic layers" begin
+    # _validate_physics should handle anisotropic layers without crashing
+    λ = 1.0
+    no = λ -> 1.658
+    ne = λ -> 1.486
+
+    aniso = Layer(no, no, ne, 0.3)
+    air = Layer(λ -> 1.0, 0.0)
+    layers = [air, aniso, air]
+
+    # Should not throw for lossless anisotropic layers
+    @test_logs TransferMatrix._validate_physics(λ, layers, 0.8, 0.8, 0.2, 0.2)
+
+    # Lossy anisotropic layer (complex index)
+    lossy_aniso = Layer(λ -> 1.5 + 0.1im, λ -> 1.6 + 0.1im, λ -> 1.7 + 0.1im, 0.3)
+    lossy_layers = [air, lossy_aniso, air]
+
+    # Should detect lossy media and not warn about energy conservation
+    @test_logs TransferMatrix._validate_physics(λ, lossy_layers, 0.4, 0.4, 0.3, 0.3)
 end

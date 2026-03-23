@@ -11,16 +11,16 @@ struct Poynting
     end
 end
 
-struct ElectricField
-    z::Vector{Float64}
+struct ElectricField{Z<:AbstractVector{Float64}}
+    z::Z
     p::Matrix{ComplexF64}
     s::Matrix{ComplexF64}
     boundaries::Vector{Float64}
 
-    function ElectricField(z, p, s, boundaries)
+    function ElectricField(z::Z, p, s, boundaries) where {Z<:AbstractVector{Float64}}
         size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
         size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
-        new(z, p, s, boundaries)
+        new{Z}(z, p, s, boundaries)
     end
 end
 
@@ -121,8 +121,18 @@ end
     poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
 Calculate the Poynting vector from wavevectors ``q``,
-componments of the electric field γ, and transmission
+components of the electric field γ, and transmission
 and reflection coefficients.
+
+Transmitted Poynting vectors use substrate wavevectors (`q_out`), while
+reflected Poynting vectors use incident-medium wavevectors (`k_in[3,:]`,
+`k_in[4,:]`), since reflected waves propagate in the incident medium.
+
+!!! note "Transmittance vs reflectance"
+    This function computes Poynting vectors for both transmitted and reflected
+    waves, but only the **transmitted** Poynting vectors are used for the final
+    output. Reflectance is computed as ``R = |r|^2`` from the transfer matrix
+    coefficients — see [`transfer`](@ref) for the rationale.
 """
 function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
 
@@ -161,10 +171,15 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     k_out ./= c_0
     k_out = SMatrix(k_out)
 
+    # Transmitted waves: use substrate wavevectors (k_out modes 1,2)
     S_out_p  = real(0.5 * E_out_p × conj(k_out[1, :] × E_out_p))
     S_out_s  = real(0.5 * E_out_s × conj(k_out[2, :] × E_out_s))
-    S_refl_p = real(0.5 * E_ref_p × conj(k_out[3, :] × E_ref_p))
-    S_refl_s = real(0.5 * E_ref_s × conj(k_out[4, :] × E_ref_s))
+
+    # Reflected waves: use incident-medium wavevectors (k_in modes 3,4),
+    # not substrate wavevectors, because reflected light propagates backward
+    # through the incident medium with its own q-values.
+    S_refl_p = real(0.5 * E_ref_p × conj(k_in[3, :] × E_ref_p))
+    S_refl_s = real(0.5 * E_ref_s × conj(k_in[4, :] × E_ref_s))
 
     return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s)
 end
@@ -205,13 +220,31 @@ Passler et al., 2019, https://doi.org/10.1364/JOSAB.36.003246
 """
 function evaluate_birefringence(Ψ, S, t_modes, r_modes)
 
+    # Compute Poynting vector ratio C = |Sx|^2 / (|Sx|^2 + |Sy|^2) for the
+    # two transmitted modes. This probes whether the modes have distinct
+    # polarization character along x vs y.
     C_q1 = abs_ratio(S[1, t_modes[1]], S[2, t_modes[1]])
     C_q2 = abs_ratio(S[1, t_modes[2]], S[2, t_modes[2]])
-    
-    # Note: isapprox(NaN, NaN) = false,
-    # which is important in the case that both Sx and Sy are zero.
+
+    # The branching below may appear inverted from Passler & Paarmann (2017),
+    # which prescribes Poynting sorting for birefringent media and E-field
+    # sorting for isotropic media. Here the logic is:
+    #
+    # - isapprox(C_q1, C_q2) = true: Poynting ratios are nearly equal, so
+    #   the two modes have similar polarization character. This is the
+    #   isotropic/weakly-birefringent case. Sorting barely matters here, but
+    #   we still apply a Poynting-based swap for consistency.
+    #
+    # - isapprox(C_q1, C_q2) = false: Poynting ratios differ meaningfully.
+    #   We fall through to the E-field branch, which uses eigenvector
+    #   components |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2) for a more numerically
+    #   robust sort that works for both birefringent and isotropic media.
+    #
+    # Note: isapprox(NaN, NaN) = false, so when both Sx and Sy are zero
+    # (yielding 0/0 = NaN), we safely fall through to the E-field branch.
     if isapprox(C_q1, C_q2)
 
+        # Poynting ratios nearly equal — sort by Poynting (minor reorder)
         if C_q2 > C_q1
             reverse!(t_modes)
         end
@@ -223,6 +256,8 @@ function evaluate_birefringence(Ψ, S, t_modes, r_modes)
             reverse!(r_modes)
         end
     else
+        # Poynting ratios differ or are NaN — sort by E-field eigenvectors.
+        # Recompute C using Ψ components (Ex vs Ey) for robust p/s assignment.
         C_q1 = abs_ratio(Ψ[1, t_modes[1]], Ψ[3, t_modes[1]])
         C_q2 = abs_ratio(Ψ[1, t_modes[2]], Ψ[3, t_modes[2]])
 
@@ -249,11 +284,48 @@ used to evaluate if a material is birefringent.
 abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
 
 
+# Lightweight path: only computes Γ and S without allocating per-layer
+# Ds, Ps, γs vectors. Used by `transfer` in tight spectral loops.
+function _propagate_core(λ, layers; θ=0.0, μ=1.0)
+
+    first_layer = layers[1]
+    last_layer = layers[end]
+
+    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    ε_0in = dielectric_constant(nx_in)
+    ξ = √(ε_0in) * sin(θ)
+
+    Λ_1324 = @SMatrix [1 0 0 0;
+                       0 0 1 0;
+                       0 1 0 0;
+                       0 0 0 1]
+
+    D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
+    D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
+
+    Γ = SMatrix{4,4,ComplexF64}(I)
+    for (i, layer) in enumerate(layers[2:end - 1])
+        D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
+        T_i = D_i * (P_i(layer.thickness) / D_i)
+        Γ *= T_i
+    end
+
+    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
+    r, R, t, T = calculate_tr(Γ)
+    S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
+
+    return Γ, S
+end
+
+
 """
     propagate(λ, layers; θ=0.0, μ=1.0)
 
 Calculate the transfer matrix for the entire structure,
 as well as the Poynting vector for the structure.
+
+Also returns per-layer D, P, and γ matrices needed for
+electric field reconstruction (see [`efield`](@ref)).
 
 # Arguments
 - `λ`: Wavelength
@@ -266,8 +338,8 @@ function propagate(λ, layers; θ=0.0, μ=1.0)
     first_layer = layers[1]
     last_layer = layers[end]
 
-    n_in = first_layer.dispersion(λ)
-    ε_0in = dielectric_constant(n_in)
+    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    ε_0in = dielectric_constant(nx_in)
     ξ = √(ε_0in) * sin(θ)
 
     Λ_1324 = @SMatrix [1 0 0 0;
@@ -390,12 +462,24 @@ end
 
 Calculate the transmittance and reflectance of a layered structure.
 
-Returns `(Tpp, Tss, Rpp, Rss)` where:
-- `Tpp`, `Tss`: p- and s-polarized transmittance
-- `Rpp`, `Rss`: p- and s-polarized reflectance
+Returns a [`TransferResult`](@ref) with fields `Tpp`, `Tss`, `Rpp`, `Rss`
+(and cross-polarization terms `Tps`, `Tsp`, `Rps`, `Rsp`).
 
-Transmittance is calculated via Poynting vectors for accurate energy flow.
-Reflectance is calculated directly from transfer matrix elements.
+# Reflectance and transmittance calculation
+
+**Reflectance** uses ``R = |r|^2`` from the transfer matrix coefficients
+(Passler & Paarmann 2017, Eq. 17). This is exact for transparent incident
+media. For absorbing incident media,
+``|r|^2`` is not a true energy ratio — Poynting vectors become non-additive
+due to interference cross-terms between incident and reflected waves
+(Ortiz & Mochan 2005, JOSA A 22, 2827). Proper treatment of that case
+requires the `power_entering` formalism (Byrnes 2016, arXiv:1603.02720),
+which is not yet implemented here.
+
+**Transmittance** uses Poynting vectors (energy flux ratio ``S_out / S_in``)
+rather than ``|t|^2``, because the transmitted wave propagates in a different
+medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
+``T ≠ |t|^2`` in general; only when the substrate is vacuum does ``T = |t|^2``.
 
 # Arguments
 - `λ`: Wavelength in μm (must match units used for layer thicknesses)
@@ -424,7 +508,7 @@ Warnings are issued for any violations.
 """
 function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
 
-    Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
+    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
 
@@ -480,8 +564,8 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshol
 
     # Check if all layers are non-absorbing
     is_lossless = all(layers) do layer
-        n = layer.dispersion(λ)
-        abs(imag(n)) < k_threshold
+        nx, ny, nz = get_refractive_indices(layer, λ)
+        all(n -> abs(imag(n)) < k_threshold, (nx, ny, nz))
     end
 
     if is_lossless

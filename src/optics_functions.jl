@@ -183,11 +183,12 @@ function airy(n0, nf, ns, d, λ; θ=0.0)
     # Transmittance requires correction for different media
     # T = (ns * cosθs) / (n0 * cosθ) * |t|²
     # For real indices, this ensures energy conservation: R + T = 1
-    prefactor_s = real(ns * cosθs) / real(n0 * cosθ)
-    prefactor_p = real(ns * cosθs) / real(n0 * cosθ)
+    # The prefactor is the same for both s and p polarizations because the
+    # Airy formula transmission coefficients already encode the polarization dependence.
+    prefactor = real(ns * cosθs) / real(n0 * cosθ)
 
-    Ts = prefactor_s * abs2(ts_total)
-    Tp = prefactor_p * abs2(tp_total)
+    Ts = prefactor * abs2(ts_total)
+    Tp = prefactor * abs2(tp_total)
 
     return (Rs, Rp, Ts, Tp)
 end

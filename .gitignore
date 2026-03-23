@@ -8,3 +8,5 @@ Manifest.toml
 .DS_Store
 
 scratch/*
+
+errata.md
