@@ -605,14 +605,14 @@ of size `(length(ts), length(λs))`.
 - Angle: radians
 """
 function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=true, verbose::Bool=false)
-    # Pre-allocate mutable layer vector to avoid repeated slicing/concatenation
-    layers_mut = collect(layers)
     dispersion_func = layers[t_index].dispersion
+    layers_base = collect(layers)
 
     return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
         make_layers = i -> begin
-            layers_mut[t_index] = Layer(dispersion_func, ts[i])
-            layers_mut
+            layers_i = copy(layers_base)
+            layers_i[t_index] = Layer(dispersion_func, ts[i])
+            layers_i
         end,
         angle_for = _ -> θ)
 end
