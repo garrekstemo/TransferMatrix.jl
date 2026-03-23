@@ -162,7 +162,11 @@ function refractive_index(material::RefractiveMaterial)
         extinction(material, 1.0)  # Probe with test wavelength
         true
     catch e
-        isa(e, ArgumentError) ? false : rethrow(e)
+        if isa(e, ArgumentError)
+            false  # Material has no extinction data
+        else
+            true   # Extinction data exists but probe wavelength was out of range
+        end
     end
 
     if has_extinction
