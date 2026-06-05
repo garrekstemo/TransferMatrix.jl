@@ -347,26 +347,16 @@ end
 
 
 """
-    propagate(λ, layers; θ=0.0, μ=1.0)
+    _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-Calculate the transfer matrix for the entire structure,
-as well as the Poynting vector for the structure.
-
-Also returns per-layer D, P, and γ matrices needed for
-electric field reconstruction (see [`efield`](@ref)).
-
-# Arguments
-- `λ`: Wavelength
-- `layers`: Vector of `Layer` objects representing the stack
-- `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
-- `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
+Internal full transfer-matrix pass. Returns `(Γ, S, Ds, Ps, γs, qs)` — like
+[`propagate`](@ref) but also returns the per-layer eigenvalue vectors `qs`,
+needed for magnetic-field reconstruction. Supports conductive sheets (Task: sheets).
 """
-function propagate(λ, layers; θ=0.0, μ=1.0)
+function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-    first_layer = layers[1]
-    last_layer = layers[end]
-
-    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    N = length(layers)
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
     ξ = √(ε_0in) * sin(θ)
 
@@ -374,41 +364,47 @@ function propagate(λ, layers; θ=0.0, μ=1.0)
                        0 0 1 0;
                        0 1 0 0;
                        0 0 0 1]
-   
-    D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
-    D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
 
-    # Preallocate arrays with known size
-    n_layers = length(layers)
-    Ds = Vector{typeof(D_0)}(undef, n_layers)
-    Ps = Vector{typeof(P_0)}(undef, n_layers)
-    γs = Vector{typeof(γ_0)}(undef, n_layers)
+    no_sheets = sheets === nothing || isempty(sheets)
 
-    Ds[1] = D_0
-    Ps[1] = P_0
-    γs[1] = γ_0
+    D_1, P_1, γ_1, q_1 = layer_matrices(layers[1], λ, ξ, μ)
+    Ds = Vector{typeof(D_1)}(undef, N)
+    Ps = Vector{typeof(P_1)}(undef, N)
+    γs = Vector{typeof(γ_1)}(undef, N)
+    qs = Vector{typeof(q_1)}(undef, N)
+    Ds[1] = D_1; Ps[1] = P_1; γs[1] = γ_1; qs[1] = q_1
 
     Γ = SMatrix{4,4,ComplexF64}(I)
-    for (i, layer) in enumerate(layers[2:end - 1])
-        D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
-        # Prefer solves over inv() for stability and fewer allocations.
-        T_i = D_i * (P_i(layer.thickness) / D_i)
-        Γ *= T_i
-        Ds[i + 1] = D_i
-        Ps[i + 1] = P_i
-        γs[i + 1] = γ_i
+    for i in 2:N
+        D_i, P_i, γ_i, q_i = layer_matrices(layers[i], λ, ξ, μ)
+        Ds[i] = D_i; Ps[i] = P_i; γs[i] = γ_i; qs[i] = q_i
+        if no_sheets || !haskey(sheets, i - 1)
+            L = Ds[i - 1] \ D_i
+        else
+            L = Ds[i - 1] \ (sheet_matrix(sheets[i - 1], λ) * D_i)
+        end
+        Γ *= L
+        if i < N
+            Γ *= P_i(layers[i].thickness)
+        end
     end
 
-    Ds[n_layers] = D_f
-    Ps[n_layers] = P_f
-    γs[n_layers] = γ_f
-
-    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
+    Γ = (Λ_1324 \ Γ) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
-    S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
+    S = poynting(ξ, q_1, qs[N], γ_1, γs[N], t, r)
 
-    return Γ, S, Ds, Ps, γs
+    return Γ, S, Ds, Ps, γs, qs
 end
+
+"""
+    propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
+
+Calculate the transfer matrix and Poynting vector for the structure, plus the
+per-layer `D`, `P`, and `γ` matrices used for field reconstruction. Returns the
+5-tuple `(Γ, S, Ds, Ps, γs)`. See [`transfer`](@ref) for the public R/T API.
+"""
+propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing) =
+    _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sheets)[1:5]
 
 
 """

@@ -133,3 +133,23 @@ end
     spec0 = sweep_angle(λs, θs, layers)
     @test !isapprox(spec.Rss[1, 1], spec0.Rss[1, 1]; atol = 1e-6)
 end
+
+@testset "_propagate_full and propagate contract" begin
+    air = Layer(λ -> complex(1.0), 0.0)
+    film = Layer(λ -> complex(1.5), 0.1)
+    sub = Layer(λ -> complex(1.5), 0.0)
+    layers = [air, film, sub]
+
+    # propagate stays a 5-tuple (existing callers unaffected)
+    out = TransferMatrix.propagate(0.6, layers)
+    @test length(out) == 5
+    Γ, S, Ds, Ps, γs = out
+    @test length(Ds) == length(layers)
+
+    # _propagate_full adds qs (6-tuple), one q-vector per layer
+    full = TransferMatrix._propagate_full(0.6, layers)
+    @test length(full) == 6
+    qs = full[6]
+    @test length(qs) == length(layers)
+    @test length(qs[1]) == 4
+end
