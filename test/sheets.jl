@@ -73,3 +73,42 @@ end
     G0 = TransferMatrix.sheet_matrix(TransferMatrix.Sheet(0.0 + 0.0im), 1.0)
     @test G0 ≈ SMatrix{4,4,ComplexF64}(I)
 end
+
+@testset "sheet σ=0 regression (transfer)" begin
+    n1, n2, nf = 1.0, 1.5, 2.0
+    d = 0.1
+    air = Layer(λ -> complex(n1), 0.0)
+    film = Layer(λ -> complex(nf), d)
+    sub = Layer(λ -> complex(n2), 0.0)
+    layers = [air, film, sub]
+
+    base = transfer(0.6, layers; θ = 0.2)
+    zero_sheet = Dict(1 => TransferMatrix.Sheet(0.0 + 0.0im))
+    withσ0 = transfer(0.6, layers; θ = 0.2, sheets = zero_sheet)
+
+    @test isapprox(base.Rpp, withσ0.Rpp; atol = 1e-12)
+    @test isapprox(base.Rss, withσ0.Rss; atol = 1e-12)
+    @test isapprox(base.Tpp, withσ0.Tpp; atol = 1e-12)
+    @test isapprox(base.Tss, withσ0.Tss; atol = 1e-12)
+end
+
+@testset "analytic conductive interface (pins G sign)" begin
+    # Single sheet between media n1 | n2; compare R to closed-form conductive Fresnel.
+    n1, n2 = 1.0, 1.5
+    σ_s = 2.0e-4 + 1.0e-4im
+    g = Z0_test * σ_s                      # dimensionless σ̃
+    air = Layer(λ -> complex(n1), 0.0)
+    sub = Layer(λ -> complex(n2), 0.0)
+    layers = [air, sub]
+    sheets = Dict(1 => TransferMatrix.Sheet(σ_s))
+
+    for θ in (0.0, π/6)
+        c1 = cos(θ)
+        c2 = sqrt(1 - (n1 / n2 * sin(θ))^2)        # real (n1 < n2)
+        rs = (n1*c1 - n2*c2 - g) / (n1*c1 + n2*c2 + g)
+        rp = (n2*c1 - n1*c2 + g*c1*c2) / (n2*c1 + n1*c2 + g*c1*c2)
+        res = transfer(1.0, layers; θ = θ, sheets = sheets)
+        @test isapprox(res.Rss, abs2(rs); atol = 1e-8)
+        @test isapprox(res.Rpp, abs2(rp); atol = 1e-8)
+    end
+end

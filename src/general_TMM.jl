@@ -72,6 +72,20 @@ struct TransferResult{T}
 end
 
 
+# Normalize accepted sheet inputs (Dict or iterable of `i => sheet` pairs) to Dict{Int,Sheet}.
+_sheets_dict(s::Dict{Int,Sheet}) = s
+_sheets_dict(s) = Dict{Int,Sheet}(Int(k) => v for (k, v) in s)
+
+# Unconditional structural validation: keys must index an interior interface.
+function _validate_sheet_indices(sd, N)
+    sd === nothing && return nothing
+    for i in keys(sd)
+        (1 ≤ i ≤ N - 1) || throw(ArgumentError("sheet index $i out of range; must be 1 ≤ i ≤ $(N - 1)"))
+    end
+    return nothing
+end
+
+
 """
     poynting(Ψ, a)
 
@@ -286,12 +300,10 @@ abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
 
 # Lightweight path: only computes Γ and S without allocating per-layer
 # Ds, Ps, γs vectors. Used by `transfer` in tight spectral loops.
-function _propagate_core(λ, layers; θ=0.0, μ=1.0)
+function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-    first_layer = layers[1]
-    last_layer = layers[end]
-
-    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    N = length(layers)
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
     ξ = √(ε_0in) * sin(θ)
 
@@ -300,19 +312,35 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0)
                        0 1 0 0;
                        0 0 0 1]
 
-    D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
-    D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
+    no_sheets = sheets === nothing || isempty(sheets)
+
+    D_prev, _, γ_first, q_first = layer_matrices(layers[1], λ, ξ, μ)
+    γ_last = γ_first
+    q_last = q_first
 
     Γ = SMatrix{4,4,ComplexF64}(I)
-    for (i, layer) in enumerate(layers[2:end - 1])
-        D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
-        T_i = D_i * (P_i(layer.thickness) / D_i)
-        Γ *= T_i
+    for i in 2:N
+        layer = layers[i]
+        D_cur, P_cur, γ_cur, q_cur = layer_matrices(layer, λ, ξ, μ)
+        if no_sheets || !haskey(sheets, i - 1)
+            L = D_prev \ D_cur                                  # interface (i-1, i)
+        else
+            L = D_prev \ (sheet_matrix(sheets[i - 1], λ) * D_cur)
+        end
+        Γ *= L                                                  # first ⇒ D₀⁻¹D₂ ; last ⇒ D_{N-1}⁻¹D_f
+        if i < N
+            Γ *= P_cur(layer.thickness)                         # propagate interior layer i
+        end
+        D_prev = D_cur
+        if i == N
+            γ_last = γ_cur
+            q_last = q_cur
+        end
     end
 
-    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
+    Γ = (Λ_1324 \ Γ) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
-    S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
+    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r)
 
     return Γ, S
 end
@@ -506,9 +534,11 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
 
-    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
+    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ, sheets=sd)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
 
