@@ -920,9 +920,12 @@ function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     p = zeros(ComplexF64, 3, nz)
     s = zeros(ComplexF64, 3, nz)
 
+    # η depends only on the layer index (via γ and q), not on the z-sample, so
+    # build it once per layer and index by layer rather than rebuilding per z.
+    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μ) for li in eachindex(F.γs)]
+
     for j in 1:nz
-        li = F.layer_of_z[j]
-        η = _h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μ)
+        η = ηs[F.layer_of_z[j]]
         ap = view(F.amp_p, :, j)
         as = view(F.amp_s, :, j)
         @views p[:, j] = ap[1] * η[1, :] + ap[2] * η[2, :] + ap[3] * η[3, :] + ap[4] * η[4, :]

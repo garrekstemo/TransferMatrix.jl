@@ -210,7 +210,11 @@ end
 end
 
 @testset "transfer vs field cross-check (with sheet)" begin
-    # R/T from transfer must equal R/T reconstructed from the field core's coefficients.
+    # Guard against a placement/sign mismatch between the two sheet-injection
+    # code paths: transfer's forward _propagate_core recursion vs _field's
+    # backward mode-coefficient recursion (used by efield/hfield). They are
+    # maintained separately, so we reconstruct R from the FIELD path and require
+    # it to match transfer's R.
     air = Layer(λ -> complex(1.0), 0.0)
     spacer = Layer(λ -> complex(1.0), 0.5)
     sub = Layer(λ -> complex(1.5), 0.0)
@@ -218,10 +222,19 @@ end
     sheets = Dict(2 => TransferMatrix.Sheet(2.0e-4 + 1.0e-4im))
 
     res = transfer(0.6, layers; θ = 0.1, sheets = sheets)
-    Γ, _ = TransferMatrix._propagate_core(0.6, layers; θ = 0.1, sheets = TransferMatrix._sheets_dict(sheets))
-    r, R, t, T = TransferMatrix.calculate_tr(Γ)
-    @test isapprox(res.Rpp, R[1]; atol = 1e-12)
-    @test isapprox(res.Rss, R[2]; atol = 1e-12)
+
+    # _field normalizes the substrate to a transmitted-only drive, so its layer-1
+    # mode coefficients (sampled at the incident-side z) reproduce the incident and
+    # reflected amplitudes. Mode order is (p-trans, s-trans, p-refl, s-refl):
+    # the forward modes carry the unit incident drive, the backward modes carry r.
+    F = TransferMatrix._field(0.6, layers; θ = 0.1, sheets = sheets)
+    @test F.layer_of_z[1] == 1                       # first sample is inside the incident medium
+    ap = F.amp_p[:, 1]
+    as = F.amp_s[:, 1]
+    rpp_field = ap[3] / ap[1]                         # p-refl / p-incident
+    rss_field = as[4] / as[2]                         # s-refl / s-incident
+    @test isapprox(res.Rpp, abs2(rpp_field); atol = 1e-10)
+    @test isapprox(res.Rss, abs2(rss_field); atol = 1e-10)
 end
 
 @testset "hfield H-jump across a sheet" begin
