@@ -278,3 +278,64 @@ end
     res2 = transfer(0.6, layers; sheets = lossy, validate = true)
     @test res2.Rss + res2.Tss < 1.0 + 1e-6
 end
+
+@testset "sheet edge cases" begin
+    n1, n2 = 1.0, 1.5
+    a = Layer(λ -> complex(n1), 0.0)
+    m1 = Layer(λ -> complex(1.4), 0.2)
+    m2 = Layer(λ -> complex(1.6), 0.2)
+    sub = Layer(λ -> complex(n2), 0.0)
+
+    # Sheet at the first interface (i=1) and last (i=N-1) — touch semi-infinite layers
+    layers = [a, m1, sub]
+    r_first = transfer(0.6, layers; sheets = Dict(1 => TransferMatrix.Sheet(1.0e-4 + 0im)))
+    r_last  = transfer(0.6, layers; sheets = Dict(2 => TransferMatrix.Sheet(1.0e-4 + 0im)))
+    @test 0.0 ≤ r_first.Rss ≤ 1.0
+    @test 0.0 ≤ r_last.Rss ≤ 1.0
+
+    # Multiple sheets in one stack
+    layers4 = [a, m1, m2, sub]
+    r_multi = transfer(0.6, layers4; sheets = Dict(1 => TransferMatrix.Sheet(1.0e-4 + 0im),
+                                                   3 => TransferMatrix.Sheet(2.0e-4 + 0im)))
+    @test 0.0 ≤ r_multi.Rss ≤ 1.0
+    @test 0.0 ≤ r_multi.Tss ≤ 1.0
+
+    # Out-of-range index throws ArgumentError
+    @test_throws ArgumentError transfer(0.6, layers; sheets = Dict(0 => TransferMatrix.Sheet(1.0e-4 + 0im)))
+    @test_throws ArgumentError transfer(0.6, layers; sheets = Dict(3 => TransferMatrix.Sheet(1.0e-4 + 0im)))
+end
+
+@testset "anisotropic sheet cross-pol" begin
+    a = Layer(λ -> complex(1.0), 0.0)
+    sub = Layer(λ -> complex(1.5), 0.0)
+    layers = [a, sub]
+
+    diag_sheet = Dict(1 => TransferMatrix.Sheet(; xx = 2.0e-4, yy = 1.0e-4))
+    res_d = transfer(1.0, layers; θ = π/6, sheets = diag_sheet)
+    @test isapprox(res_d.Rps, 0.0; atol = 1e-10)
+    @test isapprox(res_d.Rsp, 0.0; atol = 1e-10)
+
+    offdiag_sheet = Dict(1 => TransferMatrix.Sheet(; xx = 2.0e-4, yy = 1.0e-4, xy = 1.0e-4, yx = 1.0e-4))
+    res_o = transfer(1.0, layers; θ = π/6, sheets = offdiag_sheet)
+    @test res_o.Rps > 1e-8 || res_o.Rsp > 1e-8
+end
+
+@testset "thin-slab equivalence" begin
+    # Sheet(n,d) should match a thin Layer(n,d) as d -> 0.
+    n = 2.0 + 0.1im
+    a = Layer(λ -> complex(1.0), 0.0)
+    sub = Layer(λ -> complex(1.0), 0.0)
+    λ = 0.6
+    θ = 0.1
+
+    prev_err = Inf
+    for d in (1e-3, 1e-4)
+        slab = [a, Layer(λ0 -> n, d), sub]
+        sheet = Dict(1 => TransferMatrix.Sheet(λ0 -> n, d))
+        r_slab = transfer(λ, slab; θ = θ)
+        r_sheet = transfer(λ, [a, sub]; θ = θ, sheets = sheet)
+        err = abs(r_slab.Rss - r_sheet.Rss) + abs(r_slab.Tss - r_sheet.Tss)
+        @test err < 10 * d            # error scales with d
+        prev_err = err
+    end
+end
