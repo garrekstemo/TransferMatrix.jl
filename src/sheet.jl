@@ -62,3 +62,27 @@ function Sheet(nx, ny, d::Real)
     σy = _sigma_from_index(_index_fn(ny), d)
     _rawsheet(λ -> SMatrix{2,2,ComplexF64}(σx(λ), 0, 0, σy(λ)))
 end
+
+"""
+    sheet_matrix(sheet::Sheet, λ)
+
+Return the 4×4 interface matrix `G` for a conductive sheet at wavelength `λ`, in the
+dynamical-matrix field basis `(Eₓ, Eᵧ, H_y, −Hₓ)`. This is the inverse of the physical
+field-jump matrix, `G = G_phys⁻¹`, so its off-diagonal (H-row) entries are `+σ̃` with the
+dimensionless conductivity `σ̃ = Z₀ σ` (`Z₀ = √(μ₀/ε₀)`). It is injected at an interface
+as `Dᵢ⁻¹ G Dᵢ₊₁`. Tangential E (rows 1,2) is continuous; tangential H (rows 3,4) jumps.
+
+`Z₀` is applied here and nowhere else (see [`Sheet`](@ref)).
+"""
+function sheet_matrix(sheet::Sheet, λ)
+    σ = sheet.conductivity(λ)          # SMatrix{2,2,ComplexF64}, SI Siemens
+    g = sqrt(μ_0 / ε_0) .* σ           # dimensionless; the ONLY Z₀ application
+    z = zero(ComplexF64)
+    o = one(ComplexF64)
+    return @SMatrix [
+        o       z       z  z;
+        z       o       z  z;
+        g[1,1]  g[1,2]  o  z;
+        g[2,1]  g[2,2]  z  o
+    ]
+end

@@ -46,3 +46,30 @@ const Z0_test = sqrt(TransferMatrix.μ_0 / TransferMatrix.ε_0)
     @test sheet_aniso.conductivity(λ)[1,1] ≈ σx
     @test sheet_aniso.conductivity(λ)[2,2] ≈ σy
 end
+
+@testset "sheet_matrix G structure" begin
+    # G = G_phys^-1 in basis (Ex, Ey, H_y, -Hx): identity + (+σ̃) in rows 3,4.
+    σxx = 1.0e-4 + 2.0e-4im
+    σyy = 3.0e-4 - 1.0e-4im
+    σxy = 0.5e-4im
+    σyx = -0.2e-4im
+    sheet = TransferMatrix.Sheet(; xx = σxx, yy = σyy, xy = σxy, yx = σyx)
+    G = TransferMatrix.sheet_matrix(sheet, 1.0)
+
+    @test G isa SMatrix{4,4,ComplexF64}
+    # Top-left 2×2 identity, tangential E continuous
+    @test G[1,1] == 1 && G[2,2] == 1
+    @test G[1,2] == 0 && G[1,3] == 0 && G[1,4] == 0
+    @test G[2,1] == 0 && G[2,3] == 0 && G[2,4] == 0
+    # H rows carry +σ̃ = +Z₀ σ
+    @test G[3,1] ≈ Z0_test * σxx
+    @test G[3,2] ≈ Z0_test * σxy
+    @test G[4,1] ≈ Z0_test * σyx
+    @test G[4,2] ≈ Z0_test * σyy
+    @test G[3,3] == 1 && G[4,4] == 1
+    @test G[3,4] == 0 && G[4,3] == 0
+
+    # Zero conductivity -> identity (no-op interface)
+    G0 = TransferMatrix.sheet_matrix(TransferMatrix.Sheet(0.0 + 0.0im), 1.0)
+    @test G0 ≈ SMatrix{4,4,ComplexF64}(I)
+end
