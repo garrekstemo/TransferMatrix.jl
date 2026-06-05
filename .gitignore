@@ -10,3 +10,8 @@ Manifest.toml
 scratch/*
 
 errata.md
+
+# Generated example figures
+graphene_absorption.png
+tmdc_cavity.png
+bsw_tmdc_polariton.png

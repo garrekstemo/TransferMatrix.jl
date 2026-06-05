@@ -7,13 +7,16 @@ using RefractiveIndex
 using StaticArrays
 
 export Layer,
+       Sheet,
        TransferResult,
        sweep_angle,
        transfer,
        dielectric_constant,
        dielectric_tensor,
        ElectricField,
+       MagneticField,
        efield,
+       hfield,
        find_bounds,
        fresnel,
        fresnel_coefficients,
@@ -35,6 +38,7 @@ const c_0::Float64 = 299792458
 
 include("matrix_constructors.jl")
 include("layer.jl")
+include("sheet.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
 

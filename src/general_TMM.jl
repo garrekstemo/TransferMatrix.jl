@@ -11,6 +11,17 @@ struct Poynting
     end
 end
 
+"""
+    ElectricField
+
+Spatial electric-field profile through a layered structure, mirrored by
+[`MagneticField`](@ref).
+
+- `z`: position coordinates
+- `p`: `(Ex, Ey, Ez)` for p-polarized incidence
+- `s`: `(Ex, Ey, Ez)` for s-polarized incidence
+- `boundaries`: z-positions of interfaces
+"""
 struct ElectricField{Z<:AbstractVector{Float64}}
     z::Z
     p::Matrix{ComplexF64}
@@ -18,6 +29,31 @@ struct ElectricField{Z<:AbstractVector{Float64}}
     boundaries::Vector{Float64}
 
     function ElectricField(z::Z, p, s, boundaries) where {Z<:AbstractVector{Float64}}
+        size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
+        size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
+        new{Z}(z, p, s, boundaries)
+    end
+end
+
+"""
+    MagneticField
+
+Spatial magnetic-field profile through a layered structure, mirroring
+[`ElectricField`](@ref). Fields are in impedance-normalized units `H̃ = Z₀ H_SI`
+so `|E| ~ |H̃|` for a plane wave and E/H can be overlaid directly.
+
+- `z`: position coordinates (same grid as `efield`)
+- `p`: `(Hx, Hy, Hz)` for p-polarized incidence
+- `s`: `(Hx, Hy, Hz)` for s-polarized incidence
+- `boundaries`: z-positions of interfaces
+"""
+struct MagneticField{Z<:AbstractVector{Float64}}
+    z::Z
+    p::Matrix{ComplexF64}
+    s::Matrix{ComplexF64}
+    boundaries::Vector{Float64}
+
+    function MagneticField(z::Z, p, s, boundaries) where {Z<:AbstractVector{Float64}}
         size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
         size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
         new{Z}(z, p, s, boundaries)
@@ -69,6 +105,20 @@ struct TransferResult{T}
     Rss::T
     Rps::T
     Rsp::T
+end
+
+
+# Normalize accepted sheet inputs (Dict or iterable of `i => sheet` pairs) to Dict{Int,Sheet}.
+_sheets_dict(s::Dict{Int,Sheet}) = s
+_sheets_dict(s) = Dict{Int,Sheet}(Int(k) => v for (k, v) in s)
+
+# Unconditional structural validation: keys must index an interior interface.
+function _validate_sheet_indices(sd, N)
+    sd === nothing && return nothing
+    for i in keys(sd)
+        (1 ≤ i ≤ N - 1) || throw(ArgumentError("sheet index $i out of range; must be 1 ≤ i ≤ $(N - 1)"))
+    end
+    return nothing
 end
 
 
@@ -286,12 +336,10 @@ abs_ratio(a, b) = abs2(a) / (abs2(a) + abs2(b))
 
 # Lightweight path: only computes Γ and S without allocating per-layer
 # Ds, Ps, γs vectors. Used by `transfer` in tight spectral loops.
-function _propagate_core(λ, layers; θ=0.0, μ=1.0)
+function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-    first_layer = layers[1]
-    last_layer = layers[end]
-
-    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    N = length(layers)
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
     ξ = √(ε_0in) * sin(θ)
 
@@ -300,45 +348,51 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0)
                        0 1 0 0;
                        0 0 0 1]
 
-    D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
-    D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
+    no_sheets = sheets === nothing || isempty(sheets)
+
+    D_prev, _, γ_first, q_first = layer_matrices(layers[1], λ, ξ, μ)
+    γ_last = γ_first
+    q_last = q_first
 
     Γ = SMatrix{4,4,ComplexF64}(I)
-    for (i, layer) in enumerate(layers[2:end - 1])
-        D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
-        T_i = D_i * (P_i(layer.thickness) / D_i)
-        Γ *= T_i
+    for i in 2:N
+        layer = layers[i]
+        D_cur, P_cur, γ_cur, q_cur = layer_matrices(layer, λ, ξ, μ)
+        if no_sheets || !haskey(sheets, i - 1)
+            L = D_prev \ D_cur                                  # interface (i-1, i)
+        else
+            L = D_prev \ (sheet_matrix(sheets[i - 1], λ) * D_cur)
+        end
+        Γ *= L                                                  # first ⇒ D₀⁻¹D₂ ; last ⇒ D_{N-1}⁻¹D_f
+        if i < N
+            Γ *= P_cur(layer.thickness)                         # propagate interior layer i
+        end
+        D_prev = D_cur
+        if i == N
+            γ_last = γ_cur
+            q_last = q_cur
+        end
     end
 
-    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
+    Γ = (Λ_1324 \ Γ) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
-    S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
+    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r)
 
     return Γ, S
 end
 
 
 """
-    propagate(λ, layers; θ=0.0, μ=1.0)
+    _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-Calculate the transfer matrix for the entire structure,
-as well as the Poynting vector for the structure.
-
-Also returns per-layer D, P, and γ matrices needed for
-electric field reconstruction (see [`efield`](@ref)).
-
-# Arguments
-- `λ`: Wavelength
-- `layers`: Vector of `Layer` objects representing the stack
-- `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
-- `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
+Internal full transfer-matrix pass. Returns `(Γ, S, Ds, Ps, γs, qs)` — like
+[`propagate`](@ref) but also returns the per-layer eigenvalue vectors `qs`,
+needed for magnetic-field reconstruction. Supports conductive sheets (Task: sheets).
 """
-function propagate(λ, layers; θ=0.0, μ=1.0)
+function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-    first_layer = layers[1]
-    last_layer = layers[end]
-
-    nx_in, _, _ = get_refractive_indices(first_layer, λ)
+    N = length(layers)
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
     ξ = √(ε_0in) * sin(θ)
 
@@ -346,41 +400,47 @@ function propagate(λ, layers; θ=0.0, μ=1.0)
                        0 0 1 0;
                        0 1 0 0;
                        0 0 0 1]
-   
-    D_0, P_0, γ_0, q_0 = layer_matrices(first_layer, λ, ξ, μ)
-    D_f, P_f, γ_f, q_f = layer_matrices(last_layer, λ, ξ, μ)
 
-    # Preallocate arrays with known size
-    n_layers = length(layers)
-    Ds = Vector{typeof(D_0)}(undef, n_layers)
-    Ps = Vector{typeof(P_0)}(undef, n_layers)
-    γs = Vector{typeof(γ_0)}(undef, n_layers)
+    no_sheets = sheets === nothing || isempty(sheets)
 
-    Ds[1] = D_0
-    Ps[1] = P_0
-    γs[1] = γ_0
+    D_1, P_1, γ_1, q_1 = layer_matrices(layers[1], λ, ξ, μ)
+    Ds = Vector{typeof(D_1)}(undef, N)
+    Ps = Vector{typeof(P_1)}(undef, N)
+    γs = Vector{typeof(γ_1)}(undef, N)
+    qs = Vector{typeof(q_1)}(undef, N)
+    Ds[1] = D_1; Ps[1] = P_1; γs[1] = γ_1; qs[1] = q_1
 
     Γ = SMatrix{4,4,ComplexF64}(I)
-    for (i, layer) in enumerate(layers[2:end - 1])
-        D_i, P_i, γ_i, q_i = layer_matrices(layer, λ, ξ, μ)
-        # Prefer solves over inv() for stability and fewer allocations.
-        T_i = D_i * (P_i(layer.thickness) / D_i)
-        Γ *= T_i
-        Ds[i + 1] = D_i
-        Ps[i + 1] = P_i
-        γs[i + 1] = γ_i
+    for i in 2:N
+        D_i, P_i, γ_i, q_i = layer_matrices(layers[i], λ, ξ, μ)
+        Ds[i] = D_i; Ps[i] = P_i; γs[i] = γ_i; qs[i] = q_i
+        if no_sheets || !haskey(sheets, i - 1)
+            L = Ds[i - 1] \ D_i
+        else
+            L = Ds[i - 1] \ (sheet_matrix(sheets[i - 1], λ) * D_i)
+        end
+        Γ *= L
+        if i < N
+            Γ *= P_i(layers[i].thickness)
+        end
     end
 
-    Ds[n_layers] = D_f
-    Ps[n_layers] = P_f
-    γs[n_layers] = γ_f
-
-    Γ = (Λ_1324 \ (D_0 \ (Γ * D_f))) * Λ_1324
+    Γ = (Λ_1324 \ Γ) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
-    S = poynting(ξ, q_0, q_f, γ_0, γ_f, t, r)
+    S = poynting(ξ, q_1, qs[N], γ_1, γs[N], t, r)
 
-    return Γ, S, Ds, Ps, γs
+    return Γ, S, Ds, Ps, γs, qs
 end
+
+"""
+    propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
+
+Calculate the transfer matrix and Poynting vector for the structure, plus the
+per-layer `D`, `P`, and `γ` matrices used for field reconstruction. Returns the
+5-tuple `(Γ, S, Ds, Ps, γs)`. See [`transfer`](@ref) for the public R/T API.
+"""
+propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing) =
+    _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sheets)[1:5]
 
 
 """
@@ -506,9 +566,11 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
 
-    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
+    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ, sheets=sd)
     r, R, t, T = calculate_tr(Γ)
     Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
 
@@ -523,7 +585,7 @@ function transfer(λ, layers; θ=0.0, μ=1.0, validate::Bool=false)
     Tsp = T[3]
 
     if validate
-        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss)
+        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=sd)
     end
 
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
@@ -541,7 +603,7 @@ Issues warnings if constraints are violated.
 
 Internal function called by `transfer` when `validate=true`.
 """
-function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=1e-6, k_threshold=1e-10)
     # Check for NaN values (indicates numerical failure)
     if any(isnan, (Tpp, Tss, Rpp, Rss))
         @warn "NaN detected in R/T values" Tpp Tss Rpp Rss
@@ -563,10 +625,18 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshol
     end
 
     # Check if all layers are non-absorbing
-    is_lossless = all(layers) do layer
+    layers_lossless = all(layers) do layer
         nx, ny, nz = get_refractive_indices(layer, λ)
         all(n -> abs(imag(n)) < k_threshold, (nx, ny, nz))
     end
+
+    # Sheets are lossless when Re(σ) ≈ 0 (purely reactive). Any in-plane Re(σ) > 0 absorbs.
+    sheets_lossless = sheets === nothing || all(values(sheets)) do sheet
+        σ = sheet.conductivity(λ)
+        all(c -> abs(real(c)) < k_threshold, (σ[1,1], σ[1,2], σ[2,1], σ[2,2]))
+    end
+
+    is_lossless = layers_lossless && sheets_lossless
 
     if is_lossless
         # Energy conservation: R + T = 1 for lossless media
@@ -616,7 +686,7 @@ of size `(length(θs), length(λs))`.
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
+function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing)
     dims = (length(outer_vals), length(inner_vals))
     Tpp = Array{Float64}(undef, dims)
     Tss = Array{Float64}(undef, dims)
@@ -635,7 +705,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ)
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets)
             Tpp[i, j] = result.Tpp
             Tss[i, j] = result.Tss
             Tps[i, j] = result.Tps
@@ -660,10 +730,13 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
 
-function sweep_angle(λs, θs, layers; threads::Bool=true, verbose::Bool=false)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
     return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
         make_layers = _ -> layers,
-        angle_for = i -> θs[i])
+        angle_for = i -> θs[i],
+        sheets = sd)
 end
 
 
@@ -688,7 +761,9 @@ of size `(length(ts), length(λs))`.
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=true, verbose::Bool=false)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
     dispersion_func = layers[t_index].dispersion
     layers_base = collect(layers)
 
@@ -698,7 +773,8 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=tr
             layers_i[t_index] = Layer(dispersion_func, ts[i])
             layers_i
         end,
-        angle_for = _ -> θ)
+        angle_for = _ -> θ,
+        sheets = sd)
 end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)
@@ -707,8 +783,82 @@ end
 @deprecate electric_field(λ, layers; kwargs...) efield(λ, layers; kwargs...)
 
 
+# Shared core for efield/hfield: runs _propagate_full once, performs the backward
+# mode-coefficient recursion (with sheet injection), samples the z-grid, and returns
+# everything both wrappers need. E and H differ only in the final per-z reconstruction.
+function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
+    no_sheets = sd === nothing || isempty(sd)
+
+    Γ, S, Ds, Ps, γs, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
+    r, R, t, T = calculate_tr(Γ)
+
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
+    ξ = √(dielectric_constant(nx_in)) * sin(θ)
+
+    first_layer = layers[1]
+    last_layer = layers[end]
+    nlay = length(layers)
+
+    Eplus_p = zeros(ComplexF64, nlay, 4)
+    Eminus_p = zeros(ComplexF64, nlay, 4)
+    Eplus_s = zeros(ComplexF64, nlay, 4)
+    Eminus_s = zeros(ComplexF64, nlay, 4)
+
+    Eplus_p[end, :] = [t[1], t[2], 0, 0]
+    Eplus_s[end, :] = [t[3], t[4], 0, 0]
+
+    P_f = Ps[end]
+    Eminus_p[end, :] = P_f(last_layer.thickness) \ Eplus_p[end, :]
+    Eminus_s[end, :] = P_f(last_layer.thickness) \ Eplus_s[end, :]
+
+    D_i = Ds[end]
+    for l in reverse(eachindex(layers))
+        if l >= 2
+            layer = layers[l - 1]
+            P_prev = Ps[l - 1]
+            if no_sheets || !haskey(sd, l - 1)
+                L_i = Ds[l - 1] \ D_i
+            else
+                L_i = Ds[l - 1] \ (sheet_matrix(sd[l - 1], λ) * D_i)
+            end
+            Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
+            Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
+            Eplus_p[l - 1, :] = P_prev(layer.thickness) * Eminus_p[l - 1, :]
+            Eplus_s[l - 1, :] = P_prev(layer.thickness) * Eminus_s[l - 1, :]
+            D_i = Ds[l - 1]
+        end
+    end
+
+    interface_positions, total_thickness = find_bounds(layers)
+    interface_positions .-= first_layer.thickness
+    zs = range(-first_layer.thickness, interface_positions[end], step=dz)
+
+    nz = length(zs)
+    amp_p = zeros(ComplexF64, 4, nz)
+    amp_s = zeros(ComplexF64, 4, nz)
+    layer_of_z = Vector{Int}(undef, nz)
+
+    i = 1
+    for (j, z) in enumerate(zs)
+        if i < nlay && z > interface_positions[i]
+            i += 1
+        end
+        P_i = Ps[i]
+        amp_p[:, j] = P_i(-(z - interface_positions[i])) * Eminus_p[i, :]
+        amp_s[:, j] = P_i(-(z - interface_positions[i])) * Eminus_s[i, :]
+        layer_of_z[j] = i
+    end
+
+    return (; zs, boundaries = interface_positions[1:end - 1],
+              amp_p, amp_s, layer_of_z, γs, qs, ξ, μ)
+end
+
+
 """
-    efield(λ, layers; θ=0.0, μ=1.0, dz=0.001)
+    efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
 Calculate the electric field profile throughout the layered structure.
 
@@ -724,6 +874,8 @@ Returns an `ElectricField` struct containing:
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 - `dz`: Spatial step size in μm for field sampling (default: 0.001)
+- `sheets`: Optional conductive sheets at interfaces (see [`Sheet`](@ref) and
+  [`transfer`](@ref)); keyed by the index of the layer above each interface.
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
@@ -736,65 +888,68 @@ Returns an `ElectricField` struct containing:
 - Angle: radians
 - Electric field: arbitrary units (normalized to incident field)
 """
-function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001)
+function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
-    Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
-    r, R, t, T = calculate_tr(Γ)
-    first_layer = layers[1]
-    last_layer = layers[end]
+    F = _field(λ, layers; θ=θ, μ=μ, dz=dz, sheets=sheets)
+    nz = length(F.zs)
+    p = zeros(ComplexF64, 3, nz)
+    s = zeros(ComplexF64, 3, nz)
 
-    Eplus_p = zeros(ComplexF64, length(layers), 4)
-    Eminus_p = zeros(ComplexF64, length(layers), 4)
-
-    Eplus_s = zeros(ComplexF64, length(layers), 4)
-    Eminus_s = zeros(ComplexF64, length(layers), 4)
-
-    Eplus_p[end, :] = [t[1], t[2], 0, 0]
-    Eplus_s[end, :] = [t[3], t[4], 0, 0]
-    
-    P_f = Ps[end]
-    # Avoid inv() here too; P_f is diagonal so the solve is cheap and stable.
-    Eminus_p[end, :] = P_f(last_layer.thickness) \ Eplus_p[end, :]
-    Eminus_s[end, :] = P_f(last_layer.thickness) \ Eplus_s[end, :]
-
-    D_i = Ds[end]
-
-    for l in reverse(eachindex(layers))
-        if l >= 2
-            layer = layers[l - 1]
-            D_prev = Ds[l - 1]
-            P_prev = Ps[l - 1]
-            L_i = Ds[l - 1] \ D_i
-
-            Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
-            Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
-            Eplus_p[l - 1, :] = P_prev(layer.thickness) * Eminus_p[l - 1, :]
-            Eplus_s[l - 1, :] = P_prev(layer.thickness) * Eminus_s[l - 1, :]
-            
-            D_i = D_prev
-        end
+    for j in 1:nz
+        γ = F.γs[F.layer_of_z[j]]
+        ap = view(F.amp_p, :, j)
+        as = view(F.amp_s, :, j)
+        @views p[:, j] = ap[1] * γ[1, :] + ap[2] * γ[2, :] + ap[3] * γ[3, :] + ap[4] * γ[4, :]
+        @views s[:, j] = as[1] * γ[1, :] + as[2] * γ[2, :] + as[3] * γ[3, :] + as[4] * γ[4, :]
     end
 
-    interface_positions, total_thickness = find_bounds(layers)
-    interface_positions .-= first_layer.thickness
+    return ElectricField(F.zs, p, s, F.boundaries)
+end
 
-    zs = range(-first_layer.thickness, interface_positions[end], step=dz)
 
-    field = zeros(ComplexF64, 6, length(zs))
+# H eigenvectors per mode from the E eigenvectors γ and eigenvalues q:
+# H_m = (1/μ)(-q γ₂, q γ₁ - ξ γ₃, ξ γ₂) = (Hx, Hy, Hz). Rows 2,1 match
+# dynamical_matrix rows 3,4 (H_y and -Hx); row 3 (Hz) is (k×E)_z = ξ E_y.
+function _h_eigvecs(γ, q, ξ, μ)
+    η = @MMatrix zeros(ComplexF64, 4, 3)
+    for m in 1:4
+        η[m, 1] = (-q[m] * γ[m, 2]) / μ
+        η[m, 2] = (q[m] * γ[m, 1] - ξ * γ[m, 3]) / μ
+        η[m, 3] = (ξ * γ[m, 2]) / μ
+    end
+    return SMatrix(η)
+end
 
-    i = 1
-    for (j, z) in enumerate(zs)
-        if i < length(layers) && z > interface_positions[i]
-            i += 1
-        end
+"""
+    hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
-        P_i = Ps[i]
-        field_p = P_i(-(z - interface_positions[i])) * Eminus_p[i, :]
-        field_s = P_i(-(z - interface_positions[i])) * Eminus_s[i, :]
+Calculate the magnetic-field profile through the structure, returning a
+[`MagneticField`](@ref). Shares the sampling grid with [`efield`](@ref) (same `dz`
+and arguments), so E and H can be overlaid; the in-plane H discontinuity at a
+conductive sheet equals the surface current `ẑ × (σ_s E∥)`.
 
-        @views field[1:3, j] = field_p[1] * γs[i][1, :] + field_p[2] * γs[i][2, :] + field_p[3] * γs[i][3, :] + field_p[4] * γs[i][4, :]
-        @views field[4:6, j] = field_s[1] * γs[i][1, :] + field_s[2] * γs[i][2, :] + field_s[3] * γs[i][3, :] + field_s[4] * γs[i][4, :]
+# Units / normalization
+H is returned in impedance-normalized units `H̃ = Z₀ H_SI` (`Z₀ = √(μ₀/ε₀)`), so
+`|E| ~ |H̃|` for a plane wave. Arguments and conventions match [`efield`](@ref).
+"""
+function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+
+    F = _field(λ, layers; θ=θ, μ=μ, dz=dz, sheets=sheets)
+    nz = length(F.zs)
+    p = zeros(ComplexF64, 3, nz)
+    s = zeros(ComplexF64, 3, nz)
+
+    # η depends only on the layer index (via γ and q), not on the z-sample, so
+    # build it once per layer and index by layer rather than rebuilding per z.
+    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μ) for li in eachindex(F.γs)]
+
+    for j in 1:nz
+        η = ηs[F.layer_of_z[j]]
+        ap = view(F.amp_p, :, j)
+        as = view(F.amp_s, :, j)
+        @views p[:, j] = ap[1] * η[1, :] + ap[2] * η[2, :] + ap[3] * η[3, :] + ap[4] * η[4, :]
+        @views s[:, j] = as[1] * η[1, :] + as[2] * η[2, :] + as[3] * η[3, :] + as[4] * η[4, :]
     end
 
-    return ElectricField(zs, field[1:3, :], field[4:6, :], interface_positions[1:end - 1])
+    return MagneticField(F.zs, p, s, F.boundaries)
 end
