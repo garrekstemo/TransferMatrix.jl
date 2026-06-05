@@ -153,3 +153,42 @@ end
     @test length(qs) == length(layers)
     @test length(qs[1]) == 4
 end
+
+@testset "efield refactor regression (no sheets)" begin
+    air = Layer(λ -> complex(1.0), 0.0)
+    film = Layer(λ -> complex(1.5), 0.1)
+    sub = Layer(λ -> complex(1.0), 0.0)
+    layers = [air, film, sub]
+    ef = efield(0.6, layers; dz = 0.01)
+    @test size(ef.p, 1) == 3
+    @test size(ef.s, 1) == 3
+    @test size(ef.p, 2) == length(ef.z)
+    @test length(ef.boundaries) == 2
+    # Tangential E continuous across the internal interface even with no sheet
+    @test isapprox(ef.boundaries[1], 0.0; atol = 1e-12)
+end
+
+@testset "efield E continuity across a sheet" begin
+    n0 = 1.0
+    air = Layer(λ -> complex(n0), 0.0)
+    spacerL = Layer(λ -> complex(1.0), 0.5)
+    spacerR = Layer(λ -> complex(1.0), 0.5)
+    sub = Layer(λ -> complex(n0), 0.0)
+    layers = [air, spacerL, spacerR, sub]
+    sheets = Dict(2 => TransferMatrix.Sheet(2.0e-4 + 1.0e-4im))   # interface between layers 2 and 3
+    # A sheet introduces a jump in tangential H (surface current) but NOT in
+    # tangential E, so the straddling E samples differ only by the field's own
+    # propagation across the one-dz gap (an O(dz) effect that vanishes as dz→0,
+    # unlike a real discontinuity). dz is chosen small enough that this gap stays
+    # well under the continuity tolerance.
+    dz = 1.0e-4
+    ef = efield(0.6, layers; dz = dz, sheets = sheets)
+
+    # Find samples straddling the layer-2/3 interface (at z = boundaries[2])
+    zint = ef.boundaries[2]
+    jbelow = findlast(z -> z ≤ zint, ef.z)
+    jabove = jbelow + 1
+    # Tangential E (Ex, Ey) continuous across the sheet
+    @test isapprox(ef.p[1, jbelow], ef.p[1, jabove]; atol = 5e-3)   # Ex (p)
+    @test isapprox(ef.s[2, jbelow], ef.s[2, jabove]; atol = 5e-3)   # Ey (s)
+end

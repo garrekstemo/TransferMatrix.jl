@@ -739,8 +739,82 @@ end
 @deprecate electric_field(λ, layers; kwargs...) efield(λ, layers; kwargs...)
 
 
+# Shared core for efield/hfield: runs _propagate_full once, performs the backward
+# mode-coefficient recursion (with sheet injection), samples the z-grid, and returns
+# everything both wrappers need. E and H differ only in the final per-z reconstruction.
+function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
+    no_sheets = sd === nothing || isempty(sd)
+
+    Γ, S, Ds, Ps, γs, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
+    r, R, t, T = calculate_tr(Γ)
+
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
+    ξ = √(dielectric_constant(nx_in)) * sin(θ)
+
+    first_layer = layers[1]
+    last_layer = layers[end]
+    nlay = length(layers)
+
+    Eplus_p = zeros(ComplexF64, nlay, 4)
+    Eminus_p = zeros(ComplexF64, nlay, 4)
+    Eplus_s = zeros(ComplexF64, nlay, 4)
+    Eminus_s = zeros(ComplexF64, nlay, 4)
+
+    Eplus_p[end, :] = [t[1], t[2], 0, 0]
+    Eplus_s[end, :] = [t[3], t[4], 0, 0]
+
+    P_f = Ps[end]
+    Eminus_p[end, :] = P_f(last_layer.thickness) \ Eplus_p[end, :]
+    Eminus_s[end, :] = P_f(last_layer.thickness) \ Eplus_s[end, :]
+
+    D_i = Ds[end]
+    for l in reverse(eachindex(layers))
+        if l >= 2
+            layer = layers[l - 1]
+            P_prev = Ps[l - 1]
+            if no_sheets || !haskey(sd, l - 1)
+                L_i = Ds[l - 1] \ D_i
+            else
+                L_i = Ds[l - 1] \ (sheet_matrix(sd[l - 1], λ) * D_i)
+            end
+            Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
+            Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
+            Eplus_p[l - 1, :] = P_prev(layer.thickness) * Eminus_p[l - 1, :]
+            Eplus_s[l - 1, :] = P_prev(layer.thickness) * Eminus_s[l - 1, :]
+            D_i = Ds[l - 1]
+        end
+    end
+
+    interface_positions, total_thickness = find_bounds(layers)
+    interface_positions .-= first_layer.thickness
+    zs = range(-first_layer.thickness, interface_positions[end], step=dz)
+
+    nz = length(zs)
+    amp_p = zeros(ComplexF64, 4, nz)
+    amp_s = zeros(ComplexF64, 4, nz)
+    layer_of_z = Vector{Int}(undef, nz)
+
+    i = 1
+    for (j, z) in enumerate(zs)
+        if i < nlay && z > interface_positions[i]
+            i += 1
+        end
+        P_i = Ps[i]
+        amp_p[:, j] = P_i(-(z - interface_positions[i])) * Eminus_p[i, :]
+        amp_s[:, j] = P_i(-(z - interface_positions[i])) * Eminus_s[i, :]
+        layer_of_z[j] = i
+    end
+
+    return (; zs, boundaries = interface_positions[1:end - 1],
+              amp_p, amp_s, layer_of_z, γs, qs, ξ, μ)
+end
+
+
 """
-    efield(λ, layers; θ=0.0, μ=1.0, dz=0.001)
+    efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
 Calculate the electric field profile throughout the layered structure.
 
@@ -756,6 +830,8 @@ Returns an `ElectricField` struct containing:
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 - `dz`: Spatial step size in μm for field sampling (default: 0.001)
+- `sheets`: Optional conductive sheets at interfaces (see [`Sheet`](@ref) and
+  [`transfer`](@ref)); keyed by the index of the layer above each interface.
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
@@ -768,65 +844,20 @@ Returns an `ElectricField` struct containing:
 - Angle: radians
 - Electric field: arbitrary units (normalized to incident field)
 """
-function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001)
+function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
-    Γ, S, Ds, Ps, γs = propagate(λ, layers; θ=θ, μ=μ)
-    r, R, t, T = calculate_tr(Γ)
-    first_layer = layers[1]
-    last_layer = layers[end]
+    F = _field(λ, layers; θ=θ, μ=μ, dz=dz, sheets=sheets)
+    nz = length(F.zs)
+    p = zeros(ComplexF64, 3, nz)
+    s = zeros(ComplexF64, 3, nz)
 
-    Eplus_p = zeros(ComplexF64, length(layers), 4)
-    Eminus_p = zeros(ComplexF64, length(layers), 4)
-
-    Eplus_s = zeros(ComplexF64, length(layers), 4)
-    Eminus_s = zeros(ComplexF64, length(layers), 4)
-
-    Eplus_p[end, :] = [t[1], t[2], 0, 0]
-    Eplus_s[end, :] = [t[3], t[4], 0, 0]
-    
-    P_f = Ps[end]
-    # Avoid inv() here too; P_f is diagonal so the solve is cheap and stable.
-    Eminus_p[end, :] = P_f(last_layer.thickness) \ Eplus_p[end, :]
-    Eminus_s[end, :] = P_f(last_layer.thickness) \ Eplus_s[end, :]
-
-    D_i = Ds[end]
-
-    for l in reverse(eachindex(layers))
-        if l >= 2
-            layer = layers[l - 1]
-            D_prev = Ds[l - 1]
-            P_prev = Ps[l - 1]
-            L_i = Ds[l - 1] \ D_i
-
-            Eminus_p[l - 1, :] = L_i * Eplus_p[l, :]
-            Eminus_s[l - 1, :] = L_i * Eplus_s[l, :]
-            Eplus_p[l - 1, :] = P_prev(layer.thickness) * Eminus_p[l - 1, :]
-            Eplus_s[l - 1, :] = P_prev(layer.thickness) * Eminus_s[l - 1, :]
-            
-            D_i = D_prev
-        end
+    for j in 1:nz
+        γ = F.γs[F.layer_of_z[j]]
+        ap = view(F.amp_p, :, j)
+        as = view(F.amp_s, :, j)
+        @views p[:, j] = ap[1] * γ[1, :] + ap[2] * γ[2, :] + ap[3] * γ[3, :] + ap[4] * γ[4, :]
+        @views s[:, j] = as[1] * γ[1, :] + as[2] * γ[2, :] + as[3] * γ[3, :] + as[4] * γ[4, :]
     end
 
-    interface_positions, total_thickness = find_bounds(layers)
-    interface_positions .-= first_layer.thickness
-
-    zs = range(-first_layer.thickness, interface_positions[end], step=dz)
-
-    field = zeros(ComplexF64, 6, length(zs))
-
-    i = 1
-    for (j, z) in enumerate(zs)
-        if i < length(layers) && z > interface_positions[i]
-            i += 1
-        end
-
-        P_i = Ps[i]
-        field_p = P_i(-(z - interface_positions[i])) * Eminus_p[i, :]
-        field_s = P_i(-(z - interface_positions[i])) * Eminus_s[i, :]
-
-        @views field[1:3, j] = field_p[1] * γs[i][1, :] + field_p[2] * γs[i][2, :] + field_p[3] * γs[i][3, :] + field_p[4] * γs[i][4, :]
-        @views field[4:6, j] = field_s[1] * γs[i][1, :] + field_s[2] * γs[i][2, :] + field_s[3] * γs[i][3, :] + field_s[4] * γs[i][4, :]
-    end
-
-    return ElectricField(zs, field[1:3, :], field[4:6, :], interface_positions[1:end - 1])
+    return ElectricField(F.zs, p, s, F.boundaries)
 end
