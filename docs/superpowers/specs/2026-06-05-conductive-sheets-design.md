@@ -416,3 +416,91 @@ environment (CairoMakie per the project Makie conventions), **excluded from
   latent silent-failure points.
 - **p-pol analytic convention:** pinned to the package's `fresnel_coefficients`
   convention (§7.2); physics review confirmed the form is correct and energy-conserving.
+
+## 11. References
+
+Verified via a fact-checked literature search (each DOI confirmed against the
+publisher record; 3-of-3 adversarial verification). **The DOIs are the authoritative
+anchor** — regenerate author lists from the DOI (e.g. via a reference manager) if you
+need guaranteed-exact initials. Citation guidance:
+
+- Cite **LiHeinz2018 + Majerus2018** for the *method* (current-sheet boundary condition,
+  the `σ_s = -iωε₀d(n²-1)` conversion, and the sheet-vs-thin-film equivalence /
+  anisotropy). The oblique-incidence, anisotropic **4×4** `G`-matrix injection here is
+  this package's own extension of those (which give the normal-incidence 2×2 form),
+  built on the Berreman/Passler formalism already cited.
+- Cite **Li2014 / Morozov2015** for measured TMDC optical constants → sheet conductivity
+  (Li2014 covers MoS₂/MoSe₂/WS₂/WSe₂; Morozov2015 covers MoS₂/MoSe₂/WSe₂, no WS₂).
+- Cite **Dufferwiel2015** for the TMDC-monolayer-in-a-microcavity polariton application.
+- ⚠️ Do **not** cite a "universal σ = e²/4ℏ constant across the visible" (refuted; that is
+  the *real part* and the approximation breaks near the UV exciton/van Hove peak).
+- ⚠️ Use the **published** titles for Majerus2018 and LiHeinz2018 (their arXiv preprint
+  titles differ).
+
+```bibtex
+% --- Method: 2D material as a surface-conductivity sheet in a transfer matrix ---
+@article{LiHeinz2018,
+  author  = {Li, Y. and Heinz, T. F.},
+  title   = {Two-dimensional models for the optical response of thin films},
+  journal = {2D Materials},
+  volume  = {5}, number = {2}, pages = {025021}, year = {2018},
+  doi     = {10.1088/2053-1583/aab0cf}
+}
+@article{Majerus2018,
+  author  = {Majerus, B. and Dremetsika, E. and Lobet, M. and Henrard, L. and Kockaert, P.},
+  title   = {Electrodynamics of two-dimensional materials: Role of anisotropy},
+  journal = {Phys. Rev. B},
+  volume  = {98}, number = {12}, pages = {125419}, year = {2018},
+  doi     = {10.1103/PhysRevB.98.125419}
+}
+
+% --- Graphene origins of the conducting-sheet treatment ---
+@article{Falkovsky2008,
+  author  = {Falkovsky, L. A.},
+  title   = {Optical properties of graphene},
+  journal = {Journal of Physics: Conference Series},
+  volume  = {129}, pages = {012004}, year = {2008},
+  doi     = {10.1088/1742-6596/129/1/012004}
+}
+@article{Nair2008,
+  author  = {Nair, R. R. and Blake, P. and Grigorenko, A. N. and Novoselov, K. S.
+             and Booth, T. J. and Stauber, T. and Peres, N. M. R. and Geim, A. K.},
+  title   = {Fine structure constant defines visual transparency of graphene},
+  journal = {Science},
+  volume  = {320}, number = {5881}, pages = {1308}, year = {2008},
+  doi     = {10.1126/science.1156965}
+}
+
+% --- TMDC monolayer optical constants / sheet conductivity (data) ---
+@article{Li2014,
+  author  = {Li, Y. and Chernikov, A. and Zhang, X. and Rigosi, A. and Hill, H. M.
+             and van der Zande, A. M. and Chenet, D. A. and Shih, E.-M. and Hone, J.
+             and Heinz, T. F.},
+  title   = {Measurement of the optical dielectric function of monolayer
+             transition-metal dichalcogenides: {MoS$_2$}, {MoSe$_2$}, {WS$_2$}, and {WSe$_2$}},
+  journal = {Phys. Rev. B},
+  volume  = {90}, number = {20}, pages = {205422}, year = {2014},
+  doi     = {10.1103/PhysRevB.90.205422}
+}
+@article{Morozov2015,
+  author  = {Morozov, Y. V. and Kuno, M.},
+  title   = {Optical constants and dynamic conductivities of single layer
+             {MoS$_2$}, {MoSe$_2$}, and {WSe$_2$}},
+  journal = {Applied Physics Letters},
+  volume  = {107}, number = {8}, pages = {083103}, year = {2015},
+  doi     = {10.1063/1.4929700}
+}
+
+% --- TMDC monolayer in an optical microcavity (exciton-polaritons) ---
+@article{Dufferwiel2015,
+  author  = {Dufferwiel, S. and Schwarz, S. and Withers, F. and Trichet, A. A. P.
+             and Li, F. and Sich, M. and Del Pozo-Zamudio, O. and Clark, C.
+             and Nalitov, A. and Solnyshkov, D. D. and Malpuech, G. and Novoselov, K. S.
+             and Smith, J. M. and Skolnick, M. S. and Krizhanovskii, D. N.
+             and Tartakovskii, A. I.},
+  title   = {Exciton-polaritons in van der Waals heterostructures embedded in tunable microcavities},
+  journal = {Nature Communications},
+  volume  = {6}, pages = {8579}, year = {2015},
+  doi     = {10.1038/ncomms9579}
+}
+```
