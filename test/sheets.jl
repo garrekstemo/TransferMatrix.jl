@@ -260,3 +260,21 @@ end
     ΔHx = hf.s[1, ja] - hf.s[1, jb]
     @test isapprox(ΔHx, g * Ey; rtol = 0.05, atol = 1e-6)
 end
+
+@testset "validate=true with sheets" begin
+    n0 = 1.0
+    air = Layer(λ -> complex(n0), 0.0)
+    spacer = Layer(λ -> complex(1.0), 0.3)
+    sub = Layer(λ -> complex(n0), 0.0)
+    layers = [air, spacer, sub]
+
+    # Lossless sheet (purely imaginary σ): R + T = 1, no warning expected.
+    lossless = Dict(2 => TransferMatrix.Sheet(0.0 + 2.0e-4im))
+    res = transfer(0.6, layers; sheets = lossless, validate = true)
+    @test isapprox(res.Rss + res.Tss, 1.0; atol = 1e-6)
+
+    # Lossy sheet (Re σ > 0): R + T < 1 and must NOT raise/warn as an energy violation.
+    lossy = Dict(2 => TransferMatrix.Sheet(2.0e-4 + 1.0e-4im))
+    res2 = transfer(0.6, layers; sheets = lossy, validate = true)
+    @test res2.Rss + res2.Tss < 1.0 + 1e-6
+end

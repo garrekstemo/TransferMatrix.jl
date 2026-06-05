@@ -574,7 +574,7 @@ function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=fal
     Tsp = T[3]
 
     if validate
-        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss)
+        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=sd)
     end
 
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
@@ -592,7 +592,7 @@ Issues warnings if constraints are violated.
 
 Internal function called by `transfer` when `validate=true`.
 """
-function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=1e-6, k_threshold=1e-10)
     # Check for NaN values (indicates numerical failure)
     if any(isnan, (Tpp, Tss, Rpp, Rss))
         @warn "NaN detected in R/T values" Tpp Tss Rpp Rss
@@ -614,10 +614,18 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshol
     end
 
     # Check if all layers are non-absorbing
-    is_lossless = all(layers) do layer
+    layers_lossless = all(layers) do layer
         nx, ny, nz = get_refractive_indices(layer, λ)
         all(n -> abs(imag(n)) < k_threshold, (nx, ny, nz))
     end
+
+    # Sheets are lossless when Re(σ) ≈ 0 (purely reactive). Any in-plane Re(σ) > 0 absorbs.
+    sheets_lossless = sheets === nothing || all(values(sheets)) do sheet
+        σ = sheet.conductivity(λ)
+        all(c -> abs(real(c)) < k_threshold, (σ[1,1], σ[1,2], σ[2,1], σ[2,2]))
+    end
+
+    is_lossless = layers_lossless && sheets_lossless
 
     if is_lossless
         # Energy conservation: R + T = 1 for lossless media
