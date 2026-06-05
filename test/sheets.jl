@@ -192,3 +192,58 @@ end
     @test isapprox(ef.p[1, jbelow], ef.p[1, jabove]; atol = 5e-3)   # Ex (p)
     @test isapprox(ef.s[2, jbelow], ef.s[2, jabove]; atol = 5e-3)   # Ey (s)
 end
+
+@testset "hfield basics and shared z-grid" begin
+    air = Layer(λ -> complex(1.0), 0.0)
+    film = Layer(λ -> complex(2.0), 0.2)
+    sub = Layer(λ -> complex(1.5), 0.0)
+    layers = [air, film, sub]
+
+    hf = hfield(0.6, layers; dz = 0.01)
+    ef = efield(0.6, layers; dz = 0.01)
+    @test hf isa MagneticField
+    @test size(hf.p, 1) == 3
+    @test size(hf.s, 1) == 3
+    @test size(hf.p, 2) == length(hf.z)
+    @test hf.z == ef.z                       # shared grid
+    @test hf.boundaries == ef.boundaries
+end
+
+@testset "transfer vs field cross-check (with sheet)" begin
+    # R/T from transfer must equal R/T reconstructed from the field core's coefficients.
+    air = Layer(λ -> complex(1.0), 0.0)
+    spacer = Layer(λ -> complex(1.0), 0.5)
+    sub = Layer(λ -> complex(1.5), 0.0)
+    layers = [air, spacer, sub]
+    sheets = Dict(2 => TransferMatrix.Sheet(2.0e-4 + 1.0e-4im))
+
+    res = transfer(0.6, layers; θ = 0.1, sheets = sheets)
+    Γ, _ = TransferMatrix._propagate_core(0.6, layers; θ = 0.1, sheets = TransferMatrix._sheets_dict(sheets))
+    r, R, t, T = TransferMatrix.calculate_tr(Γ)
+    @test isapprox(res.Rpp, R[1]; atol = 1e-12)
+    @test isapprox(res.Rss, R[2]; atol = 1e-12)
+end
+
+@testset "hfield H-jump across a sheet" begin
+    # In-plane H jumps by σ̃·E across the sheet while tangential E stays continuous.
+    n0 = 1.0
+    air = Layer(λ -> complex(n0), 0.0)
+    spacerL = Layer(λ -> complex(1.0), 0.5)
+    spacerR = Layer(λ -> complex(1.0), 0.5)
+    sub = Layer(λ -> complex(n0), 0.0)
+    layers = [air, spacerL, spacerR, sub]
+    σ_s = 3.0e-4 + 0.0im
+    g = Z0_test * σ_s
+    sheets = Dict(2 => TransferMatrix.Sheet(σ_s))
+    dz = 5e-4
+    ef = efield(0.6, layers; dz = dz, sheets = sheets)
+    hf = hfield(0.6, layers; dz = dz, sheets = sheets)
+
+    zint = ef.boundaries[2]
+    jb = findlast(z -> z ≤ zint, ef.z)
+    ja = jb + 1
+    # s-incidence: E is along y; expected ΔHx = σ̃ Ey (use field at the interface)
+    Ey = ef.s[2, jb]
+    ΔHx = hf.s[1, ja] - hf.s[1, jb]
+    @test isapprox(ΔHx, g * Ey; rtol = 0.05, atol = 1e-6)
+end

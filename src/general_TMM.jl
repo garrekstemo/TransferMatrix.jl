@@ -25,6 +25,31 @@ struct ElectricField{Z<:AbstractVector{Float64}}
 end
 
 """
+    MagneticField
+
+Spatial magnetic-field profile through a layered structure, mirroring
+[`ElectricField`](@ref). Fields are in impedance-normalized units `H̃ = Z₀ H_SI`
+so `|E| ~ |H̃|` for a plane wave and E/H can be overlaid directly.
+
+- `z`: position coordinates (same grid as `efield`)
+- `p`: `(Hx, Hy, Hz)` for p-polarized incidence
+- `s`: `(Hx, Hy, Hz)` for s-polarized incidence
+- `boundaries`: z-positions of interfaces
+"""
+struct MagneticField{Z<:AbstractVector{Float64}}
+    z::Z
+    p::Matrix{ComplexF64}
+    s::Matrix{ComplexF64}
+    boundaries::Vector{Float64}
+
+    function MagneticField(z::Z, p, s, boundaries) where {Z<:AbstractVector{Float64}}
+        size(p, 2) == length(z) || throw(ArgumentError("p field columns must match z length"))
+        size(s, 2) == length(z) || throw(ArgumentError("s field columns must match z length"))
+        new{Z}(z, p, s, boundaries)
+    end
+end
+
+"""
     TransferResult{T}
 
 Container for reflectance and transmittance results from transfer matrix calculations.
@@ -860,4 +885,49 @@ function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     end
 
     return ElectricField(F.zs, p, s, F.boundaries)
+end
+
+
+# H eigenvectors per mode from the E eigenvectors γ and eigenvalues q:
+# H_m = (1/μ)(-q γ₂, q γ₁ - ξ γ₃, ξ γ₂) = (Hx, Hy, Hz). Rows 2,1 match
+# dynamical_matrix rows 3,4 (H_y and -Hx); row 3 (Hz) is (k×E)_z = ξ E_y.
+function _h_eigvecs(γ, q, ξ, μ)
+    η = @MMatrix zeros(ComplexF64, 4, 3)
+    for m in 1:4
+        η[m, 1] = (-q[m] * γ[m, 2]) / μ
+        η[m, 2] = (q[m] * γ[m, 1] - ξ * γ[m, 3]) / μ
+        η[m, 3] = (ξ * γ[m, 2]) / μ
+    end
+    return SMatrix(η)
+end
+
+"""
+    hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+
+Calculate the magnetic-field profile through the structure, returning a
+[`MagneticField`](@ref). Shares the sampling grid with [`efield`](@ref) (same `dz`
+and arguments), so E and H can be overlaid; the in-plane H discontinuity at a
+conductive sheet equals the surface current `ẑ × (σ_s E∥)`.
+
+# Units / normalization
+H is returned in impedance-normalized units `H̃ = Z₀ H_SI` (`Z₀ = √(μ₀/ε₀)`), so
+`|E| ~ |H̃|` for a plane wave. Arguments and conventions match [`efield`](@ref).
+"""
+function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+
+    F = _field(λ, layers; θ=θ, μ=μ, dz=dz, sheets=sheets)
+    nz = length(F.zs)
+    p = zeros(ComplexF64, 3, nz)
+    s = zeros(ComplexF64, 3, nz)
+
+    for j in 1:nz
+        li = F.layer_of_z[j]
+        η = _h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μ)
+        ap = view(F.amp_p, :, j)
+        as = view(F.amp_s, :, j)
+        @views p[:, j] = ap[1] * η[1, :] + ap[2] * η[2, :] + ap[3] * η[3, :] + ap[4] * η[4, :]
+        @views s[:, j] = as[1] * η[1, :] + as[2] * η[2, :] + as[3] * η[3, :] + as[4] * η[4, :]
+    end
+
+    return MagneticField(F.zs, p, s, F.boundaries)
 end
