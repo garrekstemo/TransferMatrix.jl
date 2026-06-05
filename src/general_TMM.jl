@@ -646,7 +646,7 @@ of size `(length(θs), length(λs))`.
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for)
+function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing)
     dims = (length(outer_vals), length(inner_vals))
     Tpp = Array{Float64}(undef, dims)
     Tss = Array{Float64}(undef, dims)
@@ -665,7 +665,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ)
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets)
             Tpp[i, j] = result.Tpp
             Tss[i, j] = result.Tss
             Tps[i, j] = result.Tps
@@ -690,10 +690,13 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
 
-function sweep_angle(λs, θs, layers; threads::Bool=true, verbose::Bool=false)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
     return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
         make_layers = _ -> layers,
-        angle_for = i -> θs[i])
+        angle_for = i -> θs[i],
+        sheets = sd)
 end
 
 
@@ -718,7 +721,9 @@ of size `(length(ts), length(λs))`.
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=true, verbose::Bool=false)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
     dispersion_func = layers[t_index].dispersion
     layers_base = collect(layers)
 
@@ -728,7 +733,8 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, threads::Bool=tr
             layers_i[t_index] = Layer(dispersion_func, ts[i])
             layers_i
         end,
-        angle_for = _ -> θ)
+        angle_for = _ -> θ,
+        sheets = sd)
 end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)

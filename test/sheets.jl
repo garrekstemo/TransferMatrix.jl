@@ -112,3 +112,24 @@ end
         @test isapprox(res.Rpp, abs2(rp); atol = 1e-8)
     end
 end
+
+@testset "sweep_angle forwards sheets" begin
+    n1, n2 = 1.0, 1.5
+    σ_s = 1.5e-4 + 0.0im
+    air = Layer(λ -> complex(n1), 0.0)
+    sub = Layer(λ -> complex(n2), 0.0)
+    layers = [air, sub]
+    sheets = Dict(1 => TransferMatrix.Sheet(σ_s))
+    λs = [1.0, 1.2]
+    θs = [0.0, π/8]
+
+    spec = sweep_angle(λs, θs, layers; sheets = sheets)
+    for (ii, θ) in enumerate(θs), (jj, λ) in enumerate(λs)
+        ref = transfer(λ, layers; θ = θ, sheets = sheets)
+        @test isapprox(spec.Rpp[ii, jj], ref.Rpp; atol = 1e-12)
+        @test isapprox(spec.Rss[ii, jj], ref.Rss; atol = 1e-12)
+    end
+    # And the sheet actually changes the result vs no sheet
+    spec0 = sweep_angle(λs, θs, layers)
+    @test !isapprox(spec.Rss[1, 1], spec0.Rss[1, 1]; atol = 1e-6)
+end
