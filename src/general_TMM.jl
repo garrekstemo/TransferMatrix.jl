@@ -11,6 +11,17 @@ struct Poynting
     end
 end
 
+"""
+    ElectricField
+
+Spatial electric-field profile through a layered structure, mirrored by
+[`MagneticField`](@ref).
+
+- `z`: position coordinates
+- `p`: `(Ex, Ey, Ez)` for p-polarized incidence
+- `s`: `(Ex, Ey, Ez)` for s-polarized incidence
+- `boundaries`: z-positions of interfaces
+"""
 struct ElectricField{Z<:AbstractVector{Float64}}
     z::Z
     p::Matrix{ComplexF64}
