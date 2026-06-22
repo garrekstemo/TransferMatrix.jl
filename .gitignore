@@ -11,6 +11,9 @@ scratch/*
 
 errata.md
 
+# Superpowers process docs (specs/plans) — kept local, not committed
+docs/superpowers/
+
 # Generated example figures
 graphene_absorption.png
 tmdc_cavity.png
