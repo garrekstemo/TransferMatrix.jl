@@ -41,4 +41,16 @@ using Unitful
         @test tr_equal(transfer(1550u"nm", layers), ref)
     end
 
+    @testset "transfer accepts spectral wavelength inputs" begin
+        ref = transfer(1.55, layers)
+        λ = 1.55u"μm"
+        @test tr_equal(transfer(1 / λ, layers), ref)                       # wavenumber ν̃ = 1/λ
+        @test tr_equal(transfer(Unitful.c0 / λ, layers), ref)              # frequency  λ = c/f
+        @test tr_equal(transfer(Unitful.h * Unitful.c0 / λ, layers), ref)  # energy     λ = hc/E
+    end
+
+    @testset "non-spectral units are rejected" begin
+        @test_throws ArgumentError transfer(5u"kg", layers)
+    end
+
 end

@@ -12,7 +12,10 @@ _to_um(x::Unitful.Length) = Float64(ustrip(u"μm", x))
 # added in a later step.
 function _to_wavelength_um(x::Unitful.Quantity)
     d = dimension(x)
-    d == dimension(u"m") && return Float64(ustrip(u"μm", x))
+    d == dimension(u"m")    && return Float64(ustrip(u"μm", x))
+    d == dimension(u"m^-1") && return Float64(ustrip(u"μm", 1 / x))
+    d == dimension(u"Hz")   && return Float64(ustrip(u"μm", Unitful.c0 / x))
+    d == dimension(u"eV")   && return Float64(ustrip(u"μm", Unitful.h * Unitful.c0 / x))
     throw(ArgumentError("cannot interpret $x as a wavelength or spectral quantity"))
 end
 
