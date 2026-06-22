@@ -15,6 +15,6 @@ Pages = ["internals.md"]
 
 ```@autodocs
 Modules = [TransferMatrix]
-Pages = ["general_TMM.jl", "layer.jl", "matrix_constructors.jl", "sheet.jl"]
+Pages = ["general_TMM.jl", "layer.jl", "matrix_constructors.jl", "sheet.jl", "units.jl"]
 Public = false
 ```
