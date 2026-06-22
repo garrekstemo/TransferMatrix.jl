@@ -4,6 +4,7 @@ using RefractiveIndex
 using StaticArrays
 using TransferMatrix
 using Aqua
+using Unitful
 
 const c_0 = 299792458
 
@@ -17,3 +18,4 @@ include("types.jl")
 include("optics_functions.jl")
 include("integration.jl")
 include("sheets.jl")
+include("unitful.jl")

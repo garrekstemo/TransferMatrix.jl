@@ -554,7 +554,9 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 - θ is measured from the surface normal (z-axis)
 
 # Units
-- Wavelength and thicknesses: μm (micrometers) recommended
+- Wavelength and thicknesses: μm by default. With `using Unitful`, `λ` may carry
+  units — a length, or a wavenumber/frequency/photon-energy that maps to
+  wavelength (e.g. `1550u"nm"`, `193u"THz"`, `0.8u"eV"`).
 - Angle: radians
 - Transmittance/Reflectance: dimensionless (0 to 1)
 
@@ -567,6 +569,7 @@ When `validate=true`, the function checks:
 Warnings are issued for any violations.
 """
 function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
+    λ = _to_wavelength_um(λ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
@@ -731,6 +734,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
 end
 
 function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    λs = _to_wavelength_um.(λs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
@@ -762,6 +766,8 @@ of size `(length(ts), length(λs))`.
 - Angle: radians
 """
 function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    λs = _to_wavelength_um.(λs)
+    ts = _to_um.(ts)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     dispersion_func = layers[t_index].dispersion
@@ -787,6 +793,8 @@ end
 # mode-coefficient recursion (with sheet injection), samples the z-grid, and returns
 # everything both wrappers need. E and H differ only in the final per-z reconstruction.
 function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+    λ = _to_wavelength_um(λ)
+    dz = _to_um(dz)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
@@ -884,7 +892,8 @@ Returns an `ElectricField` struct containing:
 - θ is measured from the surface normal (z-axis)
 
 # Units
-- All lengths (λ, thickness, dz, z): μm (micrometers) recommended
+- All lengths (λ, thickness, dz, z): μm by default; with `using Unitful`, `λ`
+  and `dz` may carry units (e.g. `efield(1.55u"μm", layers; dz=1u"nm")`).
 - Angle: radians
 - Electric field: arbitrary units (normalized to incident field)
 """

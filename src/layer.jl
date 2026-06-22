@@ -21,8 +21,10 @@ Layer(nx, ny, nz, thickness)
 For uniaxial materials, set two axes equal (e.g., `nx = ny` for optic axis along z).
 
 # Units Convention
-All length quantities (wavelength `λ`, thickness, `dz`) must use consistent units.
-Following RefractiveIndex.jl conventions, **micrometers (μm)** are recommended.
+Lengths default to **micrometers (μm)** as bare numbers (`Layer(n, 0.1)` = 0.1 μm).
+With `using Unitful`, thickness may carry units and is normalized to μm:
+`Layer(n, 100u"nm")`. RefractiveIndex.jl dispersion functions are parameterized
+in μm, so μm remains the internal unit.
 
 `Layer` is parametric as `Layer{F,T}` where `F` is the dispersion function type and `T` is the thickness type.
 For anisotropic layers, `F` is a `Tuple` of three dispersion functions.
