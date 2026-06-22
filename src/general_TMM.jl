@@ -567,6 +567,7 @@ When `validate=true`, the function checks:
 Warnings are issued for any violations.
 """
 function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
+    λ = _to_wavelength_um(λ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
@@ -731,6 +732,7 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
 end
 
 function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    λs = _to_wavelength_um.(λs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
@@ -762,6 +764,8 @@ of size `(length(ts), length(λs))`.
 - Angle: radians
 """
 function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
+    λs = _to_wavelength_um.(λs)
+    ts = _to_um.(ts)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     dispersion_func = layers[t_index].dispersion
@@ -787,6 +791,8 @@ end
 # mode-coefficient recursion (with sheet injection), samples the z-grid, and returns
 # everything both wrappers need. E and H differ only in the final per-z reconstruction.
 function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+    λ = _to_wavelength_um(λ)
+    dz = _to_um(dz)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
