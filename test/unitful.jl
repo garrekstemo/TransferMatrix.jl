@@ -65,6 +65,18 @@ using Unitful
         @test ru.Tss ≈ rp.Tss
     end
 
+    @testset "tabulated-data Layer accepts unit-bearing thickness" begin
+        λs_data = [1.0, 1.5, 2.0]
+        ns_data = [1.5, 1.5, 1.5]
+        ks_data = [0.0, 0.0, 0.0]
+        layer = Layer(λs_data, ns_data, ks_data, 100u"nm")
+        @test layer.thickness ≈ 0.1
+        @test layer.thickness isa Float64
+        @test !isanisotropic(layer)
+        stack = [Layer(n_air, 0.1), layer, Layer(n_sub, 0.5)]
+        @test transfer(1.5u"μm", stack) isa TransferResult
+    end
+
     @testset "field profiles accept unit-bearing λ and dz" begin
         Eu = efield(1.55u"μm", layers; dz=1u"nm")
         Ep = efield(1.55, layers; dz=0.001)
