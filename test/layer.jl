@@ -380,6 +380,24 @@ end
     @test get_euler_angles(iso_layer) == (0.0, 0.0, 0.0)
 end
 
+@testset "broadcastable Layer" begin
+    layer = Layer(λ -> 1.5 + 0.0im, 0.1)
+    λs = [1.0, 1.1, 1.2]
+
+    # A single Layer is treated as a scalar under broadcasting
+    @test Base.broadcastable(layer) isa Base.RefValue
+
+    # Broadcasting a helper over one layer across many λ works without Ref
+    # (previously threw MethodError: no method matching length(::Layer))
+    bare = get_refractive_indices.(layer, λs)
+    @test bare == get_refractive_indices.(Ref(layer), λs)
+    @test length(bare) == length(λs)
+
+    # A Vector{Layer} still broadcasts element-wise
+    layers = [Layer(λ -> 1.0, 0.1), Layer(λ -> 2.0, 0.2)]
+    @test getfield.(layers, :thickness) == [0.1, 0.2]
+end
+
 @testset "euler_rotation_matrix" begin
     # Identity rotation (no angles)
     R0 = euler_rotation_matrix(0.0, 0.0, 0.0)
