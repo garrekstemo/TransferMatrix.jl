@@ -12,8 +12,10 @@ using Unitful
     @testset "core converter seams are no-ops for Real" begin
         @test TransferMatrix._to_um(0.1) === 0.1
         @test TransferMatrix._to_wavelength_um(1.55) === 1.55
+        @test TransferMatrix._to_radians(0.5) === 0.5
         @test TransferMatrix._to_um.([0.1, 0.2]) == [0.1, 0.2]
         @test TransferMatrix._to_wavelength_um.([1.0, 2.0]) == [1.0, 2.0]
+        @test TransferMatrix._to_radians.([0.0, 0.3]) == [0.0, 0.3]
     end
 
     @testset "wiring leaves plain-number results unchanged" begin
@@ -51,6 +53,30 @@ using Unitful
 
     @testset "non-spectral units are rejected" begin
         @test_throws ArgumentError transfer(5u"kg", layers)
+    end
+
+    @testset "angle of incidence accepts angle units" begin
+        @test TransferMatrix._to_radians(45u"°") ≈ deg2rad(45)
+        @test TransferMatrix._to_radians((π / 4)u"rad") ≈ π / 4
+
+        ref = transfer(1.55, layers; θ=deg2rad(45))
+        @test tr_equal(transfer(1.55, layers; θ=45u"°"), ref)
+        @test tr_equal(transfer(1.55, layers; θ=(π / 4)u"rad"),
+                       transfer(1.55, layers; θ=π / 4))
+    end
+
+    @testset "sweep_angle accepts a vector of angle units" begin
+        λs = [1.4, 1.55, 1.7]
+        θs_deg = [0u"°", 30u"°", 60u"°"]
+        θs_rad = deg2rad.([0.0, 30.0, 60.0])
+        @test sweep_angle(λs, θs_deg, layers).Rpp ≈ sweep_angle(λs, θs_rad, layers).Rpp
+    end
+
+    @testset "field profiles accept angle units" begin
+        Edeg = efield(1.55, layers; θ=30u"°")
+        Erad = efield(1.55, layers; θ=deg2rad(30))
+        @test Edeg.p ≈ Erad.p
+        @test Edeg.s ≈ Erad.s
     end
 
     @testset "sweeps accept unit-bearing vectors" begin

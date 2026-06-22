@@ -2,10 +2,15 @@ module UnitfulExt
 
 using TransferMatrix
 using Unitful
-import TransferMatrix: _to_um, _to_wavelength_um
+import TransferMatrix: _to_um, _to_wavelength_um, _to_radians
 
 # Length (thickness, dz) → μm as Float64.
 _to_um(x::Unitful.Length) = Float64(ustrip(u"μm", x))
+
+# Angle of incidence (θ) → radians as Float64. Angles are dimensionless in
+# Unitful, so this catches both u"°" and u"rad"; a plain Real falls through to
+# the core no-op and is assumed to already be in radians.
+_to_radians(x::Unitful.DimensionlessQuantity) = Float64(ustrip(u"rad", x))
 
 # Spectral input (λ) → wavelength in μm as Float64. Dispatch by physical
 # dimension. Only the length dimension is handled here; spectral dimensions are
