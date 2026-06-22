@@ -1,5 +1,6 @@
 using Test
 using TransferMatrix
+using Unitful
 
 @testset "Unitful support" begin
 
@@ -20,6 +21,24 @@ using TransferMatrix
         @test r isa TransferResult
         @test 0.0 ≤ r.Rpp ≤ 1.0
         @test r.Rpp + r.Tpp ≈ 1.0 atol=1e-6
+    end
+
+    tr_equal(a, b) = all(f -> getfield(a, f) ≈ getfield(b, f),
+                         (:Tpp, :Tss, :Tps, :Tsp, :Rpp, :Rss, :Rps, :Rsp))
+
+    @testset "Layer accepts unit-bearing thickness" begin
+        layer = Layer(n_film, 100u"nm")
+        @test layer.thickness ≈ 0.1
+        @test layer.thickness isa Float64
+        aniso = Layer(n_film, n_film, n_sub, 250u"nm")
+        @test aniso.thickness ≈ 0.25
+        @test aniso.thickness isa Float64
+    end
+
+    @testset "transfer accepts unit-bearing wavelength (length)" begin
+        ref = transfer(1.55, layers)
+        @test tr_equal(transfer(1.55u"μm", layers), ref)
+        @test tr_equal(transfer(1550u"nm", layers), ref)
     end
 
 end

@@ -4,6 +4,7 @@ using RefractiveIndex
 using StaticArrays
 using TransferMatrix
 using Aqua
+using Unitful
 
 const c_0 = 299792458
 
