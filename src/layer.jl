@@ -59,6 +59,21 @@ end
 Layer(material::RefractiveMaterial, thickness::Real) = Layer(refractive_index(material), thickness)
 Layer(λs::AbstractVector, dispersion::AbstractVector, extinction::AbstractVector, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
 
+"""
+    Base.broadcastable(layer::Layer)
+
+Treat a single `Layer` as a scalar under broadcasting so helpers can be broadcast
+over one layer across many wavelengths without an explicit `Ref`, e.g.
+`get_refractive_indices.(layer, λs)`. Without this, broadcasting a bare `Layer`
+hits Julia's `collect`-based fallback and throws a confusing
+`MethodError: no method matching length(::Layer)`.
+
+A `Vector{Layer}` stack still broadcasts element-wise, which is the desired
+behavior for per-layer operations. For threaded wavelength/angle/thickness sweeps,
+prefer the dedicated `sweep_angle` / `sweep_thickness` API.
+"""
+Base.broadcastable(layer::Layer) = Ref(layer)
+
 # Anisotropic constructor: three dispersion functions for nx, ny, nz
 """
     Layer(nx, ny, nz, thickness; euler=(0,0,0))
