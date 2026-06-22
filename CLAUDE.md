@@ -49,7 +49,9 @@ Pass via the `sheets=` kwarg (Dict or iterable of `i => sheet`) on
 ## Conventions and gotchas
 
 - **Units**: micrometers for λ, layer thickness, and `dz` — they must match. `θ`
-  in radians from the surface normal (RefractiveIndex.jl convention).
+  in radians from the surface normal (RefractiveIndex.jl convention). Optional:
+  `using Unitful` lets `λ`/thickness/`dz` carry units (and `λ` accepts
+  wavenumber/frequency/energy), normalized to μm via the `UnitfulExt` extension.
 - **Geometry**: light propagates +z; z=0 at the first interface. The **first and
   last layers are semi-infinite** — thickness ignored for propagation but must
   be > 0.

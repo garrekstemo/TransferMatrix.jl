@@ -554,7 +554,9 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 - θ is measured from the surface normal (z-axis)
 
 # Units
-- Wavelength and thicknesses: μm (micrometers) recommended
+- Wavelength and thicknesses: μm by default. With `using Unitful`, `λ` may carry
+  units — a length, or a wavenumber/frequency/photon-energy that maps to
+  wavelength (e.g. `1550u"nm"`, `193u"THz"`, `0.8u"eV"`).
 - Angle: radians
 - Transmittance/Reflectance: dimensionless (0 to 1)
 
@@ -890,7 +892,8 @@ Returns an `ElectricField` struct containing:
 - θ is measured from the surface normal (z-axis)
 
 # Units
-- All lengths (λ, thickness, dz, z): μm (micrometers) recommended
+- All lengths (λ, thickness, dz, z): μm by default; with `using Unitful`, `λ`
+  and `dz` may carry units (e.g. `efield(1.55u"μm", layers; dz=1u"nm")`).
 - Angle: radians
 - Electric field: arbitrary units (normalized to incident field)
 """

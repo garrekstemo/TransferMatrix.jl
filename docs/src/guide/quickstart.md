@@ -102,3 +102,26 @@ With `validate=true`, the function checks:
 - **Absorption bound**: R + T ≤ 1 for absorbing media
 
 Warnings are issued for any violations, helping you identify problems with layer definitions or edge cases in your simulation.
+
+## Optional units (Unitful.jl)
+
+By default every length is a bare number in micrometers. Load `Unitful` to write
+quantities in any unit; they are normalized to μm internally:
+
+```julia
+using TransferMatrix, Unitful
+
+layer = Layer(n_film, 100u"nm")          # stored as 0.1 μm
+transfer(1550u"nm", [air, layer, sub])   # same as transfer(1.55, ...)
+```
+
+The wavelength argument also accepts a wavenumber, frequency, or photon energy:
+
+```julia
+transfer(6452u"cm^-1", layers)   # spectroscopic wavenumber ν̃ = 1/λ
+transfer(193u"THz",    layers)   # frequency  λ = c/f
+transfer(0.8u"eV",     layers)   # photon energy λ = hc/E
+```
+
+Without `using Unitful`, the package behaves exactly as before with no extra
+dependency.
