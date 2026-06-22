@@ -53,4 +53,29 @@ using Unitful
         @test_throws ArgumentError transfer(5u"kg", layers)
     end
 
+    @testset "sweeps accept unit-bearing vectors" begin
+        λs = [1.4, 1.55, 1.7]
+        θs = [0.0, 0.3]
+        @test sweep_angle(λs .* u"μm", θs, layers).Rpp ≈ sweep_angle(λs, θs, layers).Rpp
+
+        ts = [0.1, 0.2, 0.3]
+        ru = sweep_thickness(λs .* u"μm", ts .* u"μm", layers, 2)
+        rp = sweep_thickness(λs, ts, layers, 2)
+        @test ru.Rpp ≈ rp.Rpp
+        @test ru.Tss ≈ rp.Tss
+    end
+
+    @testset "field profiles accept unit-bearing λ and dz" begin
+        Eu = efield(1.55u"μm", layers; dz=1u"nm")
+        Ep = efield(1.55, layers; dz=0.001)
+        @test Eu.z ≈ Ep.z
+        @test Eu.p ≈ Ep.p
+        @test Eu.s ≈ Ep.s
+
+        Hu = hfield(1.55u"μm", layers; dz=1u"nm")
+        Hp = hfield(1.55, layers; dz=0.001)
+        @test Hu.z ≈ Hp.z
+        @test Hu.p ≈ Hp.p
+    end
+
 end
