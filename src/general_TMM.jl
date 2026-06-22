@@ -570,6 +570,7 @@ Warnings are issued for any violations.
 """
 function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
     λ = _to_wavelength_um(λ)
+    θ = _to_radians(θ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
@@ -735,6 +736,7 @@ end
 
 function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
     λs = _to_wavelength_um.(λs)
+    θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
@@ -768,6 +770,7 @@ of size `(length(ts), length(λs))`.
 function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
+    θ = _to_radians(θ)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     dispersion_func = layers[t_index].dispersion
@@ -795,6 +798,7 @@ end
 function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     λ = _to_wavelength_um(λ)
     dz = _to_um(dz)
+    θ = _to_radians(θ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))

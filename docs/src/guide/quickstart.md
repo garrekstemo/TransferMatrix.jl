@@ -123,5 +123,13 @@ transfer(193u"THz",    layers)   # frequency  λ = c/f
 transfer(0.8u"eV",     layers)   # photon energy λ = hc/E
 ```
 
+The incidence angle `θ` accepts angle units too, so you can write degrees
+directly instead of converting:
+
+```julia
+transfer(1.55, layers; θ=45u"°")        # same as θ=deg2rad(45)
+sweep_angle(λs, [0u"°", 30u"°"], layers)
+```
+
 Without `using Unitful`, the package behaves exactly as before with no extra
-dependency.
+dependency (`θ` is plain radians, e.g. `θ=deg2rad(45)`).

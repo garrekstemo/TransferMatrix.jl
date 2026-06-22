@@ -20,3 +20,14 @@ extension adds a method that accepts a `Unitful` length, spectroscopic wavenumbe
 normalize the wavelength `λ` at every public entry point.
 """
 _to_wavelength_um(x) = x
+
+"""
+    _to_radians(x)
+
+Convert an angle to radians (the package's internal angle unit).
+
+No-op for plain `Real` inputs (already assumed to be radians). The `UnitfulExt`
+extension adds a method for unit-bearing angles (e.g. `45u"°"`) that strips to
+radians. Used to normalize the incidence angle `θ` at every public entry point.
+"""
+_to_radians(x) = x
