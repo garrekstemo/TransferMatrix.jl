@@ -211,40 +211,6 @@ absorber.dispersion(4.9)
 A complete example calculating dispersion of a polaritonic system is provided in the examples folder of the package source code.
 
 
-## Thickness-dependent calculations
+See the [Thickness dependence](../examples/thickness_dependence.md) example for sweeping a layer thickness.
 
-Similar to `sweep_angle`, you can vary the thickness of a particular layer using `sweep_thickness`.
-You specify which layer to vary by its index in the layers array.
-
-```julia
-λs = range(0.8, 1.2, length=100)
-thicknesses = range(0.3, 0.7, length=100)
-
-# Vary layer 9 (the cavity air gap)
-res = sweep_thickness(λs, thicknesses, layers, 9)
-
-heatmap(thicknesses, λs, res.Tpp')
-```
-
-![Thickness dependence](../assets/thickness_dependence.png)
-
-A complete example is provided in the examples folder of the package source code.
-
-## Circular-polarization basis
-
-For chiral, magneto-optic, or birefringent media you can request right/left
-circular-polarization output by passing `basis=:circular`. This returns a
-[`CircularTransferResult`](@ref) with right/left co- and cross-handedness terms.
-
-```@example tutorial
-res = transfer(1.0, layers; basis=:circular)
-(res.Rrr, res.Rll, res.Rrl, res.Rlr)
-```
-
-Handedness follows the package's `exp(-iωt)` convention with R/L defined in the
-fixed lab frame. At normal incidence on an isotropic interface, reflection flips
-the helicity label so the diagonal `Rrr`/`Rll` vanish and reflection appears
-entirely in the off-diagonal `Rrl`/`Rlr`; at oblique incidence the diagonal
-terms are small but nonzero. Unequal `Rrl ≠ Rlr` indicates genuine optical activity. The
-`sweep_angle` and `sweep_thickness` functions accept the same `basis=:circular`
-keyword and return matrix-valued fields.
+See the [Cholesteric circular Bragg](../examples/cholesteric_circular_bragg.md) example for circular-polarization (`basis=:circular`) output.
