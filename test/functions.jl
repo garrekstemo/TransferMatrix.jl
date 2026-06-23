@@ -44,19 +44,25 @@ end
     t3, r3 = TransferMatrix.evaluate_birefringence(Ψ1, S1, [1, 2], [3, 4])
     t4, r4 = TransferMatrix.evaluate_birefringence(Ψ1, S1, [2, 1], [4, 3])
 
-    # transmitted modes not reversed in either case
-    @test t1 == [1, 2]
+    # In Ψ1 the p-like mode (Ex-dominant) is column 2 of each pair (modes 2 and
+    # 4), so the sort must always place those first: transmitted → [2, 1],
+    # reflected → [4, 3], regardless of the incoming order.
+    #
+    # For the transmitted pair the Poynting ratios are degenerate (|Sx|=|Sy|),
+    # so the sort falls back to the E-field ratio to identify p vs s. This is
+    # the axis-aligned-crystal case: a Poynting-only sort cannot break the tie
+    # and would leave the modes mis-ordered.
+    @test t1 == [2, 1]
     @test t2 == [2, 1]
 
-    # reflected modes reversed
+    # Reflected Poynting ratios differ (1/5 vs 2/5), so they sort by Poynting.
     @test r1 == [4, 3]
     @test r1 != [3, 4]
 
-    # both transmitted and reflected modes reversed
+    # Zero Poynting vector (S1) forces the E-field fallback for both pairs.
     @test t3 == [2, 1]
     @test r3 == [4, 3]
 
-    # neither are reversed
     @test t4 == [2, 1]
     @test r4 == [4, 3]
 end

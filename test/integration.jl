@@ -378,6 +378,72 @@ end
     @test all(isapprox.(spectra.Rsp, 0.0; atol=1e-12))
 end
 
+@testset "axis-aligned anisotropic at oblique incidence" begin
+    # Regression: an axis-aligned (diagonal-ε) biaxial or uniaxial Layer at
+    # oblique incidence used to return NaN R/T. At oblique incidence the
+    # s-polarized eigenmode satisfies q² = ε_yy − ξ² exactly (and the p-mode the
+    # analogous in-plane relation), which the old Poynting-only mode sort could
+    # not distinguish (both modes have Sy = 0), mis-ordering p/s and triggering
+    # a 0/0 in calculate_γ. Because there is no rotation, the diagonal path has
+    # no p–s coupling and must conserve energy to ~machine precision.
+    λ = 1.0
+    air = Layer(λ -> 1.0, 1.0)
+    θs = (0.1, 0.2, 0.3, 0.5, 0.7, 1.0)
+
+    # Biaxial slab (nx ≠ ny ≠ nz)
+    biaxial = Layer(λ -> 1.5, λ -> 1.6, λ -> 1.7, 0.5)
+    for θ in θs
+        r = transfer(λ, [air, biaxial, air]; θ=θ)
+        for v in (r.Rpp, r.Rss, r.Tpp, r.Tss, r.Rps, r.Rsp, r.Tps, r.Tsp)
+            @test isfinite(v)
+        end
+        @test 0.0 <= r.Rpp <= 1.0
+        @test 0.0 <= r.Rss <= 1.0
+        @test 0.0 <= r.Tpp <= 1.0
+        @test 0.0 <= r.Tss <= 1.0
+        # Axis-aligned diagonal ε ⇒ no p–s polarization mixing
+        @test isapprox(r.Rps, 0.0; atol=1e-10)
+        @test isapprox(r.Rsp, 0.0; atol=1e-10)
+        @test isapprox(r.Tps, 0.0; atol=1e-10)
+        @test isapprox(r.Tsp, 0.0; atol=1e-10)
+        # Lossless un-rotated slab ⇒ energy conserved to ~machine precision.
+        @test isapprox(r.Rpp + r.Tpp, 1.0; atol=1e-9)
+        @test isapprox(r.Rss + r.Tss, 1.0; atol=1e-9)
+    end
+
+    # The s-wave of an axis-aligned crystal sees only ε_yy, so the biaxial
+    # s-channel must equal an isotropic slab of index ny to machine precision.
+    iso_ny = Layer(λ -> 1.6, 0.5)
+    for θ in θs
+        rb = transfer(λ, [air, biaxial, air]; θ=θ)
+        ri = transfer(λ, [air, iso_ny, air]; θ=θ)
+        @test isapprox(rb.Rss, ri.Rss; atol=1e-12)
+        @test isapprox(rb.Tss, ri.Tss; atol=1e-12)
+    end
+
+    # Uniaxial slab (nx = ny ≠ nz): same degeneracy at oblique incidence
+    uniaxial = Layer(λ -> 1.5, λ -> 1.5, λ -> 1.8, 0.5)
+    for θ in θs
+        r = transfer(λ, [air, uniaxial, air]; θ=θ)
+        for v in (r.Rpp, r.Rss, r.Tpp, r.Tss)
+            @test isfinite(v)
+        end
+        @test isapprox(r.Rpp + r.Tpp, 1.0; atol=1e-9)
+        @test isapprox(r.Rss + r.Tss, 1.0; atol=1e-9)
+    end
+
+    # The axis-aligned result is the small-rotation limit of a tilted crystal:
+    # a tiny tilt about y leaves ε_yy (the s-mode) untouched and perturbs the
+    # p-mode by O(δ), so the diagonal R/T must match the lightly-rotated R/T.
+    θ = 0.4
+    flat = transfer(λ, [air, biaxial, air]; θ=θ)
+    tilted = transfer(λ, [air, Layer(λ -> 1.5, λ -> 1.6, λ -> 1.7, 0.5; euler=(0.0, 1e-3, 0.0)), air]; θ=θ)
+    @test isapprox(flat.Rss, tilted.Rss; atol=1e-4)
+    @test isapprox(flat.Tss, tilted.Tss; atol=1e-4)
+    @test isapprox(flat.Rpp, tilted.Rpp; atol=1e-4)
+    @test isapprox(flat.Tpp, tilted.Tpp; atol=1e-4)
+end
+
 @testset "efield uniform medium" begin
     # If all layers have identical refractive index, there are no reflections,
     # so the field magnitude should be constant along z (pure phase evolution).
@@ -989,12 +1055,47 @@ end
         @test isapprox(abs(ef.s[2, left]), abs(ef.s[2, right]); rtol=0.05, atol=1e-3)
     end
 
-    # Energy conservation for the rotated lossless crystal.
-    # Rotated anisotropic media with ε₃₂ ≠ 0 show R+T slightly below 1 (≈0.998)
-    # due to Poynting vector normalization limitations — use relaxed tolerance.
+    # Energy conservation for the rotated lossless crystal (issue #70).
+    # The (π/6, π/4, 0) rotation tilts the optic axis OUT of the plane of
+    # incidence, coupling p↔s. The correct per-input-polarization budget uses
+    # the reflected cross-pol term and the Poynting transmittance (which
+    # already carries the cross-transmitted power — do NOT also add Tps/Tsp):
+    #   p-input: Rpp + Rps + Tpp = 1     s-input: Rss + Rsp + Tss = 1
+    # This holds to ~machine precision. The "R+T ≈ 0.998" reported as #70 was
+    # Rpp+Tpp, which simply OMITS the reflected cross-pol Rps (≈0.0022 here) —
+    # a budget-accounting artifact, not a physics error. (Transmission into an
+    # anisotropic *substrate* was a genuine Poynting error, fixed separately in
+    # poynting(); see the "anisotropic substrate energy conservation" testset.)
     result = transfer(λ, layers)
-    @test isapprox(result.Tpp + result.Rpp, 1.0; atol=0.01)
-    @test isapprox(result.Tss + result.Rss, 1.0; atol=0.01)
+    @test isapprox(result.Rpp + result.Rps + result.Tpp, 1.0; atol=1e-9)
+    @test isapprox(result.Rss + result.Rsp + result.Tss, 1.0; atol=1e-9)
+    # The naive co-pol-only budget falls short by exactly the omitted Rps.
+    @test isapprox(result.Rpp + result.Tpp, 1.0 - result.Rps; atol=1e-9)
+    @test result.Rps > 1e-4   # cross-pol genuinely nonzero for this out-of-plane tilt
+end
+
+@testset "anisotropic substrate energy conservation (issue #70)" begin
+    # The genuine #70 limitation: when the semi-infinite SUBSTRATE is an
+    # (out-of-plane) rotated anisotropic crystal, the transmitted wave is a
+    # superposition of two substrate eigenmodes with DIFFERENT wavevectors.
+    # `poynting()` must sum each mode's Poynting vector with its own
+    # wavevector; using a single wavevector for the combined field
+    # over-counts the flux and breaks energy conservation (≈1.7% at θ=0).
+    #
+    # Correct lossless budget per input polarization (reflection into the
+    # isotropic ambient is exact |r|²; transmission via Poynting):
+    #   p-input: Rpp + Rps + Tpp = 1     s-input: Rss + Rsp + Tss = 1
+    λ = 1.0
+    air = Layer(λ -> 1.0, 1.0)
+    sub = Layer(λ -> 1.5, λ -> 1.7, λ -> 2.0, 1.0; euler=(π/5, π/3, π/7))
+
+    for layers in ([air, sub], [air, Layer(λ -> 1.4, 0.4), sub])
+        for θ in (0.0, 0.3, 0.6, 0.9, 1.2)
+            r = transfer(λ, layers; θ=θ)
+            @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-9)
+            @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-9)
+        end
+    end
 end
 
 @testset "_validate_physics with anisotropic layers" begin

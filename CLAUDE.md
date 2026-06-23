@@ -72,8 +72,17 @@ conservation): `.claude/rules/berreman-4x4-equations.md`.
 
 ## Known numerical limitations
 
-- **#70**: R+T ≈ 0.998 for strongly rotated lossless crystals (Poynting-vector
-  normalization limitation).
+- **#70** (resolved): rotated anisotropic crystals conserve energy. The quoted
+  `Tpp+Rpp ≈ 0.998` (uniaxial `euler=(π/6,π/4,0)`) was a **budget artifact** — it
+  omits the reflected cross-pol `Rps` that an out-of-plane tilt produces. The correct
+  per-input-polarization budget is `Rpp+Rps+Tpp = 1` and `Rss+Rsp+Tss = 1` (holds to
+  ~1e-14; the Poynting `Tpp` already includes the cross-*transmitted* power, so do
+  **not** also add `Tps`/`Tsp`). Convention: `r_{in,out}` — p-input cross-reflection
+  is `Rps`, not `Rsp` (they coincide only at normal incidence). Separately, a genuine
+  bug — transmission into an **anisotropic substrate** (`Rpp+Rps+Tpp ≈ 1.017`) — was
+  fixed in `poynting()`: the two transmitted substrate eigenmodes carry different
+  wavevectors, so their Poynting vectors are now summed per-mode instead of using one
+  wavevector for the combined field.
 - **#71**: anisotropic ambient at oblique incidence → NaN (uses nx for ξ).
 - **#72**: absorbing incident medium — |r|² is not a true energy reflectance. The
   Poynting vector is non-additive for absorbing incident media (interference
