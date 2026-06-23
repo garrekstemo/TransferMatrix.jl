@@ -14,7 +14,10 @@ errata.md
 # Superpowers process docs (specs/plans) — kept local, not committed
 docs/superpowers/
 
-# Generated example figures
-graphene_absorption.png
-tmdc_cavity.png
-bsw_tmdc_polariton.png
+# Generated example figures (working-directory outputs, not committed)
+examples/graphene_absorption.png
+examples/tmdc_cavity.png
+examples/bsw_tmdc_polariton.png
+/graphene_absorption.png
+/tmdc_cavity.png
+/bsw_tmdc_polariton.png
