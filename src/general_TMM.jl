@@ -107,6 +107,39 @@ struct TransferResult{T}
     Rsp::T
 end
 
+"""
+    CircularTransferResult{T}
+
+Circular-polarization (RCP/LCP) basis transmittance/reflectance — the analogue of
+[`TransferResult`](@ref). Fields are right/left co- and cross-handedness terms:
+`Trr` is `T_{R←R}`, `Trl` is `T_{R←L}`, etc.
+
+As with [`TransferResult`](@ref), `T` is `Float64` for a single
+`transfer(λ, layers; basis=:circular)` call and `Matrix{Float64}` for the sweep
+functions.
+
+# Convention
+R/L are viewer-facing helicities defined in the fixed lab frame relative to `+z`,
+under this package's `exp(-iωt)` time convention (basis states
+`e_R = (x̂ - iŷ)/√2`, `e_L = (x̂ + iŷ)/√2`). Reflection flips the helicity label,
+so at normal incidence on an isotropic interface the diagonal `Rrr`/`Rll` vanish
+and reflection appears entirely in the off-diagonal `Rrl`/`Rlr`; at oblique
+incidence the diagonal terms are small but nonzero. Unequal `Rrl ≠ Rlr` signals
+genuine optical activity / magneto-optic coupling, not a bug.
+
+See [`transfer`](@ref) for energy-ratio caveats.
+"""
+struct CircularTransferResult{T}
+    Trr::T
+    Tll::T
+    Trl::T
+    Tlr::T
+    Rrr::T
+    Rll::T
+    Rrl::T
+    Rlr::T
+end
+
 
 # Normalize accepted sheet inputs (Dict or iterable of `i => sheet` pairs) to Dict{Int,Sheet}.
 _sheets_dict(s::Dict{Int,Sheet}) = s
@@ -443,6 +476,41 @@ propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing) =
     _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sheets)[1:5]
 
 
+# Linear (p,s) -> circular (L,R) change-of-basis matrices for the exp(-iωt) time
+# convention. Columns of C are ordered (L, R): e_L = (x̂ + iŷ)/√2, e_R = (x̂ - iŷ)/√2,
+# so [Ex; Ey] = C [E_L; E_R]. The sign of i is fixed by exp(-iωt) (do NOT flip it
+# without also changing the package time convention).
+const _C_CIRC = SMatrix{2,2,ComplexF64}(1, im, 1, -im) / sqrt(2)      # [1 1; im -im]
+const _C_CIRC_INV = SMatrix{2,2,ComplexF64}(1, 1, -im, im) / sqrt(2)  # [1 -im; 1 im]
+
+# Transmission-null tolerance: below this the transmitted Poynting flux is taken
+# as zero, so circular transmittance is defined as 0 (avoids 0/0 at a perfect mirror).
+const _CIRC_T_TOL = 1e-12
+
+# Transform a 2×2 linear Jones matrix ([out,in] ordered p,s) into the circular
+# (L,R) basis: J_circ = C⁻¹ J_lin C. Returns a 2×2 ([out,in] ordered L,R).
+_jones_to_circular(J_lin) = _C_CIRC_INV * J_lin * _C_CIRC
+
+# Assemble circular-basis R/T from the linear complex Jones coefficients
+# r = (rpp,rps,rss,rsp), t = (tpp,tps,tsp,tss) and the Poynting diagonal
+# transmittances Tpp, Tss. Reflectance is |r_circ|^2; transmittance is N·|t_circ|^2
+# with the single polarization-independent Poynting scalar N (exact for an isotropic
+# substrate; see `transfer` docstring for caveats).
+function _circular_result(r, t, Tpp, Tss)
+    r_lin = SMatrix{2,2,ComplexF64}(r[1], r[4], r[2], r[3])  # [rpp rps; rsp rss]
+    t_lin = SMatrix{2,2,ComplexF64}(t[1], t[3], t[2], t[4])  # [tpp tps; tsp tss]
+    r_c = _jones_to_circular(r_lin)
+    t_c = _jones_to_circular(t_lin)
+    Rc = abs2.(r_c)
+    denom = abs2(t[1]) + abs2(t[4])  # |tpp|^2 + |tss|^2
+    N = denom > _CIRC_T_TOL ? (Tpp + Tss) / denom : zero(denom)
+    Tc = N .* abs2.(t_c)
+    # circular matrices are [out,in] ordered (L,R): [1,1]=LL [1,2]=LR [2,1]=RL [2,2]=RR
+    return CircularTransferResult(Tc[2, 2], Tc[1, 1], Tc[2, 1], Tc[1, 2],
+                                  Rc[2, 2], Rc[1, 1], Rc[2, 1], Rc[1, 2])
+end
+
+
 """
     calculate_tr(Γ)
 
@@ -518,12 +586,13 @@ end
 
 
 """
-    transfer(λ, layers; θ=0.0, μ=1.0, validate=false)
+    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear)
 
 Calculate the transmittance and reflectance of a layered structure.
 
-Returns a [`TransferResult`](@ref) with fields `Tpp`, `Tss`, `Rpp`, `Rss`
-(and cross-polarization terms `Tps`, `Tsp`, `Rps`, `Rsp`).
+With the default `basis=:linear`, returns a [`TransferResult`](@ref) with fields
+`Tpp`, `Tss`, `Rpp`, `Rss` (and cross-polarization terms `Tps`, `Tsp`, `Rps`, `Rsp`).
+With `basis=:circular`, returns a [`CircularTransferResult`](@ref).
 
 # Reflectance and transmittance calculation
 
@@ -547,6 +616,24 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 - `validate`: Check energy conservation R + T ≈ 1 for non-absorbing media (default: false)
+- `basis`: Output polarization basis — `:linear` (default) or `:circular`
+
+# Polarization basis
+- `basis=:linear` (default) returns a [`TransferResult`](@ref) in the linear p/s basis.
+- `basis=:circular` returns a [`CircularTransferResult`](@ref) in the right/left
+  circular basis. R/L are fixed-lab-frame helicities under this package's
+  `exp(-iωt)` convention. The Jones matrices transform as `r_circ = C⁻¹ r_lin C`
+  with `C = (1/√2)[1 1; i -i]` (columns ordered L, R); the helicity flip on
+  reflection is encoded automatically in the opposite signs of `rpp`/`rss`.
+
+  Circular **reflectance** is `|r_circ|²` (a true energy ratio under the same
+  condition as linear `R`: transparent incident medium, cf. issue #72). Circular
+  **transmittance** is `N·|t_circ|²` with a single Poynting normalization scalar
+  `N = (Tpp+Tss)/(|tpp|²+|tss|²)`; this is exact and energy-conserving for an
+  isotropic substrate (and reduces to `|t_circ|²` for a vacuum/index-matched
+  substrate). For an **anisotropic substrate** it inherits the package's
+  Poynting-normalization limitation (issue #70), like the linear cross-pol `Tps/Tsp`.
+  `validate` applies to the linear basis only.
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
@@ -568,21 +655,24 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ, sheets=sd)
-    r, R, t, T = calculate_tr(Γ)
-    Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
+    return _assemble(Val(basis), Γ, S, λ, layers, sd, validate)
+end
 
-    # Diagonal terms: Rpp, Rss from matrix calculation
+function _assemble(::Val{:linear}, Γ, S, λ, layers, sd, validate)
+    r, R, t, T = calculate_tr(Γ)
+    Tpp, Tss, _, _ = calculate_tr(S)
+
+    # Diagonal terms from matrix calculation; cross terms remapped from the
+    # SVector packing (R = (Rpp,Rss,Rsp,Rps), T = (Tpp,Tss,Tsp,Tps)).
     Rpp = R[1]
     Rss = R[2]
-    # Cross-polarization terms from matrix calculation
-    # R = SVector(Rpp, Rss, Rsp, Rps), T = SVector(Tpp, Tss, Tsp, Tps)
     Rps = R[4]
     Rsp = R[3]
     Tps = T[4]
@@ -594,6 +684,15 @@ function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=fal
 
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
+
+function _assemble(::Val{:circular}, Γ, S, λ, layers, sd, validate)
+    r, _, t, _ = calculate_tr(Γ)
+    Tpp, Tss, _, _ = calculate_tr(S)
+    return _circular_result(r, t, Tpp, Tss)
+end
+
+_assemble(::Val{B}, Γ, S, λ, layers, sd, validate) where {B} =
+    throw(ArgumentError("basis must be :linear or :circular, got :$B"))
 
 
 """
@@ -671,35 +770,16 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=
 end
 
 
-"""
-    sweep_angle(λs, θs, layers; threads=true, verbose=false)
-
-Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
-
-Returns a `TransferResult` with fields `Tpp`, `Tss`, `Rpp`, `Rss`, each a matrix
-of size `(length(θs), length(λs))`.
-
-# Arguments
-- `λs`: Vector of wavelengths in μm
-- `θs`: Vector of angles of incidence in radians
-- `layers`: `AbstractVector{<:Layer}` representing the stack
-- `threads`: Enable multithreading (default: true)
-- `verbose`: Print thread count info (default: false)
-
-# Units
-- Wavelengths: μm (micrometers) recommended
-- Angles: radians
-"""
-function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing)
+function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing) where {B}
     dims = (length(outer_vals), length(inner_vals))
-    Tpp = Array{Float64}(undef, dims)
-    Tss = Array{Float64}(undef, dims)
-    Tps = Array{Float64}(undef, dims)
-    Tsp = Array{Float64}(undef, dims)
-    Rpp = Array{Float64}(undef, dims)
-    Rss = Array{Float64}(undef, dims)
-    Rps = Array{Float64}(undef, dims)
-    Rsp = Array{Float64}(undef, dims)
+    M1 = Array{Float64}(undef, dims)
+    M2 = Array{Float64}(undef, dims)
+    M3 = Array{Float64}(undef, dims)
+    M4 = Array{Float64}(undef, dims)
+    M5 = Array{Float64}(undef, dims)
+    M6 = Array{Float64}(undef, dims)
+    M7 = Array{Float64}(undef, dims)
+    M8 = Array{Float64}(undef, dims)
 
     if verbose
         println("Threads: ", Threads.nthreads())
@@ -709,15 +789,26 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets)
-            Tpp[i, j] = result.Tpp
-            Tss[i, j] = result.Tss
-            Tps[i, j] = result.Tps
-            Tsp[i, j] = result.Tsp
-            Rpp[i, j] = result.Rpp
-            Rss[i, j] = result.Rss
-            Rps[i, j] = result.Rps
-            Rsp[i, j] = result.Rsp
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B)
+            if B === :linear
+                M1[i, j] = result.Tpp
+                M2[i, j] = result.Tss
+                M3[i, j] = result.Tps
+                M4[i, j] = result.Tsp
+                M5[i, j] = result.Rpp
+                M6[i, j] = result.Rss
+                M7[i, j] = result.Rps
+                M8[i, j] = result.Rsp
+            else
+                M1[i, j] = result.Trr
+                M2[i, j] = result.Tll
+                M3[i, j] = result.Trl
+                M4[i, j] = result.Tlr
+                M5[i, j] = result.Rrr
+                M6[i, j] = result.Rll
+                M7[i, j] = result.Rrl
+                M8[i, j] = result.Rlr
+            end
         end
     end
 
@@ -731,15 +822,37 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         end
     end
 
-    return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
+    return B === :linear ?
+        TransferResult(M1, M2, M3, M4, M5, M6, M7, M8) :
+        CircularTransferResult(M1, M2, M3, M4, M5, M6, M7, M8)
 end
 
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
+"""
+    sweep_angle(λs, θs, layers; threads=true, verbose=false, basis=:linear)
+
+Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
+
+Returns a `TransferResult` with fields `Tpp`, `Tss`, `Rpp`, `Rss`, each a matrix
+of size `(length(θs), length(λs))`.
+
+# Arguments
+- `λs`: Vector of wavelengths in μm
+- `θs`: Vector of angles of incidence in radians
+- `layers`: `AbstractVector{<:Layer}` representing the stack
+- `threads`: Enable multithreading (default: true)
+- `verbose`: Print thread count info (default: false)
+- `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
+
+# Units
+- Wavelengths: μm (micrometers) recommended
+- Angles: radians
+"""
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
-    return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
+    return _sweep_spectra(θs, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = _ -> layers,
         angle_for = i -> θs[i],
         sheets = sd)
@@ -747,7 +860,7 @@ end
 
 
 """
-    sweep_thickness(λs, ts, layers, t_index; θ=0.0, threads=true, verbose=false)
+    sweep_thickness(λs, ts, layers, t_index; θ=0.0, threads=true, verbose=false, basis=:linear)
 
 Sweep the thickness of a specific layer and calculate transmittance/reflectance spectra.
 
@@ -762,12 +875,13 @@ of size `(length(ts), length(λs))`.
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
+- `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
@@ -776,7 +890,7 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, 
     dispersion_func = layers[t_index].dispersion
     layers_base = collect(layers)
 
-    return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
+    return _sweep_spectra(ts, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = i -> begin
             layers_i = copy(layers_base)
             layers_i[t_index] = Layer(dispersion_func, ts[i])
