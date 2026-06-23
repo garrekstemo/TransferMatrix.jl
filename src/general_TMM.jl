@@ -122,9 +122,10 @@ functions.
 R/L are viewer-facing helicities defined in the fixed lab frame relative to `+z`,
 under this package's `exp(-iωt)` time convention (basis states
 `e_R = (x̂ - iŷ)/√2`, `e_L = (x̂ + iŷ)/√2`). Reflection flips the helicity label,
-so for an isotropic interface the diagonal `Rrr`/`Rll` vanish and reflection
-appears in the off-diagonal `Rrl`/`Rlr`. Unequal `Rrl ≠ Rlr` signals genuine
-optical activity / magneto-optic coupling, not a bug.
+so at normal incidence on an isotropic interface the diagonal `Rrr`/`Rll` vanish
+and reflection appears entirely in the off-diagonal `Rrl`/`Rlr`; at oblique
+incidence the diagonal terms are small but nonzero. Unequal `Rrl ≠ Rlr` signals
+genuine optical activity / magneto-optic coupling, not a bug.
 
 See [`transfer`](@ref) for energy-ratio caveats.
 """

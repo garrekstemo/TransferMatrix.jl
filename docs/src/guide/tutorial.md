@@ -230,7 +230,6 @@ heatmap(thicknesses, λs, res.Tpp')
 
 A complete example is provided in the examples folder of the package source code.
 
-
 ## Circular-polarization basis
 
 For chiral, magneto-optic, or birefringent media you can request right/left
@@ -243,8 +242,9 @@ res = transfer(1.0, layers; basis=:circular)
 ```
 
 Handedness follows the package's `exp(-iωt)` convention with R/L defined in the
-fixed lab frame. For an isotropic interface, reflection flips the helicity label,
-so the diagonal `Rrr`/`Rll` vanish and reflection appears in the off-diagonal
-`Rrl`/`Rlr`. Unequal `Rrl ≠ Rlr` indicates genuine optical activity. The
+fixed lab frame. At normal incidence on an isotropic interface, reflection flips
+the helicity label so the diagonal `Rrr`/`Rll` vanish and reflection appears
+entirely in the off-diagonal `Rrl`/`Rlr`; at oblique incidence the diagonal
+terms are small but nonzero. Unequal `Rrl ≠ Rlr` indicates genuine optical activity. The
 `sweep_angle` and `sweep_thickness` functions accept the same `basis=:circular`
 keyword and return matrix-valued fields.
