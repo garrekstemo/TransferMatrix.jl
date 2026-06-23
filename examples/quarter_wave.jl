@@ -3,7 +3,7 @@
 
 using RefractiveIndex
 using TransferMatrix
-using GLMakie
+using CairoMakie
 
 n_air = RefractiveMaterial("other", "air", "Ciddor")
 n_tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
@@ -29,12 +29,9 @@ for λ in λs
 end
 
 
-f, ax, l = lines(λs .* 1e3, Rpp)
+fig, ax, l = lines(λs .* 1e3, Rpp)
 ax.xlabel = "Wavelength (nm)"
 ax.ylabel = "Reflectance"
-f
-
-##
 
 nperiods = 6
 
@@ -52,4 +49,4 @@ for i in 1:nperiods
 end
 
 axislegend(ax)
-f
+save(joinpath(@__DIR__, "quarter_wave.png"), fig)

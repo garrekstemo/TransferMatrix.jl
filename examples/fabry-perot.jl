@@ -2,7 +2,7 @@
 
 using RefractiveIndex
 using TransferMatrix
-using GLMakie
+using CairoMakie
 
 caf2 = RefractiveMaterial("main", "CaF2", "Malitson")
 au = RefractiveMaterial("main", "Au", "Rakic-LD")
@@ -37,14 +37,13 @@ peak = findmax(Tpp[λ_min:λ_max])[2] + λ_min - 1
 field = efield(λ, layers)
 
 
-f = Figure(size = (450, 600))
-DataInspector()
+fig = Figure(size = (450, 600))
 
-ax1 = Axis(f[1, 1],
+ax1 = Axis(fig[1, 1],
     title = "Fabry-Pérot Cavity",
     xlabel = "Wavelength (μm)",
     ylabel = "Transmittance / Reflectance",
-    yticks = LinearTicks(5), 
+    yticks = LinearTicks(5),
     xticks = LinearTicks(10),
 )
 lines!(νs, Tpp, label = "T")
@@ -52,12 +51,11 @@ lines!(νs, Rpp, label = "R")
 scatter!(
     10^4 / λs[peak],
     Tpp[peak],
-    color = :red, 
-    # marker = 'x',
+    color = :red,
     markersize = 10
 )
 
-ax2 = Axis(f[2, 1],
+ax2 = Axis(fig[2, 1],
     title = "Electric Field at λ = $(round(Int, λ * 1e3)) nm",
     xlabel = "z position (nm)",
     ylabel = "Field intensity (a.u.)",
@@ -68,4 +66,8 @@ vlines!(field.boundaries[1], color = :black, linestyle = :dash)
 vlines!(field.boundaries[end] .* 1e3, color = :black, linestyle = :dash)
 
 axislegend(ax1, position = :rc)
-f
+
+outpath = joinpath(@__DIR__, "..", "docs", "src", "assets", "examples", "fabry-perot.png")
+mkpath(dirname(outpath))
+save(outpath, fig)
+println("saved ", outpath)

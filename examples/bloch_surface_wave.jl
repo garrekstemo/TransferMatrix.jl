@@ -8,7 +8,7 @@
 
 using RefractiveIndex
 using TransferMatrix
-using GLMakie
+using CairoMakie
 
 # Materials
 n_prism = RefractiveMaterial("glass", "soda-lime", "Rubin-clear")[1]
@@ -48,4 +48,8 @@ ax = Axis(fig[1, 1],
 hm = heatmap!(ax, λs .* 1e3, rad2deg.(θs), spectra.Rss',
     colormap=:inferno, colorrange=(0, 1))
 Colorbar(fig[1, 2], hm, label="Rss")
-fig
+
+outpath = joinpath(@__DIR__, "..", "docs", "src", "assets", "examples", "bloch_surface_wave.png")
+mkpath(dirname(outpath))
+save(outpath, fig)
+println("saved ", outpath)
