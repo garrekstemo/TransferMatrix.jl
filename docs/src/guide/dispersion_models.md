@@ -18,8 +18,7 @@ package's `exp(-iωt)` convention (so `n″ > 0` denotes absorption):
 ## Gold (Drude metal, eV)
 
 A Drude model captures gold's free-carrier response in the near-IR with just a
-plasma energy and a damping rate (`ω_p ≈ 9.0` eV, `γ ≈ 0.07` eV; consistent with
-the Drude fit of Olmon et al., *Phys. Rev. B* **86**, 235147 (2012)). For a model
+plasma energy and a damping rate (`ω_p ≈ 9.0` eV, `γ ≈ 0.07` eV; representative near-IR Drude values (cf. Olmon et al., *Phys. Rev. B* **86**, 235147 (2012))). For a model
 that also reproduces the visible-range interband edge, add Lorentz oscillators
 with [`drude_lorentz`](@ref).
 
