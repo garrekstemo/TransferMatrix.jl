@@ -235,8 +235,13 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     # E_backward_in_p = γ_in[3, :]
     # E_backward_in_s = γ_in[4, :]
 
-    E_out_p = t_coefs[1] * γ_out[1, :] + t_coefs[2] * γ_out[2, :]
-    E_out_s = t_coefs[3] * γ_out[1, :] + t_coefs[4] * γ_out[2, :]
+    # Each transmitted/reflected field is a superposition of the two
+    # substrate (resp. incident) eigenmodes, which carry the substrate mode-1
+    # field γ_out[1] and mode-2 field γ_out[2].
+    E_out_p1 = t_coefs[1] * γ_out[1, :]
+    E_out_p2 = t_coefs[2] * γ_out[2, :]
+    E_out_s1 = t_coefs[3] * γ_out[1, :]
+    E_out_s2 = t_coefs[4] * γ_out[2, :]
 
     E_ref_p = r_coefs[1] * γ_in[3, :] + r_coefs[2] * γ_in[4, :]
     E_ref_s = r_coefs[3] * γ_in[3, :] + r_coefs[4] * γ_in[4, :]
@@ -254,9 +259,17 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     k_out ./= c_0
     k_out = SMatrix(k_out)
 
-    # Transmitted waves: use substrate wavevectors (k_out modes 1,2)
-    S_out_p  = real(0.5 * E_out_p × conj(k_out[1, :] × E_out_p))
-    S_out_s  = real(0.5 * E_out_s × conj(k_out[2, :] × E_out_s))
+    # Transmitted power is the sum of the two substrate eigenmodes' Poynting
+    # vectors, EACH evaluated with its OWN wavevector (k_out modes 1, 2). The
+    # two modes carry different wavevectors when the substrate is anisotropic,
+    # and the cross-interference between distinct propagating modes transports
+    # no net z-flux, so the per-mode sum is the physical transmitted flux.
+    # (For an isotropic substrate k_out[1]=k_out[2] and this reduces to the
+    # single-wavevector form, since the p/s cross term carries no z-power.)
+    S_out_p = real(0.5 * E_out_p1 × conj(k_out[1, :] × E_out_p1)) +
+              real(0.5 * E_out_p2 × conj(k_out[2, :] × E_out_p2))
+    S_out_s = real(0.5 * E_out_s1 × conj(k_out[1, :] × E_out_s1)) +
+              real(0.5 * E_out_s2 × conj(k_out[2, :] × E_out_s2))
 
     # Reflected waves: use incident-medium wavevectors (k_in modes 3,4),
     # not substrate wavevectors, because reflected light propagates backward
@@ -301,60 +314,42 @@ and the use of the Poynting vector is from
 Passler et al., 2017, https://doi.org/10.1364/JOSAB.34.002128
 Passler et al., 2019, https://doi.org/10.1364/JOSAB.36.003246
 """
+# Sort one mode pair (a transmitted or reflected pair) so the p-like mode is
+# first and the s-like mode second, matching the fixed polarization references
+# in `calculate_γ`.
+#
+# The Poynting ratio C = |Sx|²/(|Sx|²+|Sy|²) distinguishes p from s only when
+# the modes actually differ along x vs y. For an axis-aligned (diagonal-ε)
+# crystal BOTH eigenmodes have Sy = 0, so C ≈ 1 for both and the ratio is
+# degenerate — it cannot tell p from s. In that case fall back to the
+# electric-field ratio |Ex|²/(|Ex|²+|Ey|²), which separates the p-mode
+# (Ex ≠ 0) from the s-mode (Ey ≠ 0). `isapprox(NaN, NaN) = false`, so a 0/0
+# Poynting ratio (both Sx and Sy zero) is also routed to the E-field fallback
+# via the `!isfinite` checks.
+function sort_polarization_pair!(modes, Ψ, S)
+    Cp = abs_ratio(S[1, modes[1]], S[2, modes[1]])
+    Cs = abs_ratio(S[1, modes[2]], S[2, modes[2]])
+    if isapprox(Cp, Cs) || !isfinite(Cp) || !isfinite(Cs)
+        Cp = abs_ratio(Ψ[1, modes[1]], Ψ[3, modes[1]])
+        Cs = abs_ratio(Ψ[1, modes[2]], Ψ[3, modes[2]])
+    end
+    if Cs > Cp
+        reverse!(modes)
+    end
+    return modes
+end
+
 function evaluate_birefringence(Ψ, S, t_modes, r_modes)
 
-    # Compute Poynting vector ratio C = |Sx|^2 / (|Sx|^2 + |Sy|^2) for the
-    # two transmitted modes. This probes whether the modes have distinct
-    # polarization character along x vs y.
-    C_q1 = abs_ratio(S[1, t_modes[1]], S[2, t_modes[1]])
-    C_q2 = abs_ratio(S[1, t_modes[2]], S[2, t_modes[2]])
-
-    # The branching below may appear inverted from Passler & Paarmann (2017),
-    # which prescribes Poynting sorting for birefringent media and E-field
-    # sorting for isotropic media. Here the logic is:
-    #
-    # - isapprox(C_q1, C_q2) = true: Poynting ratios are nearly equal, so
-    #   the two modes have similar polarization character. This is the
-    #   isotropic/weakly-birefringent case. Sorting barely matters here, but
-    #   we still apply a Poynting-based swap for consistency.
-    #
-    # - isapprox(C_q1, C_q2) = false: Poynting ratios differ meaningfully.
-    #   We fall through to the E-field branch, which uses eigenvector
-    #   components |Ψ_1|^2 / (|Ψ_1|^2 + |Ψ_3|^2) for a more numerically
-    #   robust sort that works for both birefringent and isotropic media.
-    #
-    # Note: isapprox(NaN, NaN) = false, so when both Sx and Sy are zero
-    # (yielding 0/0 = NaN), we safely fall through to the E-field branch.
-    if isapprox(C_q1, C_q2)
-
-        # Poynting ratios nearly equal — sort by Poynting (minor reorder)
-        if C_q2 > C_q1
-            reverse!(t_modes)
-        end
-
-        C_q3 = abs_ratio(S[1, r_modes[1]], S[2, r_modes[1]])
-        C_q4 = abs_ratio(S[1, r_modes[2]], S[2, r_modes[2]])
-
-        if C_q4 > C_q3
-            reverse!(r_modes)
-        end
-    else
-        # Poynting ratios differ or are NaN — sort by E-field eigenvectors.
-        # Recompute C using Ψ components (Ex vs Ey) for robust p/s assignment.
-        C_q1 = abs_ratio(Ψ[1, t_modes[1]], Ψ[3, t_modes[1]])
-        C_q2 = abs_ratio(Ψ[1, t_modes[2]], Ψ[3, t_modes[2]])
-
-        if C_q2 > C_q1
-            reverse!(t_modes)
-        end
-
-        C_q3 = abs_ratio(Ψ[1, r_modes[1]], Ψ[3, r_modes[1]])
-        C_q4 = abs_ratio(Ψ[1, r_modes[2]], Ψ[3, r_modes[2]])
-
-        if C_q4 > C_q3
-            reverse!(r_modes)
-        end
-    end
+    # Sort each pair (transmitted, reflected) so the p-like mode is first
+    # (slot 1 / slot 3) and the s-like mode second (slot 2 / slot 4). This
+    # ordering is assumed by the fixed polarization references in
+    # `calculate_γ` (γ[1,1]=1, γ[2,2]=1, γ[3,1]=-1, γ[4,2]=1); getting it
+    # wrong assigns each mode the wrong polarization, which both makes the
+    # cross-polarization denominators in `calculate_γ` vanish (0/0 → NaN) and
+    # corrupts the r/t coefficients (energy is not conserved).
+    sort_polarization_pair!(t_modes, Ψ, S)
+    sort_polarization_pair!(r_modes, Ψ, S)
 
     return t_modes, r_modes
 end
@@ -631,9 +626,14 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
   **transmittance** is `N·|t_circ|²` with a single Poynting normalization scalar
   `N = (Tpp+Tss)/(|tpp|²+|tss|²)`; this is exact and energy-conserving for an
   isotropic substrate (and reduces to `|t_circ|²` for a vacuum/index-matched
-  substrate). For an **anisotropic substrate** it inherits the package's
-  Poynting-normalization limitation (issue #70), like the linear cross-pol `Tps/Tsp`.
-  `validate` applies to the linear basis only.
+  substrate). For an **anisotropic substrate** the single scalar `N` is only
+  approximate: the two transmitted eigenmodes carry different wavevectors, so
+  their Poynting-to-`|t|²` conversion factors differ, and one polarization-
+  independent scalar cannot capture both. (The linear basis avoids this by
+  summing each transmitted eigenmode with its own wavevector in `poynting()`,
+  so linear `T` — including the cross-pol `Tps/Tsp` — is per-mode exact.)
+  Circular `T` for an anisotropic substrate is therefore not guaranteed to be
+  energy-conserving to machine precision. `validate` applies to the linear basis only.
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
