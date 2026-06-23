@@ -9,6 +9,7 @@ using StaticArrays
 export Layer,
        Sheet,
        TransferResult,
+       CircularTransferResult,
        sweep_angle,
        transfer,
        dielectric_constant,
