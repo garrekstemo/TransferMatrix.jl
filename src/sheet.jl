@@ -13,8 +13,9 @@ returning the **SI sheet conductivity tensor** `[σxx σxy; σyx σyy]` in Sieme
 - `Sheet(; xx, yy, xy=0, yx=0)` — anisotropic tensor; each entry a `Number` or
   `λ->Number`.
 - `Sheet(material, d)` — convert a refractive index to a sheet via
-  `σ = -i ω ε₀ d (n²-1)` (isotropic). `material` is a `RefractiveMaterial` or
-  `n(λ)`; `d` is the effective thickness in μm.
+  `σ = -i ω ε₀ d (n²-1)` (isotropic). `material` is an `n(λ)` function (or a
+  `RefractiveMaterial` when the RefractiveIndex extension is loaded); `d` is the
+  effective thickness in μm.
 - `Sheet(nx, ny, d)` — in-plane anisotropic index conversion (`σxx` from `nx`,
   `σyy` from `ny`).
 
@@ -32,8 +33,8 @@ _rawsheet(f) = Sheet{typeof(f)}(f)
 _cval(x::Number, λ) = ComplexF64(x)
 _cval(f, λ) = ComplexF64(f(λ))
 
-# Internal: turn an index spec into an n(λ) function.
-_index_fn(m::RefractiveMaterial) = refractive_index(m)
+# Internal: turn an index spec into an n(λ) function. The
+# _index_fn(::RefractiveMaterial) method lives in the RefractiveIndexExt extension.
 _index_fn(x::Number) = _ -> x
 _index_fn(f::Function) = f
 
@@ -52,8 +53,8 @@ function Sheet(; xx, yy, xy = 0, yx = 0)
     _rawsheet(λ -> SMatrix{2,2,ComplexF64}(_cval(xx, λ), _cval(yx, λ), _cval(xy, λ), _cval(yy, λ)))
 end
 
-# Index -> conductivity (isotropic).
-Sheet(material::RefractiveMaterial, d::Real) = _diagonal_sheet(_sigma_from_index(_index_fn(material), d))
+# Index -> conductivity (isotropic). The Sheet(::RefractiveMaterial, d) method
+# lives in the RefractiveIndexExt extension.
 Sheet(n::Function, d::Real) = _diagonal_sheet(_sigma_from_index(n, d))
 
 # Index -> conductivity (in-plane anisotropic).
