@@ -153,3 +153,48 @@ end
     @test isapprox(res.Rrr + res.Rlr, 1.0; atol=1e-6)
     @test isapprox(res.Rll + res.Rrl, 1.0; atol=1e-6)
 end
+
+@testset "sweep_angle basis=:circular" begin
+    λs = [1.0, 1.2]
+    θs = [0.0, 0.3]
+    air = Layer(λs, fill(1.0, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(1.6, length(λs)), zeros(length(λs)), 0.25)
+    layers = [air, film, air]
+
+    spectra = sweep_angle(λs, θs, layers; basis=:circular)
+    @test spectra isa CircularTransferResult{Matrix{Float64}}
+    @test size(spectra.Rrl) == (length(θs), length(λs))
+    @test size(spectra.Trr) == (length(θs), length(λs))
+
+    # Each cell matches the scalar transfer call.
+    for (i, θ) in enumerate(θs), (j, λ) in enumerate(λs)
+        cell = transfer(λ, layers; θ=θ, basis=:circular)
+        @test isapprox(spectra.Rrl[i, j], cell.Rrl; atol=1e-10)
+        @test isapprox(spectra.Trr[i, j], cell.Trr; atol=1e-10)
+    end
+
+    # Default linear sweep unchanged.
+    lin = sweep_angle(λs, θs, layers)
+    @test lin isa TransferResult{Matrix{Float64}}
+    @test lin.Rpp == sweep_angle(λs, θs, layers; basis=:linear).Rpp
+
+    # Thread parity for the circular path.
+    serial = sweep_angle(λs, θs, layers; basis=:circular, threads=false)
+    @test spectra.Rrl == serial.Rrl
+    @test spectra.Trr == serial.Trr
+end
+
+@testset "sweep_thickness basis=:circular" begin
+    λs = [1.0, 1.1]
+    air = Layer(λs, fill(1.0, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(1.5, length(λs)), zeros(length(λs)), 0.2)
+    layers = [air, film, air]
+    ts = [0.1, 0.2, 0.3]
+
+    spectra = sweep_thickness(λs, ts, layers, 2; basis=:circular)
+    @test spectra isa CircularTransferResult{Matrix{Float64}}
+    @test size(spectra.Rrl) == (length(ts), length(λs))
+
+    cell = transfer(λs[1], [air, Layer(λs, fill(1.5, length(λs)), zeros(length(λs)), ts[2]), air]; basis=:circular)
+    @test isapprox(spectra.Rrl[2, 1], cell.Rrl; atol=1e-10)
+end

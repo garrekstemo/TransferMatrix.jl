@@ -770,7 +770,7 @@ end
 
 
 """
-    sweep_angle(λs, θs, layers; threads=true, verbose=false)
+    sweep_angle(λs, θs, layers; threads=true, verbose=false, basis=:linear)
 
 Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
 
@@ -783,21 +783,22 @@ of size `(length(θs), length(λs))`.
 - `layers`: `AbstractVector{<:Layer}` representing the stack
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
+- `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing)
+function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing) where {B}
     dims = (length(outer_vals), length(inner_vals))
-    Tpp = Array{Float64}(undef, dims)
-    Tss = Array{Float64}(undef, dims)
-    Tps = Array{Float64}(undef, dims)
-    Tsp = Array{Float64}(undef, dims)
-    Rpp = Array{Float64}(undef, dims)
-    Rss = Array{Float64}(undef, dims)
-    Rps = Array{Float64}(undef, dims)
-    Rsp = Array{Float64}(undef, dims)
+    M1 = Array{Float64}(undef, dims)
+    M2 = Array{Float64}(undef, dims)
+    M3 = Array{Float64}(undef, dims)
+    M4 = Array{Float64}(undef, dims)
+    M5 = Array{Float64}(undef, dims)
+    M6 = Array{Float64}(undef, dims)
+    M7 = Array{Float64}(undef, dims)
+    M8 = Array{Float64}(undef, dims)
 
     if verbose
         println("Threads: ", Threads.nthreads())
@@ -807,15 +808,26 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets)
-            Tpp[i, j] = result.Tpp
-            Tss[i, j] = result.Tss
-            Tps[i, j] = result.Tps
-            Tsp[i, j] = result.Tsp
-            Rpp[i, j] = result.Rpp
-            Rss[i, j] = result.Rss
-            Rps[i, j] = result.Rps
-            Rsp[i, j] = result.Rsp
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B)
+            if B === :linear
+                M1[i, j] = result.Tpp
+                M2[i, j] = result.Tss
+                M3[i, j] = result.Tps
+                M4[i, j] = result.Tsp
+                M5[i, j] = result.Rpp
+                M6[i, j] = result.Rss
+                M7[i, j] = result.Rps
+                M8[i, j] = result.Rsp
+            else
+                M1[i, j] = result.Trr
+                M2[i, j] = result.Tll
+                M3[i, j] = result.Trl
+                M4[i, j] = result.Tlr
+                M5[i, j] = result.Rrr
+                M6[i, j] = result.Rll
+                M7[i, j] = result.Rrl
+                M8[i, j] = result.Rlr
+            end
         end
     end
 
@@ -829,15 +841,17 @@ function _sweep_spectra(outer_vals, inner_vals; threads::Bool=true, verbose::Boo
         end
     end
 
-    return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
+    return B === :linear ?
+        TransferResult(M1, M2, M3, M4, M5, M6, M7, M8) :
+        CircularTransferResult(M1, M2, M3, M4, M5, M6, M7, M8)
 end
 
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
-    return _sweep_spectra(θs, λs; threads=threads, verbose=verbose,
+    return _sweep_spectra(θs, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = _ -> layers,
         angle_for = i -> θs[i],
         sheets = sd)
@@ -845,7 +859,7 @@ end
 
 
 """
-    sweep_thickness(λs, ts, layers, t_index; θ=0.0, threads=true, verbose=false)
+    sweep_thickness(λs, ts, layers, t_index; θ=0.0, threads=true, verbose=false, basis=:linear)
 
 Sweep the thickness of a specific layer and calculate transmittance/reflectance spectra.
 
@@ -860,12 +874,13 @@ of size `(length(ts), length(λs))`.
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
+- `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
@@ -874,7 +889,7 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, 
     dispersion_func = layers[t_index].dispersion
     layers_base = collect(layers)
 
-    return _sweep_spectra(ts, λs; threads=threads, verbose=verbose,
+    return _sweep_spectra(ts, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = i -> begin
             layers_i = copy(layers_base)
             layers_i[t_index] = Layer(dispersion_func, ts[i])
