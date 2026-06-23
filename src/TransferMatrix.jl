@@ -12,6 +12,7 @@ export Layer,
        transfer,
        dielectric_constant,
        dielectric_tensor,
+       drude,
        ElectricField,
        MagneticField,
        efield,
@@ -38,6 +39,7 @@ const c_0::Float64 = 299792458
 include("units.jl")
 include("matrix_constructors.jl")
 include("layer.jl")
+include("dispersion_models.jl")
 include("sheet.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
