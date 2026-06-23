@@ -17,6 +17,7 @@ makedocs(
                     "Graphene absorption" => "examples/graphene_absorption.md",
                     "Vibrational polariton dispersion" => "examples/polariton_dispersion.md",
                     "Cholesteric circular Bragg" => "examples/cholesteric_circular_bragg.md",
+                    "Anisotropic energy budget" => "examples/anisotropic_energy_budget.md",
                     "Thickness dependence" => "examples/thickness_dependence.md",
                     "Field profiles (E and H)" => "examples/field_profiles.md",
         ],

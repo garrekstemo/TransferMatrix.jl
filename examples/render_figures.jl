@@ -9,6 +9,7 @@ curated = [
     "graphene_absorption",
     "polariton_dispersion",
     "cholesteric_circular_bragg",
+    "anisotropic_energy_budget",
     "thickness_dependence",
     "field_profiles",
 ]
