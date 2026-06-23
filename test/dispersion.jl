@@ -63,14 +63,17 @@ using TransferMatrix
               lorentz([(3.0, 4.0, 0.1)]; ε_inf=2.0)(λ)
     end
 
-    @testset "drude_lorentz equals ε∞ + Drude + Σ Lorentz" begin
+    @testset "drude_lorentz composes ε∞ + Drude + Σ Lorentz" begin
+        ωp, γD, ε∞ = 9.0, 0.1, 1.5
+        oscs = [(3.0, 2.0, 0.2)]
         λ = TransferMatrix.HC_EV_UM / 2.0          # E = 2 eV
-        ω = 2.0
-        ε_expected = 1.5 - 9.0^2 / (ω^2 + im * 0.1 * ω) +
-                     2.0 * 3.0^2 / (3.0^2 - ω^2 - im * 0.2 * ω)
-        n_expected = sqrt(ε_expected)
-        n = drude_lorentz(9.0, 0.1, [(3.0, 2.0, 0.2)]; ε_inf=1.5)(λ)
-        @test n ≈ n_expected
+        # Build the expected index from the PUBLIC component closures: with
+        # ε_inf=0 each closure's n² is exactly that component's permittivity
+        # contribution, giving an oracle independent of drude_lorentz's formula.
+        drude_part = drude(ωp, γD; ε_inf=0.0)(λ)^2
+        lorentz_part = lorentz(oscs; ε_inf=0.0)(λ)^2
+        n_expected = sqrt(ε∞ + drude_part + lorentz_part)
+        @test drude_lorentz(ωp, γD, oscs; ε_inf=ε∞)(λ) ≈ n_expected
     end
 
     @testset "drude_lorentz drops into Layer/transfer (metallic IR reflectance)" begin
