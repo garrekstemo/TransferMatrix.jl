@@ -4,6 +4,7 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
 RefractiveIndex = "97a43521-7681-4ec2-835f-5b8ab7e7617e"
 TransferMatrix = "2beed9eb-9e49-431e-8607-1bb8bf5c1db8"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 CairoMakie = "0.15.8"
@@ -11,3 +12,4 @@ Documenter = "1"
 DocumenterTools = "0.1.21"
 RefractiveIndex = "0.5.0"
 TransferMatrix = "3"
+Unitful = "1"

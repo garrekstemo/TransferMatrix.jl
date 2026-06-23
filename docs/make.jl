@@ -8,6 +8,7 @@ makedocs(
         "Guide" => Any[
                     "Quick Start" => "guide/quickstart.md",
                     "Tutorial" => "guide/tutorial.md",
+                    "Dispersion Models" => "guide/dispersion_models.md",
                     "Physics Validation" => "guide/validation.md"
         ],
         "Library" => Any[

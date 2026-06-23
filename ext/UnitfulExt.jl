@@ -2,7 +2,7 @@ module UnitfulExt
 
 using TransferMatrix
 using Unitful
-import TransferMatrix: _to_um, _to_wavelength_um, _to_radians
+import TransferMatrix: _to_um, _to_wavelength_um, _to_radians, _to_eV
 
 # Length (thickness, dz) → μm as Float64.
 _to_um(x::Unitful.Length) = Float64(ustrip(u"μm", x))
@@ -22,6 +22,18 @@ function _to_wavelength_um(x::Unitful.Quantity)
     d == dimension(u"Hz")   && return Float64(ustrip(u"μm", Unitful.c0 / x))
     d == dimension(u"eV")   && return Float64(ustrip(u"μm", Unitful.h * Unitful.c0 / x))
     throw(ArgumentError("cannot interpret $x as a wavelength or spectral quantity"))
+end
+
+# Dispersion-model parameter (ω_p, ω_0, γ) → energy in eV as Float64. Dispatch by
+# physical dimension with the *linear* frequency→energy map (the mirror of the
+# inverse _to_wavelength_um), so resonance positions and damping widths convert
+# identically. Reuses Unitful.h / Unitful.c0.
+function _to_eV(x::Unitful.Quantity)
+    d = dimension(x)
+    d == dimension(u"eV")   && return Float64(ustrip(u"eV", x))
+    d == dimension(u"m^-1") && return Float64(ustrip(u"eV", Unitful.h * Unitful.c0 * x))
+    d == dimension(u"Hz")   && return Float64(ustrip(u"eV", Unitful.h * x))
+    throw(ArgumentError("cannot interpret $x as a dispersion-model frequency/energy parameter"))
 end
 
 # Construct a Layer with a unit-bearing thickness; strip to μm so the stored
