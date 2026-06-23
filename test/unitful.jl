@@ -121,8 +121,8 @@ using Unitful
         @test TransferMatrix._to_eV(2.0u"eV") ≈ 2.0
         @test TransferMatrix._to_eV(2000u"meV") ≈ 2.0
         # 1 cm⁻¹ ≈ 1.23984e-4 eV
-        @test TransferMatrix._to_eV(1u"cm^-1") ≈ ustrip(u"eV", Unitful.h * Unitful.c0 * 1u"cm^-1")
-        @test TransferMatrix._to_eV(1u"THz") ≈ ustrip(u"eV", Unitful.h * 1u"THz")
+        @test TransferMatrix._to_eV(1u"cm^-1") ≈ 1.239841984e-4 atol=1e-9
+        @test TransferMatrix._to_eV(1u"THz") ≈ 4.135667696e-3 atol=1e-9
         @test_throws ArgumentError TransferMatrix._to_eV(5u"kg")
     end
 

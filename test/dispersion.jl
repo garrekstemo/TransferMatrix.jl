@@ -54,7 +54,7 @@ using TransferMatrix
         # γ=0, evaluate well below ω_0 → ε real > 0 → n real
         n = lorentz(5.0, 1.0, 0.0; ε_inf=2.0)(TransferMatrix.HC_EV_UM / 1.0)  # E=1 eV ≪ 5 eV
         @test imag(n) ≈ 0.0 atol = 1e-12
-        @test real(n) > sqrt(2.0)        # resonance below adds to ε∞
+        @test real(n) > sqrt(2.0)        # resonance above the probe energy raises ε above ε∞
     end
 
     @testset "Lorentz: single-arg delegates to one-oscillator vector" begin
