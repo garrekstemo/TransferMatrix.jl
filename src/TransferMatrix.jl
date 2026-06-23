@@ -67,6 +67,11 @@ include("optics_functions.jl")
         transfer(λ_0, layers)
         transfer(λ_0, layers; θ=0.3)
 
+        # Built-in dispersion closures
+        metal = Layer(drude(9.0, 0.07), 0.05)
+        transfer(λ_0, [air, metal, sub])
+        transfer(λ_0, [air, Layer(lorentz(2.0, 1.0, 0.05), d_film), sub])
+
         # Electric field calculation
         efield(λ_0, layers; dz=0.01)
     end
