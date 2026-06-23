@@ -126,6 +126,7 @@ text!(ax, λ0, 1.04; text = "analytic band\n[n_oP, n_eP]", align = (:center, :bo
 ylims!(ax, -0.03, 1.18)
 axislegend(ax; position = :rc, framevisible = true)
 
-outpath = joinpath(@__DIR__, "cholesteric_circular_bragg.png")
+outpath = joinpath(@__DIR__, "..", "docs", "src", "assets", "examples", "cholesteric_circular_bragg.png")
+mkpath(dirname(outpath))
 save(outpath, fig)
 println("\nSaved figure to ", outpath)

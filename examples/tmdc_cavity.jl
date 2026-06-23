@@ -28,6 +28,10 @@ function exciton_sigma(λ)
     σ0 = e^2 / (4ħ)         # universal sheet conductivity scale (S)
     λ0 = 0.62               # exciton wavelength (μm)
     Γλ = 0.008              # linewidth (μm)
+    # NOTE: the exciton coupling strength A here is an ILLUSTRATIVE knob chosen to give a
+    # clearly visible splitting — NOT a measured WS2/MoSe2 oscillator strength. (And in
+    # bsw_tmdc_polariton.jl the BSW crossing angle is hand-tuned.) These remain runnable
+    # advanced examples; they are intentionally not part of the curated docs set.
     A  = 100.0              # peak conductivity in units of σ₀ (σ_res ≈ 100 σ₀)
     ω  = 2π * c0 / λ
     ω0 = 2π * c0 / λ0
