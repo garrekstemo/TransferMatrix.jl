@@ -18,6 +18,14 @@ Pages = ["general_TMM.jl", "layer.jl", "matrix_constructors.jl", "sheet.jl"]
 Private = false
 ```
 
+## Dispersion Models
+
+```@autodocs
+Modules = [TransferMatrix]
+Pages = ["dispersion_models.jl"]
+Private = false
+```
+
 ## Miscellaneous Optics Functions
 
 ```@autodocs

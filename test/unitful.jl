@@ -116,4 +116,36 @@ using Unitful
         @test Hu.p ≈ Hp.p
     end
 
+    @testset "_to_eV converts frequency-like quantities to eV" begin
+        @test TransferMatrix._to_eV(2.0) === 2.0                     # core no-op still works
+        @test TransferMatrix._to_eV(2.0u"eV") ≈ 2.0
+        @test TransferMatrix._to_eV(2000u"meV") ≈ 2.0
+        # 1 cm⁻¹ ≈ 1.23984e-4 eV
+        @test TransferMatrix._to_eV(1u"cm^-1") ≈ 1.239841984e-4 atol=1e-9
+        @test TransferMatrix._to_eV(1u"THz") ≈ 4.135667696e-3 atol=1e-9
+        @test_throws ArgumentError TransferMatrix._to_eV(5u"kg")
+    end
+
+    @testset "Unitful dispersion params match bare eV" begin
+        λ = 5.0
+        ω0_eV = ustrip(u"eV", Unitful.h * Unitful.c0 * 1700u"cm^-1")
+        γ_eV = ustrip(u"eV", Unitful.h * Unitful.c0 * 10u"cm^-1")
+        @test lorentz(1700u"cm^-1", 2.0, 10u"cm^-1"; ε_inf=4.0)(λ) ≈
+              lorentz(ω0_eV, 2.0, γ_eV; ε_inf=4.0)(λ)
+        @test drude(9.0u"eV", 0.07u"eV")(1.0) ≈ drude(9.0, 0.07)(1.0)
+    end
+
+    @testset "SiC reststrahlen band via cm⁻¹ phonon (Re ε < 0 → high R)" begin
+        # Single TO phonon; Δε reproduces ε(ω)=ε∞(ω_LO²-ω²-iγω)/(ω_TO²-ω²-iγω).
+        ε∞, ω_TO, ω_LO, γ = 6.5, 793.0, 969.0, 4.76          # cm⁻¹ (verify vs source)
+        Δε = ε∞ * (ω_LO^2 - ω_TO^2) / ω_TO^2
+        n_sic = lorentz(ω_TO * u"cm^-1", Δε, γ * u"cm^-1"; ε_inf=ε∞)
+        λ_mid = 1e4 / 880                                     # μm at 880 cm⁻¹ (TO<880<LO)
+        Rs, Rp = fresnel(0.0, 1.0, n_sic(λ_mid))
+        @test Rs > 0.9                                        # reststrahlen: near-total reflection
+        λ_lo = 1e4 / 400                                      # 400 cm⁻¹, below TO → ordinary dielectric
+        @test imag(n_sic(λ_lo)) ≥ 0.0
+        @test real(n_sic(λ_lo)) > 1.0
+    end
+
 end

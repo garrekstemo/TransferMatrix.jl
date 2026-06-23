@@ -8,7 +8,9 @@ Construct a single layer for transfer matrix calculations.
 ```julia
 Layer(material, thickness)
 ```
-- `material`: Refractive material (from RefractiveIndex.jl) or a dispersion function `λ -> n(λ)`
+- `material`: a dispersion function `λ -> n(λ)`, or a `RefractiveMaterial` from
+  RefractiveIndex.jl (the material form requires `using RefractiveIndex`, which
+  activates the `RefractiveIndexExt` extension)
 - `thickness`: Layer thickness in the same units as wavelength (typically μm)
 
 # Anisotropic Layer (biaxial: three refractive indices)
@@ -31,7 +33,7 @@ For anisotropic layers, `F` is a `Tuple` of three dispersion functions.
 
 # Examples
 ```julia
-# Isotropic: Using RefractiveIndex.jl material
+# Isotropic: Using a RefractiveIndex.jl material (requires `using RefractiveIndex`)
 n_sio2 = RefractiveMaterial("main", "SiO2", "Malitson")
 layer = Layer(n_sio2, 0.1)  # 100 nm = 0.1 μm
 
@@ -57,8 +59,9 @@ struct Layer{F,T<:Real}
     end
 end
 
-# Isotropic constructors
-Layer(material::RefractiveMaterial, thickness::Real) = Layer(refractive_index(material), thickness)
+# Isotropic constructor from tabulated (λ, n, k) data. The
+# Layer(::RefractiveMaterial, thickness) constructor lives in the RefractiveIndexExt
+# package extension (load RefractiveIndex to enable it).
 Layer(λs::AbstractVector, dispersion::AbstractVector, extinction::AbstractVector, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
 
 """
@@ -166,33 +169,16 @@ function isrotated(layer::Layer)
 end
 
 """
-    refractive_index(material::RefractiveMaterial)
+    refractive_index(λs, ns, ks)
 
-Return a function that takes a wavelength and gives the complex refractive index.
+Build a complex dispersion function `λ -> n(λ) + i·k(λ)` by linearly interpolating
+tabulated real (`ns`) and imaginary (`ks`) refractive-index data over wavelengths `λs`.
 
-The extinction coefficient availability is checked once at construction time to avoid
-try-catch overhead in the inner loop of spectral calculations.
+A `refractive_index(material::RefractiveMaterial)` method that derives the dispersion
+function from a RefractiveIndex.jl material is provided by the `RefractiveIndexExt`
+package extension — load `RefractiveIndex` to enable it (along with the
+`Layer(::RefractiveMaterial, d)` and `Sheet(::RefractiveMaterial, d)` constructors).
 """
-function refractive_index(material::RefractiveMaterial)
-    # Check at construction time whether extinction data is available
-    has_extinction = try
-        extinction(material, 1.0)  # Probe with test wavelength
-        true
-    catch e
-        if isa(e, ArgumentError)
-            false  # Material has no extinction data
-        else
-            true   # Extinction data exists but probe wavelength was out of range
-        end
-    end
-
-    if has_extinction
-        return λ -> dispersion(material, λ) + im * extinction(material, λ)
-    else
-        return λ -> dispersion(material, λ) + 0.0im
-    end
-end
-
 function refractive_index(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector)
     n_real = LinearInterpolation(ns, λs)
     n_imag = LinearInterpolation(ks, λs)

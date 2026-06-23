@@ -3,7 +3,6 @@ module TransferMatrix
 using DataInterpolations
 using LinearAlgebra
 using PrecompileTools
-using RefractiveIndex
 using StaticArrays
 
 export Layer,
@@ -14,6 +13,9 @@ export Layer,
        transfer,
        dielectric_constant,
        dielectric_tensor,
+       drude,
+       lorentz,
+       drude_lorentz,
        ElectricField,
        MagneticField,
        efield,
@@ -40,6 +42,7 @@ const c_0::Float64 = 299792458
 include("units.jl")
 include("matrix_constructors.jl")
 include("layer.jl")
+include("dispersion_models.jl")
 include("sheet.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
@@ -65,6 +68,11 @@ include("optics_functions.jl")
         transfer(λ_0, layers)
         transfer(λ_0, layers; θ=0.3)
         transfer(λ_0, layers; basis=:circular)
+
+        # Built-in dispersion closures
+        metal = Layer(drude(9.0, 0.07), 0.05)
+        transfer(λ_0, [air, metal, sub])
+        transfer(λ_0, [air, Layer(lorentz(2.0, 1.0, 0.05), d_film), sub])
 
         # Electric field calculation
         efield(λ_0, layers; dz=0.01)
