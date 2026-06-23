@@ -1,7 +1,6 @@
 using Peaks
 using RefractiveIndex
 using TransferMatrix
-using GLMakie
 using CairoMakie
 
 function dielectric_real(ω, p)
@@ -28,9 +27,9 @@ function draw_index_profile(ax, indices, thicknesses)
     prev_n = indices[1]
     for (i, n) in enumerate(indices)
         current_x = sum(thicknesses[1:i])
-        lines!(ax, [prev_x, current_x], [n, n], color = :black, linewidth = 0.5)  # Plot the horizontal line
+        lines!(ax, [prev_x, current_x], [n, n], color = :black, linewidth = 0.5)
         if i > 1
-            lines!(ax, [prev_x, prev_x], [prev_n, n], color = :black, linewidth = 0.5)  # Plot the vertical line
+            lines!(ax, [prev_x, prev_x], [prev_n, n], color = :black, linewidth = 0.5)
         end
         prev_x = current_x
         prev_n = n
@@ -62,12 +61,10 @@ t_tio2 = λ_0 / (4 * n_tio2(λ_0))
 t_sio2 = λ_0 / (4 * n_sio2(λ_0))
 t_cav = 1 * λ_0  / n_bg + 0.1  # Slightly offset the cavity length to get negative detuning
 
-
 air = Layer(n_air, 2.0)
 tio2 = Layer(n_tio2, t_tio2)
 sio2 = Layer(n_sio2, t_sio2)
 absorber = Layer(λs, n_medium, k_medium, t_cav)
-absorber.dispersion(4.9)
 
 nperiods = 6
 unit = [tio2, sio2]
@@ -81,11 +78,13 @@ T_plot = res.Tpp[θ_idx, :]
 field1 = efield(λs[peaks[1]], layers)
 field2 = efield(λs[peaks[2]], layers)
 
-##
+# νs is decreasing (λs increasing), so peaks[1] < peaks[2] in index → peaks[1] is higher ν (UP), peaks[2] is lower ν (LP)
+ν_up = νs[peaks[1]]
+ν_lp = νs[peaks[2]]
 
-f = Figure(size = (900, 450))
+fig = Figure(size = (900, 450))
 
-ax1 = Axis(f[1, 1],
+ax1 = Axis(fig[1, 1],
     title = "Polariton dispersion",
     xlabel = "Incidence angle (°)",
     ylabel = "Frequency (cm⁻¹)",
@@ -100,20 +99,19 @@ text!(
     fontsize=18,
 )
 
-ax2 = Axis(f[1, 2],
+ax2 = Axis(fig[1, 2],
     title = "Normal mode splitting at θ ≈ $(round(Int, θ_plot))°",
     xlabel = "Frequency (cm⁻¹)",
     ylabel = "Transmittance",
 )
 lines!(νs, T_plot)
-# scatter!(νs[peaks], T_plot[peaks], color = :red, marker = 'x', markersize = 15)
-text!(1960, 0.013, text="LP", color = :black, fontsize=18)
-text!(2020, 0.013, text="UP", color = :black, fontsize=18)
+text!(ν_lp, 0.013, text="LP", color = :black, fontsize=18)
+text!(ν_up, 0.013, text="UP", color = :black, fontsize=18)
 
-f
-save("docs/src/assets/polariton_dispersion.png", f)
-
-##
+outpath = joinpath(@__DIR__, "..", "docs", "src", "assets", "examples", "polariton_dispersion.png")
+mkpath(dirname(outpath))
+save(outpath, fig)
+println("saved ", outpath)
 
 f = Figure(size = (450, 500))
 
@@ -149,4 +147,3 @@ hideydecorations!(ax2, label = false, ticks = false, ticklabels = false)
 rowgap!(f.layout, 1, 0)
 
 f
-# save("docs/src/assets/polariton_field.png", f)

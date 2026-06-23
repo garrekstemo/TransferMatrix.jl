@@ -2,7 +2,7 @@
 
 using RefractiveIndex
 using TransferMatrix
-using GLMakie
+using CairoMakie
 
 n_air = RefractiveMaterial("other", "air", "Ciddor")
 n_tio2 = RefractiveMaterial("main", "TiO2", "Sarkar")
@@ -43,9 +43,8 @@ pushfirst!(ns, ns[1])  # Add the refractive index of the first layer for negativ
 
 
 fig = Figure(size = (450, 800))
-DataInspector()
 
-Label(fig[0, :], "ZnS / MgF₂ quarter-wave stack with 3 layers", fontsize = 18)
+Label(fig[0, :], "TiO₂ / SiO₂ DBR microcavity (6 periods/mirror)", fontsize = 18)
 
 ax1 = Axis(fig[1, 1], xlabel = "Wavenumber (cm⁻¹)", ylabel = "Transmittance / Reflectance",
             yticks = LinearTicks(5),
@@ -72,4 +71,8 @@ axislegend(ax1)
 linkxaxes!(ax2, ax3)
 rowgap!(fig.layout, 3, 0.0)
 hidexdecorations!(ax2, grid = false)
-fig
+
+outpath = joinpath(@__DIR__, "..", "docs", "src", "assets", "examples", "dbr_cavity.png")
+mkpath(dirname(outpath))
+save(outpath, fig)
+println("saved ", outpath)
