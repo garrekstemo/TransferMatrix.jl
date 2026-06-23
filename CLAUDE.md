@@ -88,6 +88,15 @@ conservation): `.claude/rules/berreman-4x4-equations.md`.
   Poynting vector is non-additive for absorbing incident media (interference
   cross-terms; Ortiz & Mochán 2005), so only the transmitted Poynting vectors are
   used for output.
+- **#107**: total internal reflection into an **anisotropic substrate** — when a
+  higher-index ambient transmits into a lower-index anisotropic substrate in the
+  regime where one transmitted eigenmode is propagating (real q) and the other is
+  evanescent (imaginary q), `calculate_q` throws `ArgumentError("Mode sorting
+  failed: ...")`. The single-branch real-or-imaginary classifier can't split a
+  mixed spectrum into 2 transmitted / 2 reflected, so it fails loudly rather than
+  returning a wrong mode count. Pinned by the `"TIR into anisotropic substrate
+  throws"` regression test; supporting evanescent transmitted modes in anisotropic
+  media is the eventual fix.
 
 ## Issue-fixing workflow
 
