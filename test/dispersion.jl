@@ -63,4 +63,25 @@ using TransferMatrix
               lorentz([(3.0, 4.0, 0.1)]; ε_inf=2.0)(λ)
     end
 
+    @testset "drude_lorentz equals ε∞ + Drude + Σ Lorentz" begin
+        λ = TransferMatrix.HC_EV_UM / 2.0          # E = 2 eV
+        ω = 2.0
+        ε_expected = 1.5 - 9.0^2 / (ω^2 + im * 0.1 * ω) +
+                     2.0 * 3.0^2 / (3.0^2 - ω^2 - im * 0.2 * ω)
+        n_expected = sqrt(ε_expected)
+        n = drude_lorentz(9.0, 0.1, [(3.0, 2.0, 0.2)]; ε_inf=1.5)(λ)
+        @test n ≈ n_expected
+    end
+
+    @testset "drude_lorentz drops into Layer/transfer (metallic IR reflectance)" begin
+        n_air = λ -> 1.0 + 0.0im
+        n_glass = λ -> 1.5 + 0.0im
+        au = drude_lorentz(9.0, 0.07, Tuple{Float64,Float64,Float64}[])  # pure Drude metal
+        layers = [Layer(n_air, 0.1), Layer(au, 0.05), Layer(n_glass, 0.5)]
+        r = transfer(1.0, layers)                  # λ = 1 μm, E ≈ 1.24 eV ≪ plasma
+        @test r isa TransferResult
+        @test r.Rpp > 0.9
+        @test r.Rss > 0.9
+    end
+
 end

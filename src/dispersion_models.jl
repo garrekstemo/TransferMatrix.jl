@@ -110,3 +110,34 @@ function lorentz(oscillators; ε_inf=1.0)
 end
 
 lorentz(ω_0, Δε, γ; ε_inf=1.0) = lorentz(((ω_0, Δε, γ),); ε_inf=ε_inf)
+
+"""
+    drude_lorentz(ω_p, γ_D, oscillators; ε_inf=1.0)
+
+Return a closure `λ -> n` for a combined Drude + Lorentz model (the standard form
+for real metals such as gold):
+
+```math
+ε(ω) = ε_\\infty - \\frac{ω_p^2}{ω^2 + iγ_D ω}
+       + \\sum_j \\frac{Δε_j\\, ω_{0j}^2}{ω_{0j}^2 - ω^2 - iγ_j ω}.
+```
+
+# Arguments
+- `ω_p`, `γ_D`: Drude plasma energy and damping (eV).
+- `oscillators`: iterable of Lorentz `(ω_0, Δε, γ)` 3-tuples (may be empty for a
+  pure Drude metal).
+- `ε_inf`: high-frequency dielectric constant (default `1.0`).
+
+The returned closure takes a vacuum wavelength `λ` in **μm**.
+
+See also: [`drude`](@ref), [`lorentz`](@ref).
+"""
+function drude_lorentz(ω_p, γ_D, oscillators; ε_inf=1.0)
+    ωp = _to_eV(ω_p)
+    gD = _to_eV(γ_D)
+    terms = [(_to_eV(ω0), Δε, _to_eV(γ)) for (ω0, Δε, γ) in oscillators]
+    return λ -> begin
+        ω = _photon_energy_eV(λ)
+        return sqrt(ε_inf + _drude_eps(ωp, gD, ω) + _lorentz_eps(terms, ω))
+    end
+end
