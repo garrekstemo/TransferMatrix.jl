@@ -82,9 +82,9 @@ end
 # Exciton tuned onto the bare BSW dispersion; coupling A = 30 (peak σ in units of σ₀).
 λ0_exc  = 0.5866                                # exciton wavelength (μm)
 # NOTE: the exciton coupling strength A here is an ILLUSTRATIVE knob chosen to give a
-# clearly visible splitting — NOT a measured WS2/MoSe2 oscillator strength. (And in
-# bsw_tmdc_polariton.jl the BSW crossing angle is hand-tuned.) These remain runnable
-# advanced examples; they are intentionally not part of the curated docs set.
+# clearly visible splitting — NOT a measured WS2/MoSe2 oscillator strength. The BSW
+# crossing angle θ_cross below is likewise hand-tuned. This remains a runnable advanced
+# example; it is intentionally not part of the curated docs set.
 A_final = 30.0                                  # coupling strength (σ_res ≈ 30 σ₀)
 sheets  = Dict(sheet_index => Sheet(λ -> exciton_sigma(λ; λ0 = λ0_exc, A = A_final)))
 
@@ -123,7 +123,7 @@ vlines!(ax2, λ0_nm, color = (:cyan, 0.8), linestyle = :dash)
 
 Colorbar(fig[1, 3], hm, label = "Rss")
 
-save("bsw_tmdc_polariton.png", fig)
+save(joinpath(@__DIR__, "bsw_tmdc_polariton.png"), fig)
 println("wrote bsw_tmdc_polariton.png")
 
 # --- Cleanest single-trace proof: a wavelength cut at the bare crossing angle ----------

@@ -95,5 +95,5 @@ end
 vlines!(ax2, z_sheet, color = (:red, 0.8), linestyle = :dash, label = "sheet")
 axislegend(ax2)
 
-save("tmdc_cavity.png", fig)
+save(joinpath(@__DIR__, "tmdc_cavity.png"), fig)
 println("wrote tmdc_cavity.png")
