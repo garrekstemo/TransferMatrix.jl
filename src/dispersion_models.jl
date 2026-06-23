@@ -57,3 +57,56 @@ function drude(ω_p, γ; ε_inf=1.0)
         return sqrt(ε_inf + _drude_eps(ωp, g, ω))
     end
 end
+
+# Summed Lorentz-oscillator permittivity contribution (relative to ε∞). Each
+# term is (ω0, Δε, γ) with ω0, γ in eV and Δε dimensionless.
+function _lorentz_eps(terms, ω)
+    χ = 0.0im
+    for (ω0, Δε, γ) in terms
+        χ += Δε * ω0^2 / (ω0^2 - ω^2 - im * γ * ω)
+    end
+    return χ
+end
+
+"""
+    lorentz(ω_0, Δε, γ; ε_inf=1.0)
+    lorentz(oscillators; ε_inf=1.0)
+
+Return a closure `λ -> n` for the Lorentz oscillator model:
+
+```math
+ε(ω) = ε_\\infty + \\sum_j \\frac{Δε_j\\, ω_{0j}^2}{ω_{0j}^2 - ω^2 - iγ_j ω},
+\\qquad n = \\sqrt{ε}.
+```
+
+# Arguments
+- `ω_0`: resonance energy (eV by default).
+- `Δε`: dimensionless oscillator strength (the static contribution of the mode;
+  `ε(0) = ε_inf + Σ Δε_j`).
+- `γ`: damping (eV).
+- `ε_inf`: high-frequency dielectric constant (default `1.0`).
+- `oscillators`: an iterable of `(ω_0, Δε, γ)` 3-tuples for a multi-oscillator
+  model (e.g. several phonon modes).
+
+The returned closure takes a vacuum wavelength `λ` in **μm**.
+
+# Examples
+```julia
+# Single oscillator
+n = lorentz(2.0, 3.0, 0.05)                       # ω_0 = 2 eV
+
+# Two oscillators on top of ε∞ = 2.5
+n = lorentz([(2.0, 1.0, 0.05), (3.5, 0.4, 0.1)]; ε_inf=2.5)
+```
+
+See also: [`drude`](@ref), [`drude_lorentz`](@ref).
+"""
+function lorentz(oscillators; ε_inf=1.0)
+    terms = [(_to_eV(ω0), Δε, _to_eV(γ)) for (ω0, Δε, γ) in oscillators]
+    return λ -> begin
+        ω = _photon_energy_eV(λ)
+        return sqrt(ε_inf + _lorentz_eps(terms, ω))
+    end
+end
+
+lorentz(ω_0, Δε, γ; ε_inf=1.0) = lorentz(((ω_0, Δε, γ),); ε_inf=ε_inf)
