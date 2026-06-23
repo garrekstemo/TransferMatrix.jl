@@ -769,26 +769,6 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=
 end
 
 
-"""
-    sweep_angle(λs, θs, layers; threads=true, verbose=false, basis=:linear)
-
-Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
-
-Returns a `TransferResult` with fields `Tpp`, `Tss`, `Rpp`, `Rss`, each a matrix
-of size `(length(θs), length(λs))`.
-
-# Arguments
-- `λs`: Vector of wavelengths in μm
-- `θs`: Vector of angles of incidence in radians
-- `layers`: `AbstractVector{<:Layer}` representing the stack
-- `threads`: Enable multithreading (default: true)
-- `verbose`: Print thread count info (default: false)
-- `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
-
-# Units
-- Wavelengths: μm (micrometers) recommended
-- Angles: radians
-"""
 function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing) where {B}
     dims = (length(outer_vals), length(inner_vals))
     M1 = Array{Float64}(undef, dims)
@@ -846,6 +826,26 @@ function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, ve
         CircularTransferResult(M1, M2, M3, M4, M5, M6, M7, M8)
 end
 
+"""
+    sweep_angle(λs, θs, layers; threads=true, verbose=false, basis=:linear)
+
+Calculate transmittance/reflectance spectra over wavelength and angle of incidence.
+
+Returns a `TransferResult` with fields `Tpp`, `Tss`, `Rpp`, `Rss`, each a matrix
+of size `(length(θs), length(λs))`.
+
+# Arguments
+- `λs`: Vector of wavelengths in μm
+- `θs`: Vector of angles of incidence in radians
+- `layers`: `AbstractVector{<:Layer}` representing the stack
+- `threads`: Enable multithreading (default: true)
+- `verbose`: Print thread count info (default: false)
+- `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
+
+# Units
+- Wavelengths: μm (micrometers) recommended
+- Angles: radians
+"""
 function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
