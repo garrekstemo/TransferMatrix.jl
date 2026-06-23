@@ -64,6 +64,7 @@ include("optics_functions.jl")
         # Core TMM calculation paths
         transfer(λ_0, layers)
         transfer(λ_0, layers; θ=0.3)
+        transfer(λ_0, layers; basis=:circular)
 
         # Electric field calculation
         efield(λ_0, layers; dz=0.01)

@@ -585,12 +585,13 @@ end
 
 
 """
-    transfer(λ, layers; θ=0.0, μ=1.0, validate=false)
+    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear)
 
 Calculate the transmittance and reflectance of a layered structure.
 
-Returns a [`TransferResult`](@ref) with fields `Tpp`, `Tss`, `Rpp`, `Rss`
-(and cross-polarization terms `Tps`, `Tsp`, `Rps`, `Rsp`).
+With the default `basis=:linear`, returns a [`TransferResult`](@ref) with fields
+`Tpp`, `Tss`, `Rpp`, `Rss` (and cross-polarization terms `Tps`, `Tsp`, `Rps`, `Rsp`).
+With `basis=:circular`, returns a [`CircularTransferResult`](@ref).
 
 # Reflectance and transmittance calculation
 
@@ -614,6 +615,24 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 - `θ`: Angle of incidence in radians (default: 0.0, normal incidence)
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 - `validate`: Check energy conservation R + T ≈ 1 for non-absorbing media (default: false)
+- `basis`: Output polarization basis — `:linear` (default) or `:circular`
+
+# Polarization basis
+- `basis=:linear` (default) returns a [`TransferResult`](@ref) in the linear p/s basis.
+- `basis=:circular` returns a [`CircularTransferResult`](@ref) in the right/left
+  circular basis. R/L are fixed-lab-frame helicities under this package's
+  `exp(-iωt)` convention. The Jones matrices transform as `r_circ = C⁻¹ r_lin C`
+  with `C = (1/√2)[1 1; i -i]` (columns ordered L, R); the helicity flip on
+  reflection is encoded automatically in the opposite signs of `rpp`/`rss`.
+
+  Circular **reflectance** is `|r_circ|²` (a true energy ratio under the same
+  condition as linear `R`: transparent incident medium, cf. issue #72). Circular
+  **transmittance** is `N·|t_circ|²` with a single Poynting normalization scalar
+  `N = (Tpp+Tss)/(|tpp|²+|tss|²)`; this is exact and energy-conserving for an
+  isotropic substrate (and reduces to `|t_circ|²` for a vacuum/index-matched
+  substrate). For an **anisotropic substrate** it inherits the package's
+  Poynting-normalization limitation (issue #70), like the linear cross-pol `Tps/Tsp`.
+  `validate` applies to the linear basis only.
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
@@ -635,21 +654,24 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
     Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ, sheets=sd)
-    r, R, t, T = calculate_tr(Γ)
-    Tpp, Tss, Rpp_, Rss_ = calculate_tr(S)
+    return _assemble(Val(basis), Γ, S, λ, layers, sd, validate)
+end
 
-    # Diagonal terms: Rpp, Rss from matrix calculation
+function _assemble(::Val{:linear}, Γ, S, λ, layers, sd, validate)
+    r, R, t, T = calculate_tr(Γ)
+    Tpp, Tss, _, _ = calculate_tr(S)
+
+    # Diagonal terms from matrix calculation; cross terms remapped from the
+    # SVector packing (R = (Rpp,Rss,Rsp,Rps), T = (Tpp,Tss,Tsp,Tps)).
     Rpp = R[1]
     Rss = R[2]
-    # Cross-polarization terms from matrix calculation
-    # R = SVector(Rpp, Rss, Rsp, Rps), T = SVector(Tpp, Tss, Tsp, Tps)
     Rps = R[4]
     Rsp = R[3]
     Tps = T[4]
@@ -661,6 +683,15 @@ function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=fal
 
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
+
+function _assemble(::Val{:circular}, Γ, S, λ, layers, sd, validate)
+    r, _, t, _ = calculate_tr(Γ)
+    Tpp, Tss, _, _ = calculate_tr(S)
+    return _circular_result(r, t, Tpp, Tss)
+end
+
+_assemble(::Val{B}, Γ, S, λ, layers, sd, validate) where {B} =
+    throw(ArgumentError("basis must be :linear or :circular, got :$B"))
 
 
 """

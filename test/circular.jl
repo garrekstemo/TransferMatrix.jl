@@ -73,3 +73,83 @@ end
     @test res0.Tll == 0.0
     @test !isnan(res0.Trr)
 end
+
+@testset "transfer basis=:circular single interface" begin
+    # Air -> glass single interface at normal incidence (non-vacuum isotropic
+    # substrate, so N = n2/n1 = 1.5).
+    λs = [1.0, 2.0]
+    air = Layer(λs, fill(1.0, length(λs)), zeros(length(λs)), 0.0)
+    glass = Layer(λs, fill(1.5, length(λs)), zeros(length(λs)), 0.0)
+    layers = [air, glass]
+    λ = 1.5
+
+    res = transfer(λ, layers; basis=:circular)
+    @test res isa CircularTransferResult
+
+    # Reflection flips helicity: diagonal ~0, cross = R_fresnel = 0.04.
+    @test isapprox(res.Rrr, 0.0; atol=1e-10)
+    @test isapprox(res.Rll, 0.0; atol=1e-10)
+    @test isapprox(res.Rrl, 0.04; atol=1e-8)
+    @test isapprox(res.Rlr, 0.04; atol=1e-8)
+    @test isapprox(res.Rrl, res.Rlr; atol=1e-12)
+
+    # Transmission preserves helicity (cross ~0), energy-conserving with N=1.5.
+    @test isapprox(res.Trl, 0.0; atol=1e-10)
+    @test isapprox(res.Tlr, 0.0; atol=1e-10)
+    @test isapprox(res.Trr, 0.96; atol=1e-8)
+
+    # Energy conservation per input polarization.
+    @test isapprox(res.Rrr + res.Rlr + res.Trr + res.Tlr, 1.0; atol=1e-6)  # input R
+    @test isapprox(res.Rll + res.Rrl + res.Tll + res.Trl, 1.0; atol=1e-6)  # input L
+end
+
+@testset "transfer linear path unchanged" begin
+    λs = [1.0, 2.0]
+    air = Layer(λs, fill(1.0, length(λs)), zeros(length(λs)), 0.0)
+    glass = Layer(λs, fill(1.5, length(λs)), zeros(length(λs)), 0.0)
+    layers = [air, glass]
+    λ = 1.5
+
+    default = transfer(λ, layers)
+    explicit = transfer(λ, layers; basis=:linear)
+    @test default isa TransferResult
+    @test explicit isa TransferResult
+    for f in (:Tpp, :Tss, :Tps, :Tsp, :Rpp, :Rss, :Rps, :Rsp)
+        @test getfield(default, f) === getfield(explicit, f)
+    end
+
+    @test_throws ArgumentError transfer(λ, layers; basis=:bogus)
+end
+
+@testset "circular oblique isotropic symmetry and energy" begin
+    λs = [1.0, 1.2]
+    air = Layer(λs, fill(1.0, length(λs)), zeros(length(λs)), 0.0)
+    film = Layer(λs, fill(1.6, length(λs)), zeros(length(λs)), 0.25)
+    layers = [air, film, air]  # vacuum substrate (N = 1)
+    λ = 1.0
+    θ = 0.3
+
+    res = transfer(λ, layers; θ=θ, basis=:circular)
+    # Isotropic media: Rrl=Rlr and Rrr=Rll even where Rpp != Rss.
+    @test isapprox(res.Rrl, res.Rlr; atol=1e-10)
+    @test isapprox(res.Rrr, res.Rll; atol=1e-10)
+    # Vacuum substrate + lossless -> energy conserved per input polarization.
+    @test isapprox(res.Rrr + res.Rlr + res.Trr + res.Tlr, 1.0; atol=1e-6)
+    @test isapprox(res.Rll + res.Rrl + res.Tll + res.Trl, 1.0; atol=1e-6)
+end
+
+@testset "circular TIR guard" begin
+    # ξ = n_inc sinθ > n_substrate -> total internal reflection, no real flux.
+    inc = Layer(λ -> 1.8 + 0im, 0.0)
+    sub = Layer(λ -> 1.0 + 0im, 0.0)
+    layers = [inc, sub]
+    res = transfer(1.0, layers; θ=0.9, basis=:circular)
+
+    for v in (res.Trr, res.Tll, res.Trl, res.Tlr)
+        @test isapprox(v, 0.0; atol=1e-10)
+        @test isfinite(v)
+    end
+    # All power reflected.
+    @test isapprox(res.Rrr + res.Rlr, 1.0; atol=1e-6)
+    @test isapprox(res.Rll + res.Rrl, 1.0; atol=1e-6)
+end
