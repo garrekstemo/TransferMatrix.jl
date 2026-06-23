@@ -1,7 +1,6 @@
 using RefractiveIndex
 using TransferMatrix
 using CairoMakie
-using GLMakie
 
 function dielectric_real(ω, p)
     A, ω_0, Γ = p
@@ -21,7 +20,6 @@ n_sio2 = RefractiveMaterial("main", "SiO2", "Kischkat")
 λs = range(4.8, 5.2, length = 100)
 νs = 10^4 ./ λs
 thicknesses = range(0.2, 2.0, length = 200)
-length(thicknesses)
 
 # absorbing material
 n_bg = 1.4
@@ -39,7 +37,6 @@ t_tio2 = λ_0 / (4 * n_tio2(λ_0))
 t_sio2 = λ_0 / (4 * n_sio2(λ_0))
 t_cav = 1 * λ_0  / n_bg + 0.1  # Slightly offset the cavity length to get negative detuning
 
-
 air = Layer(n_air, 2.0);
 tio2 = Layer(n_tio2, t_tio2);
 sio2 = Layer(n_sio2, t_sio2);
@@ -49,9 +46,7 @@ nperiods = 4
 unit = [tio2, sio2]
 layers = [air, repeat(unit, nperiods)..., absorber, repeat(reverse(unit), nperiods)..., air];
 
-##
 res = sweep_thickness(λs, thicknesses, layers, 14)
-##
 
 fig = Figure()
 ax = Axis(fig[1, 1],
@@ -59,7 +54,8 @@ ax = Axis(fig[1, 1],
     ylabel = "Frequency (cm⁻¹)",
 )
 heatmap!(thicknesses, νs, res.Tpp, colormap = :deep)
-fig
 
-##
-save("docs/src/assets/thickness_dependence.png", fig, backend = CairoMakie)
+outpath = joinpath(@__DIR__, "..", "docs", "src", "assets", "examples", "thickness_dependence.png")
+mkpath(dirname(outpath))
+save(outpath, fig)
+println("saved ", outpath)
