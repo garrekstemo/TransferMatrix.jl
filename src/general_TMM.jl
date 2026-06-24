@@ -899,10 +899,11 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, 
     dispersion_func = layers[t_index].dispersion
     layers_base = collect(layers)
 
+    mu_orig = layers[t_index].mu
     return _sweep_spectra(ts, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = i -> begin
             layers_i = copy(layers_base)
-            layers_i[t_index] = Layer(dispersion_func, ts[i])
+            layers_i[t_index] = Layer(dispersion_func, mu_orig, ts[i])
             layers_i
         end,
         angle_for = _ -> θ,
@@ -987,8 +988,11 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
         layer_of_z[j] = i
     end
 
+    μ_mat = SMatrix{3,3,ComplexF64}(μ * I)
+    μs = [ismagnetic(L) ? get_permeability(L, λ) : μ_mat for L in layers]
+
     return (; zs, boundaries = interface_positions[1:end - 1],
-              amp_p, amp_s, layer_of_z, γs, qs, ξ, μ)
+              amp_p, amp_s, layer_of_z, γs, qs, ξ, μ, μs)
 end
 
 
@@ -1090,7 +1094,7 @@ function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
     # η depends only on the layer index (via γ and q), not on the z-sample, so
     # build it once per layer and index by layer rather than rebuilding per z.
-    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μ) for li in eachindex(F.γs)]
+    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μs[li]) for li in eachindex(F.γs)]
 
     for j in 1:nz
         η = ηs[F.layer_of_z[j]]
