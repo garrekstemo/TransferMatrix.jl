@@ -115,6 +115,34 @@ end
 
 
 """
+    polder_permeability(; f0, fm, linewidth=0.0, axis=:z)
+
+Return a function `f -> μ_tensor` giving the gyromagnetic (Polder) permeability
+tensor of a saturated ferrite at frequency `f`:
+
+```math
+μ(f) = 1 + \\frac{f_0 f_m}{f_0^2 - f^2}, \\qquad κ(f) = \\frac{f f_m}{f_0^2 - f^2}
+```
+
+with the gyration axis `axis`. `f0` is the ferromagnetic-resonance frequency
+(`= γμ₀H₀/2π`), `f_m = γμ₀M_s/2π`, and `γ = g·e/2mₑ`. A nonzero `linewidth`
+(ΔH, in the same units as `f0`) adds loss via `f0 → f0 − i·linewidth/2`.
+
+Use as a layer permeability with `Layer(...; mu = λ -> polder_permeability(...)(f(λ)))`,
+mapping wavelength to frequency as appropriate for your unit system.
+"""
+function polder_permeability(; f0, fm, linewidth=0.0, axis::Symbol=:z)
+    f0c = ComplexF64(f0) - im*ComplexF64(linewidth)/2
+    return function (f)
+        denom = f0c^2 - ComplexF64(f)^2
+        μ = 1 + f0c*ComplexF64(fm)/denom
+        κ = ComplexF64(f)*ComplexF64(fm)/denom
+        return gyrotropic_tensor(μ, κ; axis=axis)
+    end
+end
+
+
+"""
     layer_matrices(ω, ξ, layer, μ)
 
 Calculate all parameters for a single layer, particularly

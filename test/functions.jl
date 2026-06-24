@@ -428,3 +428,15 @@ end
     Gx = gyrotropic_tensor(2.0, 0.6; axis=:x)
     @test Gx[1,1] == 1 && Gx[2,3] == 0.6im && Gx[3,2] == -0.6im
 end
+
+@testset "polder_permeability" begin
+    f0, fm = 10.0, 4.0
+    P = polder_permeability(; f0=f0, fm=fm)
+    f = 8.0
+    μ = 1 + f0*fm/(f0^2 - f^2); κ = f*fm/(f0^2 - f^2)
+    T = P(f)
+    @test T[1,1] ≈ μ && T[3,3] == 1
+    @test T[1,2] ≈ im*κ && T[2,1] ≈ -im*κ
+    @test T ≈ T'                              # lossless when linewidth=0
+    @test !(polder_permeability(; f0=f0, fm=fm, linewidth=0.5)(f) ≈ T)  # loss changes it
+end
