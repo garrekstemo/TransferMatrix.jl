@@ -214,8 +214,10 @@ reflected Poynting vectors use incident-medium wavevectors (`k_in[3,:]`,
 The optional `μ_in` and `μ_out` arguments are the 3×3 permeability tensors of
 the ambient (incident) and substrate media respectively (default: identity, i.e.
 non-magnetic). They are used to form ``H = μ^{-1}(k̄ \\times E)`` when computing
-the Poynting flux, so that energy conservation holds for magnetic ambient and
-substrate layers.
+the Poynting flux, so that energy conservation holds for a magnetic substrate.
+A magnetic ambient is only correctly handled at normal incidence; at oblique
+incidence the conserved in-plane wavevector ξ is still computed from the
+ambient permittivity alone (see issue #71), so results may be inaccurate.
 
 !!! note "Transmittance vs reflectance"
     This function computes Poynting vectors for both transmitted and reflected

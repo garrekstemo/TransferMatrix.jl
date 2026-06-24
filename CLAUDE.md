@@ -51,7 +51,9 @@ in-plane wavevector ξ is computed from the ambient permittivity only.
 - `polder_permeability(; f0, fm, linewidth=0.0, axis=:z)` — returns a function
   `f -> μ_tensor` for the gyromagnetic (Polder) permeability of a saturated
   ferrite; wrap with a λ-to-frequency conversion for the `mu=` kwarg:
-  `Layer(n, d; mu = λ -> polder_permeability(f0=..., fm=...)(c/λ))`.
+  `Layer(n, d; mu = λ -> polder_permeability(f0=..., fm=...)(TransferMatrix.c_0/λ))`
+  (where `TransferMatrix.c_0` is the package's internal speed-of-light constant
+  in μm/s; map wavelength → frequency according to your own unit system).
 
 Examples and tutorials: `docs/src/guide/` (quickstart, tutorial, validation)
 and `test/`.
