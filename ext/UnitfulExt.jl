@@ -44,10 +44,13 @@ end
 # The tabulated method (all-AbstractVector) is strictly more specific than the
 # anisotropic (Any, Any, Any, Length) method, so it is selected first with no
 # ambiguity when all three positional args are AbstractVectors.
-TransferMatrix.Layer(material, t::Unitful.Length) = TransferMatrix.Layer(material, _to_um(t))
-TransferMatrix.Layer(nx, ny, nz, t::Unitful.Length; euler=(0.0, 0.0, 0.0)) =
-    TransferMatrix.Layer(nx, ny, nz, _to_um(t); euler=euler)
-TransferMatrix.Layer(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector, t::Unitful.Length) =
-    TransferMatrix.Layer(λs, ns, ks, _to_um(t))
+# Each forwards `mu=` to the core constructor exactly as the non-unitful path does;
+# the default `mu=nothing` keeps the non-magnetic path bit-for-bit unchanged.
+TransferMatrix.Layer(material, t::Unitful.Length; mu=nothing) =
+    TransferMatrix.Layer(material, _to_um(t); mu=mu)
+TransferMatrix.Layer(nx, ny, nz, t::Unitful.Length; euler=(0.0, 0.0, 0.0), mu=nothing) =
+    TransferMatrix.Layer(nx, ny, nz, _to_um(t); euler=euler, mu=mu)
+TransferMatrix.Layer(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector, t::Unitful.Length; mu=nothing) =
+    TransferMatrix.Layer(λs, ns, ks, _to_um(t); mu=mu)
 
 end # module

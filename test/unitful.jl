@@ -103,6 +103,28 @@ using Unitful
         @test transfer(1.5u"μm", stack) isa TransferResult
     end
 
+    @testset "Unitful Layer constructors forward mu=" begin
+        μ_iso = SMatrix{3,3,ComplexF64}(2.5 * I)
+
+        # Non-magnetic path stays unchanged (mu defaults to nothing)
+        @test TransferMatrix.ismagnetic(Layer(n_film, 100u"nm")) == false
+
+        # Isotropic 2-arg
+        liso = Layer(n_film, 100u"nm"; mu = 2.5)
+        @test TransferMatrix.ismagnetic(liso)
+        @test TransferMatrix.get_permeability(liso, 1.0) == μ_iso
+
+        # Anisotropic 3-dispersion
+        laniso = Layer(n_film, n_film, n_sub, 250u"nm"; euler=(0.1, 0.2, 0.3), mu = 2.5)
+        @test TransferMatrix.isanisotropic(laniso) && TransferMatrix.ismagnetic(laniso)
+        @test TransferMatrix.get_permeability(laniso, 1.0) == μ_iso
+
+        # Tabulated-data
+        ltab = Layer([1.0, 1.5, 2.0], [1.5, 1.5, 1.5], [0.0, 0.0, 0.0], 100u"nm"; mu = 2.5)
+        @test TransferMatrix.ismagnetic(ltab)
+        @test TransferMatrix.get_permeability(ltab, 1.0) == μ_iso
+    end
+
     @testset "field profiles accept unit-bearing λ and dz" begin
         Eu = efield(1.55u"μm", layers; dz=1u"nm")
         Ep = efield(1.55, layers; dz=0.001)
