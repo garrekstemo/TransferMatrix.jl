@@ -154,32 +154,28 @@ Supports both isotropic layers (single refractive index) and anisotropic layers
 via Euler angles.
 """
 function layer_matrices(layer, λ, ξ, μ_i)
-
     ω = 2π * c_0 / λ
     nx, ny, nz = get_refractive_indices(layer, λ)
-    εx = dielectric_constant(nx)
-    εy = dielectric_constant(ny)
-    εz = dielectric_constant(nz)
-    ε_diag = dielectric_tensor(εx, εy, εz)
-
-    # Apply rotation if layer has non-zero Euler angles
+    ε_diag = dielectric_tensor(dielectric_constant(nx), dielectric_constant(ny), dielectric_constant(nz))
     φ, θ, ψ = get_euler_angles(layer)
-    if φ != 0.0 || θ != 0.0 || ψ != 0.0
-        R = euler_rotation_matrix(φ, θ, ψ)
-        ε = rotate_dielectric_tensor(ε_diag, R)
+    ε = (φ != 0.0 || θ != 0.0 || ψ != 0.0) ?
+        rotate_dielectric_tensor(ε_diag, euler_rotation_matrix(φ, θ, ψ)) : ε_diag
+
+    if ismagnetic(layer)
+        μmat = get_permeability(layer, λ)                 # SMatrix{3,3,ComplexF64}
+        M = construct_M(ε, μmat)
+        a = construct_a(ξ, M); Δ = construct_Δ(ξ, M, a)
+        q, S = calculate_q(Δ, a); q = ComplexF64.(q)
+        γ = calculate_γ_tensor(ξ, q, ε, μmat)
+        D = dynamical_matrix(ξ, q, γ, μmat)
     else
-        ε = ε_diag
+        μ = permeability_tensor(μ_i, μ_i, μ_i)
+        M = construct_M(ε, μ)
+        a = construct_a(ξ, M); Δ = construct_Δ(ξ, M, a)
+        q, S = calculate_q(Δ, a); q = ComplexF64.(q)
+        γ = calculate_γ(ξ, q, ε, μ_i)
+        D = dynamical_matrix(ξ, q, γ, μ_i)
     end
-
-    μ = permeability_tensor(μ_i, μ_i, μ_i)
-
-    M = construct_M(ε, μ)
-    a = construct_a(ξ, M)
-    Δ = construct_Δ(ξ, M, a)
-    q, S = calculate_q(Δ, a)
-    q = ComplexF64.(q)
-    γ = calculate_γ(ξ, q, ε, μ_i)
-    D = dynamical_matrix(ξ, q, γ, μ_i)
     P = propagation_matrix(ω, q)
     return D, P, γ, q
 end
@@ -473,6 +469,57 @@ function calculate_γ(ξ, q, ε, μ)
     end
 
     return SMatrix(γ)
+end
+
+
+# k̄ × v cross-product matrix for k̄ = (ξ, 0, q)
+_kcross(ξ, q) = SMatrix{3,3,ComplexF64}(0, q, 0,  -q, 0, ξ,  0, -ξ, 0)
+
+
+"""
+    calculate_γ_tensor(ξ, q, ε, μ)
+
+E-field eigenvectors for a layer with a full 3×3 permeability tensor `μ`, as the
+null space of `W(q) = K μ⁻¹ K + ε` for each mode `q`. Degenerate pairs (qᵢ ≈ qⱼ,
+e.g. isotropic media) share a 2-D null space; both orthogonal null vectors are
+assigned, avoiding the singular dynamical matrix a naive per-mode null space
+produces. Rows are unit-Hermitian-normalized, matching [`calculate_γ`].
+"""
+function calculate_γ_tensor(ξ, q, ε, μ; rtol=1e-7)
+    μinv = inv(SMatrix{3,3,ComplexF64}(μ)); εm = SMatrix{3,3,ComplexF64}(ε)
+    γ = @MMatrix zeros(ComplexF64, 4, 3); assigned = MVector{4,Bool}(false, false, false, false)
+    for m in 1:4
+        assigned[m] && continue
+        K = _kcross(ξ, q[m]); F = svd(Matrix(K*μinv*K + εm))
+        partner = 0
+        for n in (m+1):4
+            if !assigned[n] && abs(q[n]-q[m]) < rtol*max(abs(q[m]), 1.0)
+                partner = n; break
+            end
+        end
+        v1 = SVector{3,ComplexF64}(F.V[:,3]...); γ[m,:] = v1 ./ norm(v1); assigned[m] = true
+        if partner != 0
+            v2 = SVector{3,ComplexF64}(F.V[:,2]...); γ[partner,:] = v2 ./ norm(v2); assigned[partner] = true
+        end
+    end
+    return SMatrix(γ)
+end
+
+
+"""
+    dynamical_matrix(ξ, q, γ, μ::AbstractMatrix)
+
+Dynamical matrix for a tensor μ. Rows are `(Eₓ, Eᵧ, Hᵧ, −Hₓ)` per mode with
+`H = μ⁻¹ (k̄ × E)`. Reduces to the scalar-μ method when `μ = μ·I`.
+"""
+function dynamical_matrix(ξ, q, γ, μ::AbstractMatrix)
+    μinv = inv(SMatrix{3,3,ComplexF64}(μ))
+    cols = ntuple(4) do m
+        E = SVector{3,ComplexF64}(γ[m,1], γ[m,2], γ[m,3])
+        H = μinv * (_kcross(ξ, q[m]) * E)
+        SVector{4,ComplexF64}(E[1], E[2], H[2], -H[1])
+    end
+    return hcat(cols...)::SMatrix{4,4,ComplexF64}
 end
 
 

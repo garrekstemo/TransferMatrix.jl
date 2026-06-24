@@ -473,3 +473,21 @@ end
     la = Layer(λ -> 1.6, λ -> 1.6, λ -> 1.8, 0.4; euler=(0.1,0.2,0.3), mu = 2.5)
     @test TransferMatrix.isanisotropic(la) && TransferMatrix.ismagnetic(la)
 end
+
+@testset "tensor-μ dynamical matrix reduces to scalar" begin
+    ε = TransferMatrix.dielectric_tensor(4.0+0im, 6.25+0im, 9.0+0im)
+    ξ = 0.5; μs = 1.3
+    M = TransferMatrix.construct_M(ε, TransferMatrix.permeability_tensor(μs,μs,μs))
+    a = TransferMatrix.construct_a(ξ, M); Δ = TransferMatrix.construct_Δ(ξ, M, a)
+    q, _ = TransferMatrix.calculate_q(Δ, a); q = ComplexF64.(q)
+    γref = TransferMatrix.calculate_γ(ξ, q, ε, μs)
+    Dref = TransferMatrix.dynamical_matrix(ξ, q, γref, μs)
+    μmat = SMatrix{3,3,ComplexF64}(μs*I)
+    γt = TransferMatrix.calculate_γ_tensor(ξ, q, ε, μmat)
+    Dt = TransferMatrix.dynamical_matrix(ξ, q, γt, μmat)
+    # D·P·D⁻¹ is basis-invariant ⇒ compare the layer transfer, not raw D
+    P = TransferMatrix.propagation_matrix(2π, q)
+    Tref = Matrix(Dref)*Matrix(P(0.4))*inv(Matrix(Dref))
+    Tt   = Matrix(Dt)*Matrix(P(0.4))*inv(Matrix(Dt))
+    @test maximum(abs, Tref .- Tt) < 1e-10
+end
