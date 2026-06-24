@@ -30,4 +30,27 @@ using .MuReference
         end
     end
 
+    @testset "transfer :exp == :eig (no sheets)" begin
+        amb = Layer(λ -> 1.0, 1.0); sub = Layer(λ -> 1.5, 1.0)
+        glass = Layer(λ -> 1.5, 0.3)
+        uni  = Layer(λ -> 1.6, λ -> 1.6, λ -> 1.8, 0.4; euler=(0.4, 0.6, 0.2))
+        biax = Layer(λ -> 1.5, λ -> 1.7, λ -> 1.9, 0.35; euler=(0.5, 0.7, 0.3))
+        absL = Layer(λ -> 1.5 + 0.05im, 0.3)
+        magL = Layer(λ -> 1.5, 0.3; mu=gyrotropic_tensor(2.0, 0.6))
+        stacks = [[amb, glass, sub], [amb, uni, sub], [amb, biax, sub],
+                  [amb, absL, sub], [amb, glass, uni, biax, sub], [amb, magL, sub]]
+        for ls in stacks, θ in (0.0, 0.3, 0.6, 0.9), μ in (1.0, 2.0)
+            re = transfer(1.0, ls; θ=θ, μ=μ, method=:eig)
+            rx = transfer(1.0, ls; θ=θ, μ=μ, method=:exp)
+            for f in (:Tpp, :Tss, :Tps, :Tsp, :Rpp, :Rss, :Rps, :Rsp)
+                @test isapprox(getfield(re, f), getfield(rx, f); atol=1e-12)
+            end
+        end
+    end
+
+    @testset "invalid method throws ArgumentError" begin
+        ls = [Layer(λ -> 1.0, 1.0), Layer(λ -> 1.5, 1.0)]
+        @test_throws ArgumentError transfer(1.0, ls; method=:bogus)
+    end
+
 end
