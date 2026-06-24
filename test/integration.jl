@@ -1098,6 +1098,47 @@ end
     end
 end
 
+@testset "TIR into anisotropic substrate throws (mode-sorting limitation)" begin
+    # Pins a KNOWN, intentionally-unsupported edge case (adjacent to documented
+    # limitations #71 and #72): total internal reflection from a higher-index
+    # ambient INTO a lower-index anisotropic substrate, in the regime where one
+    # transmitted substrate eigenmode is still propagating while the other is
+    # already evanescent.
+    #
+    # Mechanism: with a higher-index incident medium (n=2.0) and a diagonal-ε
+    # substrate whose indices are all < 2.0, increasing θ first drives the
+    # s-like mode (ε_yy ⇒ ny=1.6) evanescent while the p-like mode (toward
+    # nz=1.7) is still propagating. The Δ eigenvalues are then a MIX of real
+    # (propagating, ±q) and purely imaginary (evanescent, ±iq) values. The
+    # mode classifier in `calculate_q` picks a single branch — real-part sign
+    # OR imaginary-part sign — so a mixed spectrum yields 3 "transmitted"/1
+    # "reflected" instead of the required 2/2, and it fails LOUDLY with an
+    # ArgumentError rather than silently returning a wrong mode count.
+    #
+    # This is PRE-EXISTING behavior and is deliberately NOT fixed here:
+    # supporting evanescent transmitted modes in anisotropic media is a much
+    # larger change. This test exists to CATCH a future change to that
+    # evanescent-mode handling — if the throw ever turns into a real result,
+    # this test should be updated to assert energy conservation instead.
+    λ = 1.0
+    inc = Layer(λ -> 2.0, 1.0)                      # higher-index ambient
+    sub = Layer(λ -> 1.4, λ -> 1.6, λ -> 1.7, 1.0)  # anisotropic, all n < 2.0
+
+    # θ=0.97 ⇒ ξ = n_inc·sin θ ≈ 1.65, comfortably between ny=1.6 (θc≈0.927)
+    # and nz=1.7 (θc≈1.016): one transmitted mode propagating, one evanescent.
+    θ = 0.97
+    @test 1.6 < 2.0 * sin(θ) < 1.7  # confirm the mixed propagating/evanescent regime
+
+    @test_throws ArgumentError transfer(λ, [inc, sub]; θ=θ)
+    @test_throws "Mode sorting failed" transfer(λ, [inc, sub]; θ=θ)
+
+    # Bracketing sanity: just below ny both modes propagate (no throw), and
+    # well above nz both are evanescent and the classifier cleanly yields 2/2
+    # (total reflection, no throw). Only the mixed band in between throws.
+    @test transfer(λ, [inc, sub]; θ=0.90).Rpp ≤ 1.0          # ξ≈1.567 < ny
+    @test isapprox(transfer(λ, [inc, sub]; θ=1.10).Rpp, 1.0; atol=1e-8)  # ξ≈1.782 > nz
+end
+
 @testset "_validate_physics with anisotropic layers" begin
     # _validate_physics should handle anisotropic layers without crashing
     λ = 1.0
