@@ -684,6 +684,23 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 - `basis`: Output polarization basis — `:linear` (default) or `:circular`
 - `method`: propagation backend — `:eig` (eigenmode) or `:exp` (matrix exponential, see [`layer_transfer_exp`](@ref))
 
+# Numerical backend
+
+`method` selects how interior layers are propagated:
+
+- `:exp` (default) computes each interior layer's transfer matrix as the matrix
+  exponential of the Berreman Δ matrix (see [`layer_transfer_exp`](@ref)). It needs
+  no eigenmode sorting and is degeneracy-immune, so it handles near-degenerate and
+  mixed propagating/evanescent interior layers that `:eig` cannot.
+- `:eig` is the eigenmode/dynamical-matrix path, retained as a cross-check.
+
+Both agree to ~1e-12 on all supported cases. The semi-infinite ambient and substrate
+use the eigenmode path in either mode, so the anisotropic-ambient (#71) and
+anisotropic-substrate (#107) boundary limitations are unaffected by `method`.
+
+Mackay & Lakhtakia, 2020, https://doi.org/10.1007/978-3-031-02022-3 ;
+Higham, 2005, https://doi.org/10.1137/04061101X
+
 # Polarization basis
 - `basis=:linear` (default) returns a [`TransferResult`](@ref) in the linear p/s basis.
 - `basis=:circular` returns a [`CircularTransferResult`](@ref) in the right/left
@@ -913,6 +930,7 @@ of size `(length(θs), length(λs))`.
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
+- `method`: propagation backend, `:exp` (default) or `:eig` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths: μm (micrometers) recommended
@@ -947,6 +965,7 @@ of size `(length(ts), length(λs))`.
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
+- `method`: propagation backend, `:exp` (default) or `:eig` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths and thicknesses: μm (micrometers) recommended

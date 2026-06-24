@@ -151,3 +151,21 @@ zero for isotropic media — become nonzero; this same coupling is what the
 [Circular-polarization basis](tutorial.md#Circular-polarization-basis) output reflects.
 
 ![For anisotropic or chiral media the off-diagonal coupling blocks of M become nonzero; M₁₃ and M₃₁ drive the cross-polarization terms.](../assets/transfer_matrix_anisotropic.svg)
+
+## Numerical backends: `method=:exp` vs `:eig`
+
+`transfer`, `sweep_angle`, and `sweep_thickness` accept `method`:
+
+- **`:exp`** (default) propagates each interior layer with the matrix exponential of
+  the Berreman Δ matrix. It avoids eigenmode sorting entirely, so it is
+  degeneracy-immune and handles near-degenerate or mixed propagating/evanescent
+  interior layers robustly.
+- **`:eig`** is the eigenmode/dynamical-matrix path, kept as an independent
+  cross-check (`transfer(λ, layers; method=:eig)`).
+
+The two agree to ~1e-12. The semi-infinite ambient and substrate always use the
+eigenmode path, so the boundary limitations (anisotropic ambient, issue #71;
+anisotropic substrate under total internal reflection, issue #107) apply to both.
+
+See the [bibliography](../bibliography.md) ("Matrix-exponential layer propagator")
+for references.
