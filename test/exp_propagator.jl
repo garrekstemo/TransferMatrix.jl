@@ -70,4 +70,25 @@ using .MuReference
         end
     end
 
+    @testset "sweeps honor method (:exp == :eig == per-call transfer)" begin
+        amb = Layer(λ -> 1.0, 1.0)
+        film = Layer(λ -> 1.6, λ -> 1.6, λ -> 1.8, 0.4; euler=(0.2, 0.5, 0.1))
+        sub = Layer(λ -> 1.5, 1.0)
+        layers = [amb, film, sub]
+        λs = [0.9, 1.0, 1.1]; θs = [0.0, 0.4, 0.8]
+        se = sweep_angle(λs, θs, layers; method=:eig, threads=false)
+        sx = sweep_angle(λs, θs, layers; method=:exp, threads=false)
+        for f in (:Tpp, :Rpp, :Rps, :Tss), i in eachindex(θs), j in eachindex(λs)
+            @test isapprox(getfield(se, f)[i, j], getfield(sx, f)[i, j]; atol=1e-12)
+            ref = transfer(λs[j], layers; θ=θs[i], method=:exp)
+            @test isapprox(getfield(sx, f)[i, j], getfield(ref, f); atol=1e-12)
+        end
+        ts = [0.2, 0.4]
+        twe = sweep_thickness(λs, ts, layers, 2; method=:eig, threads=false)
+        twx = sweep_thickness(λs, ts, layers, 2; method=:exp, threads=false)
+        for ti in eachindex(ts), j in eachindex(λs)
+            @test isapprox(twe.Tpp[ti, j], twx.Tpp[ti, j]; atol=1e-12)
+        end
+    end
+
 end

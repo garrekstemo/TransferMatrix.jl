@@ -841,7 +841,7 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=
 end
 
 
-function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing) where {B}
+function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing, method::Symbol=:eig) where {B}
     dims = (length(outer_vals), length(inner_vals))
     M1 = Array{Float64}(undef, dims)
     M2 = Array{Float64}(undef, dims)
@@ -860,7 +860,7 @@ function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, ve
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B)
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B, method=method)
             if B === :linear
                 M1[i, j] = result.Tpp
                 M2[i, j] = result.Tss
@@ -918,7 +918,7 @@ of size `(length(θs), length(λs))`.
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:eig)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
@@ -926,7 +926,7 @@ function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbo
     return _sweep_spectra(θs, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = _ -> layers,
         angle_for = i -> θs[i],
-        sheets = sd)
+        sheets = sd, method = method)
 end
 
 
@@ -952,7 +952,7 @@ of size `(length(ts), length(λs))`.
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:eig)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
@@ -969,7 +969,7 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, 
             layers_i
         end,
         angle_for = _ -> θ,
-        sheets = sd)
+        sheets = sd, method = method)
 end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)
