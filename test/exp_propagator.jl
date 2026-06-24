@@ -53,4 +53,21 @@ using .MuReference
         @test_throws ArgumentError transfer(1.0, ls; method=:bogus)
     end
 
+    @testset "transfer :exp == :eig with conductive sheets" begin
+        amb = Layer(λ -> 1.0, 1.0); sub = Layer(λ -> 1.5, 1.0)
+        film = Layer(λ -> 1.6, 0.3)
+        graphene = Sheet(6.08e-5 + 1.0e-5im)            # isotropic σ (S)
+        tmdc = Sheet(; xx=1.0e-4 + 2.0e-5im, yy=8.0e-5 + 1.0e-5im)
+        ls = [amb, film, sub]
+        for θ in (0.0, 0.4, 0.8)
+            for sh in (Dict(1 => graphene), Dict(2 => tmdc), Dict(1 => graphene, 2 => tmdc))
+                re = transfer(1.0, ls; θ=θ, sheets=sh, method=:eig)
+                rx = transfer(1.0, ls; θ=θ, sheets=sh, method=:exp)
+                for f in (:Tpp, :Tss, :Tps, :Tsp, :Rpp, :Rss, :Rps, :Rsp)
+                    @test isapprox(getfield(re, f), getfield(rx, f); atol=1e-12)
+                end
+            end
+        end
+    end
+
 end

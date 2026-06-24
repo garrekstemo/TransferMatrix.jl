@@ -431,8 +431,9 @@ end
 Matrix-exponential propagation core. Interior layers propagate via
 [`layer_transfer_exp`](@ref) (no eigenmode sorting); the semi-infinite ambient and
 substrate keep the eigenmode treatment in [`layer_matrices`](@ref), which is needed
-for the r/t coefficients and the Poynting transmittance. Returns `(Γ, S)` like
-[`_propagate_core`](@ref). (Sheet support is added in a later step.)
+for the r/t coefficients and the Poynting transmittance. Conductive sheets are
+injected at their respective interfaces, mirroring [`_propagate_core`](@ref).
+Returns `(Γ, S)` like [`_propagate_core`](@ref).
 """
 function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
@@ -445,9 +446,19 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     D_1, _, γ_first, q_first = layer_matrices(layers[1], λ, ξ, μ)
     D_N, _, γ_last,  q_last  = layer_matrices(layers[N], λ, ξ, μ)
 
+    # Interior product in the dynamical-matrix basis. Tangential fields are
+    # continuous across plain interfaces, so interior layers chain directly; a
+    # conductive sheet at interface (i, i+1) is injected as sheet_matrix.
+    no_sheets = sheets === nothing || isempty(sheets)
     core = SMatrix{4,4,ComplexF64}(I)
+    if !no_sheets && haskey(sheets, 1)
+        core = core * sheet_matrix(sheets[1], λ)
+    end
     for i in 2:N-1
         core = core * layer_transfer_exp(layers[i], λ, ξ, ω, μ)
+        if !no_sheets && haskey(sheets, i)
+            core = core * sheet_matrix(sheets[i], λ)
+        end
     end
     core = core * D_N
 
