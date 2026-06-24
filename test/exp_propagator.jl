@@ -140,4 +140,14 @@ using .MuReference
         end
     end
 
+    @testset "default method is :exp" begin
+        # Stack where :eig throws but :exp works; the no-method default must NOT throw.
+        amb = Layer(λ -> 2.0, 1.0)
+        interior = Layer(λ -> 1.4, λ -> 1.6, λ -> 1.7, 0.5)
+        sub = Layer(λ -> 2.5, 1.0)
+        r = transfer(1.0, [amb, interior, sub]; θ=0.97)   # no method ⇒ default
+        @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-9)
+        @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-9)
+    end
+
 end

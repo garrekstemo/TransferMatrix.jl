@@ -72,6 +72,7 @@ include("optics_functions.jl")
         transfer(λ_0, layers)
         transfer(λ_0, layers; θ=0.3)
         transfer(λ_0, layers; basis=:circular)
+        transfer(λ_0, layers; method=:eig)
 
         # Built-in dispersion closures
         metal = Layer(drude(9.0, 0.07), 0.05)

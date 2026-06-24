@@ -726,7 +726,7 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:eig)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
 
@@ -918,7 +918,7 @@ of size `(length(θs), length(λs))`.
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:eig)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
@@ -952,7 +952,7 @@ of size `(length(ts), length(λs))`.
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:eig)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
