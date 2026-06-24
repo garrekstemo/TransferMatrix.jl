@@ -420,3 +420,51 @@ end
         @test P_z[i,i] ≈ expected[i]
     end
 end
+
+@testset "gyrotropic_tensor" begin
+    G = gyrotropic_tensor(2.0, 0.6)                 # axis=:z
+    @test G == SMatrix{3,3,ComplexF64}(2.0,-0.6im,0, 0.6im,2.0,0, 0,0,1)
+    @test G ≈ G'                                    # Hermitian ⇒ lossless
+
+    Gx = gyrotropic_tensor(2.0, 0.6; axis=:x)
+    @test Gx[1,1] == 1 && Gx[2,3] == 0.6im && Gx[3,2] == -0.6im
+    @test Gx[2,2] == 2.0 && Gx[3,3] == 2.0        # diagonal block rows/cols 2-3
+    @test Gx ≈ Gx'                                  # Hermitian
+
+    Gy = gyrotropic_tensor(2.0, 0.6; axis=:y)
+    @test Gy[2,2] == 1                              # trivial row/col is row 2
+    @test Gy[1,3] == 0.6im && Gy[3,1] == -0.6im    # off-diagonal in rows/cols 1&3
+    @test Gy[1,1] == 2.0 && Gy[3,3] == 2.0
+    @test Gy ≈ Gy'                                  # Hermitian
+
+    @test_throws ArgumentError gyrotropic_tensor(1.0, 0.5; axis=:w)
+end
+
+@testset "polder_permeability" begin
+    f0, fm = 10.0, 4.0
+    P = polder_permeability(; f0=f0, fm=fm)
+    f = 8.0
+    μ = 1 + f0*fm/(f0^2 - f^2); κ = f*fm/(f0^2 - f^2)
+    T = P(f)
+    @test T[1,1] ≈ μ && T[3,3] == 1
+    @test T[1,2] ≈ im*κ && T[2,1] ≈ -im*κ
+    @test T ≈ T'                              # lossless when linewidth=0
+    @test !(polder_permeability(; f0=f0, fm=fm, linewidth=0.5)(f) ≈ T)  # loss changes it
+
+    Px = polder_permeability(; f0=f0, fm=fm, axis=:x)
+    Tx = Px(f)
+    @test Tx == gyrotropic_tensor(μ, κ; axis=:x)   # axis kwarg routes through correctly
+    @test Tx[1,1] == 1                              # trivial entry for :x axis
+end
+
+@testset "magnetic-substrate transmittance uses μ⁻¹" begin
+    # vacuum | vacuum-index magnetic film | magnetic substrate (ε=2, μ=3) — energy must conserve
+    air = Layer(λ->1.0, 1.0)
+    film = Layer(λ->1.0, 0.3; mu = 2.5)
+    sub = Layer(λ->sqrt(2.0), 1.0; mu = 3.0)
+    for θ in (0.0, 0.4)
+        r = transfer(1.0, [air, film, sub]; θ=θ)
+        @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-7)
+        @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-7)
+    end
+end

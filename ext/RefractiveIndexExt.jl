@@ -25,8 +25,8 @@ end
 # Convenience constructors that funnel a material through `refractive_index`. Each
 # extends a TransferMatrix-owned function (no type piracy) and is strictly more
 # specific than its core fallback, so it is selected without ambiguity.
-TransferMatrix.Layer(material::RefractiveMaterial, thickness::Real) =
-    TransferMatrix.Layer(refractive_index(material), thickness)
+TransferMatrix.Layer(material::RefractiveMaterial, thickness::Real; mu=nothing) =
+    TransferMatrix.Layer(TransferMatrix._index_fn(material), thickness; mu=mu)
 
 TransferMatrix._index_fn(m::RefractiveMaterial) = refractive_index(m)
 

@@ -23,7 +23,37 @@ General Julia/Makie/Pkg conventions live in the global `~/.claude/CLAUDE.md`.
   `stopband`, `dbr_reflectivity`, `refractive_index`, `dielectric_constant`,
   `dielectric_tensor`, `find_bounds`, `isanisotropic`, `isrotated`,
   `euler_rotation_matrix`, `rotate_dielectric_tensor`, `get_refractive_indices`,
-  `get_euler_angles`.
+  `get_euler_angles`, `gyrotropic_tensor`, `polder_permeability`.
+
+### Per-layer permeability (`mu=`)
+
+`Layer` accepts an optional `mu=` keyword argument specifying the magnetic
+permeability for that layer. Accepted forms:
+
+| Value | Meaning |
+|-------|---------|
+| `nothing` (default) | use the global `μ=` fallback passed to `transfer` / `sweep_*` |
+| `Number` (e.g. `2.0`) | scalar isotropic μ — expanded to `μI` |
+| `3×3 AbstractMatrix` | constant tensor μ (e.g. uniaxial, diagonal) |
+| `λ -> 3×3 matrix` | wavelength-dependent tensor (e.g. Polder ferrite) |
+
+**Global vs. per-layer semantics:** `transfer(λ, layers; μ=1.0, ...)` sets a
+scalar fallback permeability for every layer whose `mu` field is `nothing`. A
+layer whose `mu` is not `nothing` overrides the global value for that layer only.
+Tensor-μ layers (including a magnetic substrate) are fully supported. A magnetic
+*ambient at oblique incidence* shares the existing #71 ξ caveat: the conserved
+in-plane wavevector ξ is computed from the ambient permittivity only.
+
+**Helper functions:**
+- `gyrotropic_tensor(d, od; axis=:z)` — constant 3×3 Hermitian gyrotropic tensor
+  with diagonal `d` and antisymmetric imaginary off-diagonal `±i·od`; for use as
+  a static `mu=` value.
+- `polder_permeability(; f0, fm, linewidth=0.0, axis=:z)` — returns a function
+  `f -> μ_tensor` for the gyromagnetic (Polder) permeability of a saturated
+  ferrite; wrap with a λ-to-frequency conversion for the `mu=` kwarg:
+  `Layer(n, d; mu = λ -> polder_permeability(f0=..., fm=...)(TransferMatrix.c_0/λ))`
+  (where `TransferMatrix.c_0` is the package's internal speed-of-light constant
+  in μm/s; map wavelength → frequency according to your own unit system).
 
 Examples and tutorials: `docs/src/guide/` (quickstart, tutorial, validation)
 and `test/`.

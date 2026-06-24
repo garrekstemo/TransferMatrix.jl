@@ -107,6 +107,19 @@ end
     @test M1 == M1_true
     @test M2 == M2_true
     @test M3 == M3_true
+
+    @testset "construct_M full μ tensor" begin
+        ε = SMatrix{3,3,ComplexF64}(2,0,0, 0,2,0, 0,0,2)
+        μ = SMatrix{3,3,ComplexF64}(2,-0.6im,0, 0.6im,2,0, 0,0,1)
+        M = TransferMatrix.construct_M(ε, μ)
+        @test M[4:6, 4:6] == μ
+        @test M[1:3, 1:3] == ε
+        @test all(==(0), M[1:3, 4:6]) && all(==(0), M[4:6, 1:3])
+
+        ε_diag = Diagonal(SVector{3,ComplexF64}(2, 2, 2))
+        M_bridge = TransferMatrix.construct_M(ε_diag, μ)
+        @test M_bridge == TransferMatrix.construct_M(SMatrix{3,3,ComplexF64}(ε_diag), μ)
+    end
 end
 
 
@@ -442,4 +455,43 @@ end
 
     # Trace should be preserved under rotation (invariant)
     @test tr(ε_rot2) ≈ tr(ε_aniso) atol=1e-12
+end
+
+@testset "per-layer μ" begin
+    l0 = Layer(λ -> 1.5, 0.3)
+    @test l0.mu === nothing
+    @test TransferMatrix.ismagnetic(l0) == false
+    @test TransferMatrix.get_permeability(l0, 1.0) === nothing
+
+    ls = Layer(λ -> 1.5, 0.3; mu = 2.5)                 # isotropic magnetic
+    @test TransferMatrix.ismagnetic(ls)
+    @test TransferMatrix.get_permeability(ls, 1.0) == SMatrix{3,3,ComplexF64}(2.5*I)
+
+    M = SMatrix{3,3,ComplexF64}(2,0,0, 0,2,0, 0,0,3)
+    lm = Layer(λ -> 1.5, 0.3; mu = [2 0 0; 0 2 0; 0 0 3])  # constant tensor
+    @test TransferMatrix.get_permeability(lm, 1.0) == M
+
+    lf = Layer(λ -> 1.5, 0.3; mu = λ -> M)              # dispersive
+    @test TransferMatrix.get_permeability(lf, 0.7) == M
+
+    la = Layer(λ -> 1.6, λ -> 1.6, λ -> 1.8, 0.4; euler=(0.1,0.2,0.3), mu = 2.5)
+    @test TransferMatrix.isanisotropic(la) && TransferMatrix.ismagnetic(la)
+end
+
+@testset "tensor-μ dynamical matrix reduces to scalar" begin
+    ε = TransferMatrix.dielectric_tensor(4.0+0im, 6.25+0im, 9.0+0im)
+    ξ = 0.5; μs = 1.3
+    M = TransferMatrix.construct_M(ε, TransferMatrix.permeability_tensor(μs,μs,μs))
+    a = TransferMatrix.construct_a(ξ, M); Δ = TransferMatrix.construct_Δ(ξ, M, a)
+    q, _ = TransferMatrix.calculate_q(Δ, a); q = ComplexF64.(q)
+    γref = TransferMatrix.calculate_γ(ξ, q, ε, μs)
+    Dref = TransferMatrix.dynamical_matrix(ξ, q, γref, μs)
+    μmat = SMatrix{3,3,ComplexF64}(μs*I)
+    γt = TransferMatrix.calculate_γ_tensor(ξ, q, ε, μmat)
+    Dt = TransferMatrix.dynamical_matrix(ξ, q, γt, μmat)
+    # D·P·D⁻¹ is basis-invariant ⇒ compare the layer transfer, not raw D
+    P = TransferMatrix.propagation_matrix(2π, q)
+    Tref = Matrix(Dref)*Matrix(P(0.4))*inv(Matrix(Dref))
+    Tt   = Matrix(Dt)*Matrix(P(0.4))*inv(Matrix(Dt))
+    @test maximum(abs, Tref .- Tt) < 1e-10
 end

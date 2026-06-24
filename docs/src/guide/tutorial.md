@@ -214,3 +214,27 @@ A complete example calculating dispersion of a polaritonic system is provided in
 See the [Thickness dependence](../examples/thickness_dependence.md) example for sweeping a layer thickness.
 
 See the [Cholesteric circular Bragg](../examples/cholesteric_circular_bragg.md) example for circular-polarization (`basis=:circular`) output.
+
+## Magnetic layers
+
+Layers with non-trivial magnetic permeability use the `mu=` keyword. The value
+can be a scalar, a constant 3×3 matrix, or a wavelength-dependent function
+returning a 3×3 matrix.
+
+```julia
+using TransferMatrix
+
+# Uniaxial-μ slab between air half-spaces
+slab = Layer(λ -> 1.5, 0.3; mu = [2 0 0; 0 2 0; 0 0 3])
+layers = [Layer(λ -> 1.0, 1.0), slab, Layer(λ -> 1.0, 1.0)]
+result = transfer(0.5, layers)
+
+# Gyromagnetic ferrite film (constant Polder tensor)
+film = Layer(λ -> 1.0, 0.4; mu = gyrotropic_tensor(2.0, 0.6))
+layers = [Layer(λ -> 1.0, 1.0), film, Layer(λ -> 1.0, 1.0)]
+result = transfer(0.5, layers)
+```
+
+The global `μ=` kwarg on `transfer` / `sweep_angle` / `sweep_thickness` sets a
+scalar fallback for every layer whose `mu` field is `nothing`; a layer's own
+`mu` overrides it.
