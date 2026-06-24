@@ -4,7 +4,7 @@ TransferMatrix.jl provides a general 4x4 transfer matrix method for optical wave
 The core is an electrodynamics simulation based on a general 4x4 transfer matrix method developed by Passler, et al.
 Recent corrections and improvements are incorporated to deal with singularities and numerical instabilities for some types of multi-layered structures.
 Sources are cited both in the documentation and docstrings where appropriate.
-A comprehensive [bibliography](https://garrek.org/TransferMatrix.jl/stable/bibliography/) is also available as part of the documentation.
+A comprehensive [bibliography](bibliography.md) is also available as part of the documentation.
 
 There are a lot of transfer matrix programs out there. Many are
 proprietary and some are part of graduate theses. The problem
