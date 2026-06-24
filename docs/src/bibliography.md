@@ -19,7 +19,7 @@ All references used for writing TransferMatrix.jl.
 References supporting the modeling of a 2D material / TMDC monolayer as a surface
 optical conductivity sheet (the `Sheet` type, `sheet_matrix`, and the
 refractive-index ↔ sheet-conductivity conversion). The oblique-incidence,
-anisotropic 4×4 interface matrix used in the code follows the Berreman/Passler
+anisotropic 4×4 interface matrix used in the code follows the Berreman
 formalism above; the surface-conductivity boundary condition and the
 `σ_s = -iωε₀d(n²-1)` conversion follow [10] and [11].
 

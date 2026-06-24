@@ -526,16 +526,27 @@ end
 """
     calculate_tr(Γ)
 
-Calculate reflectance and transmittance for the total stack.
-This takes the matrix Γ* in Passler, et al., but for brevity we call it Γ in this function.
+Read the reflection and transmission coefficients off the full-stack transfer
+matrix `Γ`.
 
-The original formalism is from:
-Yeh, 1979,
-https://doi.org/10.1364/JOSA.69.000742
+`Γ` is the ``4\\times4`` transfer matrix for the whole stack, reordered into the
+p/s block convention (the two p modes first, then the two s modes) so the
+reflection and transmission Jones blocks can be read straight off its elements —
+the matrix Passler & Paarmann write as ``Γ^*``. The function returns the co- and
+cross-polarized amplitude coefficients (`rpp, rss, rps, rsp`, `tpp, tss, tps,
+tsp`) and their squared magnitudes.
 
-but the ordering of reflection/transmission coefficients 
-is modified in Passler, et al. 2017
-https://doi.org/10.1364/JOSAB.34.002128
+Reflectance is ``R = |r|^2`` directly. The returned ``|t|^2`` is *not* the
+physical transmittance — the transmitted wave is in a different medium — so the
+diagonal `Tpp`/`Tss` reported by `transfer` come from the Poynting-vector
+calculation (`calculate_tr(S::Poynting)`) instead.
+
+The ``2\\times2`` transfer-matrix relations originate with Yeh (1979); the
+generalized ``4\\times4`` coefficient formulas follow Passler & Paarmann (2017).
+
+References:
+- Yeh, 1979, https://doi.org/10.1364/JOSA.69.000742
+- Passler & Paarmann, 2017, https://doi.org/10.1364/JOSAB.34.002128
 """
 function calculate_tr(Γ)
 
