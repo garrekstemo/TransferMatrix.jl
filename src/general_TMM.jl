@@ -1057,19 +1057,8 @@ end
 
 # H eigenvectors per mode from the E eigenvectors γ and eigenvalues q:
 # H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q γ₂, q γ₁ - ξ γ₃, ξ γ₂) = (Hx, Hy, Hz).
-# The scalar method uses the fast scalar path; the matrix method applies the
-# full μ tensor. Rows 2,1 match dynamical_matrix rows 3,4 (H_y and -Hx);
-# row 3 (Hz) is (k×E)_z = ξ E_y.
-function _h_eigvecs(γ, q, ξ, μ::Number)
-    η = @MMatrix zeros(ComplexF64, 4, 3)
-    for m in 1:4
-        η[m, 1] = (-q[m] * γ[m, 2]) / μ
-        η[m, 2] = (q[m] * γ[m, 1] - ξ * γ[m, 3]) / μ
-        η[m, 3] = (ξ * γ[m, 2]) / μ
-    end
-    return SMatrix(η)
-end
-
+# Applies the full μ⁻¹ tensor. Rows 2,1 match dynamical_matrix rows 3,4
+# (H_y and -Hx); row 3 (Hz) is (k×E)_z = ξ E_y.
 function _h_eigvecs(γ, q, ξ, μ::AbstractMatrix)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ))
     η = @MMatrix zeros(ComplexF64, 4, 3)

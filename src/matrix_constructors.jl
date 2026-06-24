@@ -133,10 +133,11 @@ mapping wavelength to frequency as appropriate for your unit system.
 """
 function polder_permeability(; f0, fm, linewidth=0.0, axis::Symbol=:z)
     f0c = ComplexF64(f0) - im*ComplexF64(linewidth)/2
+    fmC = ComplexF64(fm)
     return function (f)
         denom = f0c^2 - ComplexF64(f)^2
-        μ = 1 + f0c*ComplexF64(fm)/denom
-        κ = ComplexF64(f)*ComplexF64(fm)/denom
+        μ = 1 + f0c*fmC/denom
+        κ = ComplexF64(f)*fmC/denom
         return gyrotropic_tensor(μ, κ; axis=axis)
     end
 end

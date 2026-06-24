@@ -115,6 +115,10 @@ end
         @test M[4:6, 4:6] == μ
         @test M[1:3, 1:3] == ε
         @test all(==(0), M[1:3, 4:6]) && all(==(0), M[4:6, 1:3])
+
+        ε_diag = Diagonal(SVector{3,ComplexF64}(2, 2, 2))
+        M_bridge = TransferMatrix.construct_M(ε_diag, μ)
+        @test M_bridge == TransferMatrix.construct_M(SMatrix{3,3,ComplexF64}(ε_diag), μ)
     end
 end
 
