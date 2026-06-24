@@ -443,3 +443,24 @@ end
     # Trace should be preserved under rotation (invariant)
     @test tr(ε_rot2) ≈ tr(ε_aniso) atol=1e-12
 end
+
+@testset "per-layer μ" begin
+    l0 = Layer(λ -> 1.5, 0.3)
+    @test l0.mu === nothing
+    @test TransferMatrix.ismagnetic(l0) == false
+    @test TransferMatrix.get_permeability(l0, 1.0) === nothing
+
+    ls = Layer(λ -> 1.5, 0.3; mu = 2.5)                 # isotropic magnetic
+    @test TransferMatrix.ismagnetic(ls)
+    @test TransferMatrix.get_permeability(ls, 1.0) == SMatrix{3,3,ComplexF64}(2.5*I)
+
+    M = SMatrix{3,3,ComplexF64}(2,0,0, 0,2,0, 0,0,3)
+    lm = Layer(λ -> 1.5, 0.3; mu = [2 0 0; 0 2 0; 0 0 3])  # constant tensor
+    @test TransferMatrix.get_permeability(lm, 1.0) == M
+
+    lf = Layer(λ -> 1.5, 0.3; mu = λ -> M)              # dispersive
+    @test TransferMatrix.get_permeability(lf, 0.7) == M
+
+    la = Layer(λ -> 1.6, λ -> 1.6, λ -> 1.8, 0.4; euler=(0.1,0.2,0.3), mu = 2.5)
+    @test TransferMatrix.isanisotropic(la) && TransferMatrix.ismagnetic(la)
+end

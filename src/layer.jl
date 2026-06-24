@@ -28,7 +28,8 @@ With `using Unitful`, thickness may carry units and is normalized to μm:
 `Layer(n, 100u"nm")`. RefractiveIndex.jl dispersion functions are parameterized
 in μm, so μm remains the internal unit.
 
-`Layer` is parametric as `Layer{F,T}` where `F` is the dispersion function type and `T` is the thickness type.
+`Layer` is parametric as `Layer{F,Mf,T}` where `F` is the dispersion function type, `Mf` is the
+permeability type (`Nothing` or a callable `λ -> SMatrix{3,3,ComplexF64}`), and `T` is the thickness type.
 For anisotropic layers, `F` is a `Tuple` of three dispersion functions.
 
 # Examples
@@ -49,20 +50,32 @@ layer = Layer(no, no, ne, 0.5)
 layer = Layer(λ -> 1.5, λ -> 1.6, λ -> 1.7, 0.3)
 ```
 """
-struct Layer{F,T<:Real}
+struct Layer{F,Mf,T<:Real}
     dispersion::F
+    mu::Mf
     thickness::T
 
-    function Layer(material::F, thickness::T) where {F,T<:Real}
+    function Layer(dispersion::F, mu::Mf, thickness::T) where {F,Mf,T<:Real}
         thickness ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
-        new{F,T}(material, thickness)
+        new{F,Mf,T}(dispersion, mu, thickness)
     end
 end
 
-# Isotropic constructor from tabulated (λ, n, k) data. The
-# Layer(::RefractiveMaterial, thickness) constructor lives in the RefractiveIndexExt
+# Normalize the `mu=` input to `nothing` or a callable λ -> SMatrix{3,3,ComplexF64}.
+_normalize_mu(::Nothing) = nothing
+_normalize_mu(m::Number) = let M = SMatrix{3,3,ComplexF64}(m*I); λ -> M end
+_normalize_mu(M::AbstractMatrix) = let Ms = SMatrix{3,3,ComplexF64}(M); λ -> Ms end
+_normalize_mu(f) = λ -> SMatrix{3,3,ComplexF64}(f(λ))
+
+# Isotropic constructor: material is any callable λ -> n(λ).
+# The Layer(::RefractiveMaterial, thickness) constructor lives in the RefractiveIndexExt
 # package extension (load RefractiveIndex to enable it).
-Layer(λs::AbstractVector, dispersion::AbstractVector, extinction::AbstractVector, thickness::Real) = Layer(refractive_index(λs, dispersion, extinction), thickness)
+Layer(material, thickness::Real; mu=nothing) =
+    Layer(material, _normalize_mu(mu), thickness)
+
+# Isotropic constructor from tabulated (λ, n, k) data.
+Layer(λs::AbstractVector, dispersion::AbstractVector, extinction::AbstractVector, thickness::Real; mu=nothing) =
+    Layer(refractive_index(λs, dispersion, extinction), thickness; mu=mu)
 
 """
     Base.broadcastable(layer::Layer)
@@ -110,10 +123,10 @@ layer = Layer(no, no, ne, 0.5; euler=(0, π/4, 0))
 layer = Layer(no, no, ne, 0.5; euler=(π/6, π/2, 0))
 ```
 """
-function Layer(nx::F1, ny::F2, nz::F3, thickness::T; euler::NTuple{3,Real}=(0.0, 0.0, 0.0)) where {F1,F2,F3,T<:Real}
+function Layer(nx::F1, ny::F2, nz::F3, thickness::T; euler::NTuple{3,Real}=(0.0, 0.0, 0.0), mu=nothing) where {F1,F2,F3,T<:Real}
     thickness ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
     φ, θ, ψ = Float64.(euler)
-    Layer((nx, ny, nz, φ, θ, ψ), thickness)
+    Layer((nx, ny, nz, φ, θ, ψ), _normalize_mu(mu), thickness)
 end
 
 """
@@ -123,6 +136,21 @@ Return `true` if the layer has anisotropic optical properties (different refract
 indices along principal axes), `false` for isotropic layers.
 """
 isanisotropic(layer::Layer) = layer.dispersion isa Tuple
+
+"""
+    ismagnetic(layer::Layer)
+
+Return `true` if the layer has a non-trivial magnetic permeability (mu ≠ nothing).
+"""
+ismagnetic(layer::Layer) = layer.mu !== nothing
+
+"""
+    get_permeability(layer::Layer, λ)
+
+Return the 3×3 permeability tensor `SMatrix{3,3,ComplexF64}` for the layer at
+wavelength `λ`, or `nothing` if the layer is non-magnetic.
+"""
+get_permeability(layer::Layer, λ) = layer.mu === nothing ? nothing : layer.mu(λ)
 
 """
     get_refractive_indices(layer::Layer, λ)
