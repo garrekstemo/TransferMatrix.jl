@@ -76,11 +76,42 @@ end
 """
     permeability_tensor(μ1, μ2, μ3)
 
-This produces the diagonal permeability tensor, 
+This produces the diagonal permeability tensor,
 which is identical to the way we build the `dielectric_tensor`,
 and we include this function simply for completeness.
 """
 permeability_tensor(μ1, μ2, μ3) = Diagonal(SVector{3, ComplexF64}(μ1, μ2, μ3))
+
+
+"""
+    gyrotropic_tensor(d, od; axis=:z)
+
+Constant gyrotropic (e.g. gyromagnetic Polder) tensor with diagonal `d` and
+antisymmetric imaginary off-diagonal `±i·od`, with the gyration vector along
+`axis`. For `axis=:z`:
+
+```
+[ d      i·od   0
+ −i·od   d      0
+  0      0      1 ]
+```
+
+Hermitian (hence lossless) for real `d, od`. The sign/handedness follows the
+package `exp(-iωt)` convention (validated against the `t_ps = -t_sp`
+non-reciprocity relation).
+"""
+function gyrotropic_tensor(d, od; axis::Symbol=:z)
+    dC = ComplexF64(d); g = im * ComplexF64(od); o = one(ComplexF64); z = zero(ComplexF64)
+    if axis === :z
+        return @SMatrix [dC g z; -g dC z; z z o]
+    elseif axis === :x
+        return @SMatrix [o z z; z dC g; z -g dC]
+    elseif axis === :y
+        return @SMatrix [dC z g; z o z; -g z dC]
+    else
+        throw(ArgumentError("axis must be :x, :y, or :z, got :$axis"))
+    end
+end
 
 
 """

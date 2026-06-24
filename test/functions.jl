@@ -420,3 +420,11 @@ end
         @test P_z[i,i] ≈ expected[i]
     end
 end
+
+@testset "gyrotropic_tensor" begin
+    G = gyrotropic_tensor(2.0, 0.6)                 # axis=:z
+    @test G == SMatrix{3,3,ComplexF64}(2.0,-0.6im,0, 0.6im,2.0,0, 0,0,1)
+    @test G ≈ G'                                    # Hermitian ⇒ lossless
+    Gx = gyrotropic_tensor(2.0, 0.6; axis=:x)
+    @test Gx[1,1] == 1 && Gx[2,3] == 0.6im && Gx[3,2] == -0.6im
+end

@@ -35,7 +35,8 @@ export Layer,
        get_permeability,
        isrotated,
        euler_rotation_matrix,
-       rotate_dielectric_tensor
+       rotate_dielectric_tensor,
+       gyrotropic_tensor
 
 const ε_0::Float64 = 8.8541878128e-12
 const μ_0::Float64 = 1.25663706212e-6
