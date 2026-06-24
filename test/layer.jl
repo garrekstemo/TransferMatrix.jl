@@ -107,6 +107,15 @@ end
     @test M1 == M1_true
     @test M2 == M2_true
     @test M3 == M3_true
+
+    @testset "construct_M full μ tensor" begin
+        ε = SMatrix{3,3,ComplexF64}(2,0,0, 0,2,0, 0,0,2)
+        μ = SMatrix{3,3,ComplexF64}(2,-0.6im,0, 0.6im,2,0, 0,0,1)
+        M = TransferMatrix.construct_M(ε, μ)
+        @test M[4:6, 4:6] == μ
+        @test M[1:3, 1:3] == ε
+        @test all(==(0), M[1:3, 4:6]) && all(==(0), M[4:6, 1:3])
+    end
 end
 
 

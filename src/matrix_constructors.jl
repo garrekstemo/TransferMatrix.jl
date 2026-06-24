@@ -222,6 +222,23 @@ function construct_M(ε::SMatrix{3,3,ComplexF64},
     ]
 end
 
+# Full 3×3 ε AND full 3×3 μ (e.g. gyrotropic/gyromagnetic media, no magnetoelectric coupling)
+function construct_M(ε::SMatrix{3,3,ComplexF64}, μ::SMatrix{3,3,ComplexF64})
+    z = zero(ComplexF64)
+    return @SMatrix [
+        ε[1,1] ε[1,2] ε[1,3] z z z;
+        ε[2,1] ε[2,2] ε[2,3] z z z;
+        ε[3,1] ε[3,2] ε[3,3] z z z;
+        z z z μ[1,1] μ[1,2] μ[1,3];
+        z z z μ[2,1] μ[2,2] μ[2,3];
+        z z z μ[3,1] μ[3,2] μ[3,3]
+    ]
+end
+
+# Diagonal ε with a full μ tensor
+construct_M(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}}, μ::SMatrix{3,3,ComplexF64}) =
+    construct_M(SMatrix{3,3,ComplexF64}(ε), μ)
+
 
 """
     construct_a(ξ, M)
