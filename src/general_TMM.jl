@@ -432,8 +432,8 @@ Matrix-exponential propagation core. Interior layers propagate via
 [`layer_transfer_exp`](@ref) (no eigenmode sorting); the semi-infinite ambient and
 substrate keep the eigenmode treatment in [`layer_matrices`](@ref), which is needed
 for the r/t coefficients and the Poynting transmittance. Conductive sheets are
-injected at their respective interfaces, mirroring [`_propagate_core`](@ref).
-Returns `(Γ, S)` like [`_propagate_core`](@ref).
+injected at their respective interfaces, mirroring `_propagate_core`.
+Returns `(Γ, S)` like `_propagate_core`.
 """
 function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
