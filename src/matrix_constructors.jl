@@ -143,6 +143,22 @@ function polder_permeability(; f0, fm, linewidth=0.0, axis::Symbol=:z)
 end
 
 
+# Field-vector reorder swapping slots 2↔3, converting between Berreman's order
+# (Eₓ, Hᵧ, Eᵧ, −Hₓ) and the dynamical-matrix order (Eₓ, Eᵧ, Hᵧ, −Hₓ). Its own
+# inverse (Λ² = I), so `Λ \ X` and `Λ * X` coincide.
+const _Λ1324 = @SMatrix [1.0 0 0 0; 0 0 1 0; 0 1 0 0; 0 0 0 1]
+
+# Rotation-aware dielectric tensor for a layer at wavelength λ. Shared by the
+# eigenmode path (`layer_matrices`) and the matrix-exponential path
+# (`layer_transfer_exp`) so ε construction lives in one place.
+function _layer_epsilon(layer, λ)
+    nx, ny, nz = get_refractive_indices(layer, λ)
+    ε_diag = dielectric_tensor(dielectric_constant(nx), dielectric_constant(ny), dielectric_constant(nz))
+    φ, θ, ψ = get_euler_angles(layer)
+    return (φ != 0.0 || θ != 0.0 || ψ != 0.0) ?
+        rotate_dielectric_tensor(ε_diag, euler_rotation_matrix(φ, θ, ψ)) : ε_diag
+end
+
 """
     layer_matrices(ω, ξ, layer, μ)
 
@@ -156,11 +172,7 @@ via Euler angles.
 """
 function layer_matrices(layer, λ, ξ, μ_i)
     ω = 2π * c_0 / λ
-    nx, ny, nz = get_refractive_indices(layer, λ)
-    ε_diag = dielectric_tensor(dielectric_constant(nx), dielectric_constant(ny), dielectric_constant(nz))
-    φ, θ, ψ = get_euler_angles(layer)
-    ε = (φ != 0.0 || θ != 0.0 || ψ != 0.0) ?
-        rotate_dielectric_tensor(ε_diag, euler_rotation_matrix(φ, θ, ψ)) : ε_diag
+    ε = _layer_epsilon(layer, λ)
 
     if ismagnetic(layer)
         μmat = get_permeability(layer, λ)                 # SMatrix{3,3,ComplexF64}
@@ -180,6 +192,42 @@ function layer_matrices(layer, λ, ξ, μ_i)
     P = propagation_matrix(ω, q)
     return D, P, γ, q
 end
+
+"""
+    layer_transfer_exp(layer, λ, ξ, ω, μ_i)
+
+Interior-layer 4×4 transfer matrix in the dynamical-matrix field basis
+`(Eₓ, Eᵧ, Hᵧ, −Hₓ)`, computed as the **matrix exponential** of the Berreman Δ
+matrix rather than by eigenmode decomposition:
+
+```math
+T = Λ_{1324}\\, \\exp\\!\\left(-i\\frac{ω}{c}\\,Δ\\,d\\right) Λ_{1324}.
+```
+
+`Δ = construct_Δ(ξ, construct_M(ε, μ), a)` is built from the full 3×3 ε (with any
+Euler rotation) and μ (the scalar fallback `μ_i·I`, or the layer's tensor `mu`).
+Because Δ's eigenvalues are the mode wavevectors `q`, `exp(-i(ω/c)Δd)` equals the
+eigenmode propagator `D·P(d)·D⁻¹` **without** diagonalizing, so this path needs no
+eigenvalue sorting and is degeneracy-immune. `Λ₁₃₂₄` reorders between Berreman's
+field vector `(Eₓ, Hᵧ, Eᵧ, −Hₓ)` and the dynamical-matrix basis; the `exp(-iωt)`
+sign matches [`propagation_matrix`](@ref).
+
+The matrix exponential is evaluated by scaling-and-squaring with degree-13 Padé
+approximants (StaticArrays' `exp`).
+
+Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
+Mackay & Lakhtakia, 2020, https://doi.org/10.1007/978-3-031-02022-3
+Higham, 2005, https://doi.org/10.1137/04061101X
+"""
+function layer_transfer_exp(layer, λ, ξ, ω, μ_i)
+    ε = _layer_epsilon(layer, λ)
+    μ = ismagnetic(layer) ? get_permeability(layer, λ) : permeability_tensor(μ_i, μ_i, μ_i)
+    M = construct_M(ε, μ)
+    a = construct_a(ξ, M)
+    Δ = construct_Δ(ξ, M, a)
+    return _Λ1324 * exp(-im * (ω / c_0) * Δ * layer.thickness) * _Λ1324
+end
+
 
 """
     construct_M(ε, μ, ρ1, ρ2)

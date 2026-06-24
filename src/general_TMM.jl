@@ -426,6 +426,59 @@ end
 
 
 """
+    _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
+
+Matrix-exponential propagation core. Interior layers propagate via
+[`layer_transfer_exp`](@ref) (no eigenmode sorting); the semi-infinite ambient and
+substrate keep the eigenmode treatment in [`layer_matrices`](@ref), which is needed
+for the r/t coefficients and the Poynting transmittance. Conductive sheets are
+injected at their respective interfaces, mirroring `_propagate_core`.
+Returns `(Γ, S)` like `_propagate_core`.
+"""
+function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
+
+    N = length(layers)
+    nx_in, _, _ = get_refractive_indices(layers[1], λ)
+    ε_0in = dielectric_constant(nx_in)
+    ξ = √(ε_0in) * sin(θ)
+    ω = 2π * c_0 / λ
+
+    D_1, _, γ_first, q_first = layer_matrices(layers[1], λ, ξ, μ)
+    D_N, _, γ_last,  q_last  = layer_matrices(layers[N], λ, ξ, μ)
+
+    # Interior product in the dynamical-matrix basis. Tangential fields are
+    # continuous across plain interfaces, so interior layers chain directly; a
+    # conductive sheet at interface (i, i+1) is injected as sheet_matrix.
+    no_sheets = sheets === nothing || isempty(sheets)
+    core = SMatrix{4,4,ComplexF64}(I)
+    if !no_sheets && haskey(sheets, 1)
+        core = core * sheet_matrix(sheets[1], λ)
+    end
+    for i in 2:N-1
+        core = core * layer_transfer_exp(layers[i], λ, ξ, ω, μ)
+        if !no_sheets && haskey(sheets, i)
+            core = core * sheet_matrix(sheets[i], λ)
+        end
+    end
+    core = core * D_N
+
+    Γ = (_Λ1324 \ (D_1 \ core)) * _Λ1324
+    r, R, t, T = calculate_tr(Γ)
+    μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
+    μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
+    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
+
+    return Γ, S
+end
+
+# Dispatch between the eigenmode (:eig) and matrix-exponential (:exp) cores.
+_propagate(::Val{:exp}, λ, layers; kwargs...) = _propagate_core_exp(λ, layers; kwargs...)
+_propagate(::Val{:eig}, λ, layers; kwargs...) = _propagate_core(λ, layers; kwargs...)
+_propagate(::Val{M}, λ, layers; kwargs...) where {M} =
+    throw(ArgumentError("method must be :exp or :eig, got :$(M)"))
+
+
+"""
     _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
 Internal full transfer-matrix pass. Returns `(Γ, S, Ds, Ps, γs, qs)` — like
@@ -609,7 +662,7 @@ end
 
 
 """
-    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear)
+    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear, method=:eig)
 
 Calculate the transmittance and reflectance of a layered structure.
 
@@ -640,6 +693,24 @@ medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 - `validate`: Check energy conservation R + T ≈ 1 for non-absorbing media (default: false)
 - `basis`: Output polarization basis — `:linear` (default) or `:circular`
+- `method`: propagation backend — `:eig` (eigenmode) or `:exp` (matrix exponential, see [`layer_transfer_exp`](@ref))
+
+# Numerical backend
+
+`method` selects how interior layers are propagated:
+
+- `:exp` (default) computes each interior layer's transfer matrix as the matrix
+  exponential of the Berreman Δ matrix (see [`layer_transfer_exp`](@ref)). It needs
+  no eigenmode sorting and is degeneracy-immune, so it handles near-degenerate and
+  mixed propagating/evanescent interior layers that `:eig` cannot.
+- `:eig` is the eigenmode/dynamical-matrix path, retained as a cross-check.
+
+Both agree to ~1e-12 on all supported cases. The semi-infinite ambient and substrate
+use the eigenmode path in either mode, so the anisotropic-ambient (#71) and
+anisotropic-substrate (#107) boundary limitations are unaffected by `method`.
+
+Mackay & Lakhtakia, 2020, https://doi.org/10.1007/978-3-031-02022-3 ;
+Higham, 2005, https://doi.org/10.1137/04061101X
 
 # Polarization basis
 - `basis=:linear` (default) returns a [`TransferResult`](@ref) in the linear p/s basis.
@@ -683,13 +754,13 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
-    Γ, S = _propagate_core(λ, layers; θ=θ, μ=μ, sheets=sd)
+    Γ, S = _propagate(Val(method), λ, layers; θ=θ, μ=μ, sheets=sd)
     return _assemble(Val(basis), Γ, S, λ, layers, sd, validate)
 end
 
@@ -798,7 +869,7 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=
 end
 
 
-function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing) where {B}
+function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing, method::Symbol=:eig) where {B}
     dims = (length(outer_vals), length(inner_vals))
     M1 = Array{Float64}(undef, dims)
     M2 = Array{Float64}(undef, dims)
@@ -817,7 +888,7 @@ function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, ve
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B)
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B, method=method)
             if B === :linear
                 M1[i, j] = result.Tpp
                 M2[i, j] = result.Tss
@@ -870,12 +941,13 @@ of size `(length(θs), length(λs))`.
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
+- `method`: propagation backend, `:exp` (default) or `:eig` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
@@ -883,7 +955,7 @@ function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbo
     return _sweep_spectra(θs, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = _ -> layers,
         angle_for = i -> θs[i],
-        sheets = sd)
+        sheets = sd, method = method)
 end
 
 
@@ -904,12 +976,13 @@ of size `(length(ts), length(λs))`.
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
+- `method`: propagation backend, `:exp` (default) or `:eig` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
@@ -926,7 +999,7 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, 
             layers_i
         end,
         angle_for = _ -> θ,
-        sheets = sd)
+        sheets = sd, method = method)
 end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)

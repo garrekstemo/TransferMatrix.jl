@@ -30,3 +30,13 @@ formalism above; the surface-conductivity boundary condition and the
 [14] Y. Li, A. Chernikov, X. Zhang, A. Rigosi, H. M. Hill, A. M. van der Zande, D. A. Chenet, E.-M. Shih, J. Hone, and T. F. Heinz, Measurement of the Optical Dielectric Function of Monolayer Transition-Metal Dichalcogenides: MoS₂, MoSe₂, WS₂, and WSe₂, Phys. Rev. B 90, 205422 (2014). \
 [15] R. R. Nair, P. Blake, A. N. Grigorenko, K. S. Novoselov, T. J. Booth, T. Stauber, N. M. R. Peres, and A. K. Geim, Fine Structure Constant Defines Visual Transparency of Graphene, Science 320, 1308 (2008). \
 [16] L. A. Falkovsky, Optical Properties of Graphene, J. Phys.: Conf. Ser. 129, 012004 (2008).
+
+## Matrix-exponential layer propagator
+
+The `method=:exp` backend evaluates each interior layer's characteristic matrix as the
+matrix exponential of the Berreman Δ matrix [9], following the transfer-matrix
+formulation in [17]. The exponential is computed by scaling-and-squaring with
+degree-13 Padé approximants [18], as implemented by StaticArrays.jl's `exp`.
+
+[17] T. G. Mackay and A. Lakhtakia, The Transfer-Matrix Method in Electromagnetics and Optics, Synthesis Lectures on Electromagnetics (Morgan & Claypool, 2020). \
+[18] N. J. Higham, The Scaling and Squaring Method for the Matrix Exponential Revisited, SIAM J. Matrix Anal. Appl. 26, 1179 (2005).

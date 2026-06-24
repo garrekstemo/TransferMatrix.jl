@@ -10,13 +10,17 @@ General Julia/Makie/Pkg conventions live in the global `~/.claude/CLAUDE.md`.
 
 ## API
 
-`transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate=false)` returns a
+`transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate=false, method=:exp)` returns a
 `TransferResult{T}` struct with **8 fields**: `Tpp Tss Tps Tsp Rpp Rss Rps Rsp`
 (includes cross-polarization terms). It does NOT return a tuple.
 
 - `sweep_angle(λs, θs, layers; ...)` and
   `sweep_thickness(λs, ts, layers, t_index; θ=0.0, ...)` return a
   `TransferResult` whose fields are **matrices** (threaded by default).
+- `method=:exp` (default) propagates interior layers via the matrix exponential of
+  the Berreman Δ matrix (degeneracy-immune, no eigenmode sorting); `method=:eig`
+  selects the eigenmode path. Both agree to ~1e-12; boundaries always use the
+  eigenmode path. See `src/matrix_constructors.jl` (`layer_transfer_exp`).
 - `efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)` → `ElectricField`;
   `hfield` → `MagneticField`.
 - Other exports: `Layer`, `Sheet`, `fresnel`, `fresnel_coefficients`, `airy`,
@@ -127,6 +131,13 @@ conservation): `.claude/rules/berreman-4x4-equations.md`.
   returning a wrong mode count. Pinned by the `"TIR into anisotropic substrate
   throws"` regression test; supporting evanescent transmitted modes in anisotropic
   media is the eventual fix.
+- **#92** (resolved): the matrix-exponential propagator (`method=:exp`, default)
+  eliminates interior-layer eigenmode sorting, so near-degenerate and **interior**
+  mixed propagating/evanescent layers (which make the `:eig` path throw "Mode
+  sorting failed") now solve and conserve energy. It does **not** change boundary
+  handling: the anisotropic-ambient (#71) and anisotropic-substrate TIR (#107)
+  limitations are boundary problems and remain. The exp propagator fixes the
+  per-layer propagator, not the cascade overflow (#88).
 
 ## Issue-fixing workflow
 
