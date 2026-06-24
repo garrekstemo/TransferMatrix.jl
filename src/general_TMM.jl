@@ -201,7 +201,7 @@ end
 
 
 """
-    poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
+    poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs[, μ_in, μ_out])
 
 Calculate the Poynting vector from wavevectors ``q``,
 components of the electric field γ, and transmission
@@ -210,6 +210,12 @@ and reflection coefficients.
 Transmitted Poynting vectors use substrate wavevectors (`q_out`), while
 reflected Poynting vectors use incident-medium wavevectors (`k_in[3,:]`,
 `k_in[4,:]`), since reflected waves propagate in the incident medium.
+
+The optional `μ_in` and `μ_out` arguments are the 3×3 permeability tensors of
+the ambient (incident) and substrate media respectively (default: identity, i.e.
+non-magnetic). They are used to form ``H = μ^{-1}(k̄ \\times E)`` when computing
+the Poynting flux, so that energy conservation holds for magnetic ambient and
+substrate layers.
 
 !!! note "Transmittance vs reflectance"
     This function computes Poynting vectors for both transmitted and reflected

@@ -49,6 +49,21 @@ layer = Layer(no, no, ne, 0.5)
 # Anisotropic: Biaxial crystal
 layer = Layer(λ -> 1.5, λ -> 1.6, λ -> 1.7, 0.3)
 ```
+
+# Magnetic / Permeability (`mu=`)
+
+All constructors accept an optional `mu=` keyword that sets the layer's magnetic
+permeability. Accepted forms: `nothing` (default, use the global `μ=` fallback),
+a scalar `Number` (isotropic μ), a constant `3×3 AbstractMatrix`, or a callable
+`λ -> 3×3 matrix` for wavelength-dependent tensors.
+
+```julia
+# Gyromagnetic (Polder) ferrite film, bias ∥ z
+film = Layer(λ -> 1.0, 0.4; mu = gyrotropic_tensor(2.0, 0.6))
+
+# Uniaxial-μ slab
+slab = Layer(λ -> 1.5, 0.3; mu = [2 0 0; 0 2 0; 0 0 3])
+```
 """
 struct Layer{F,Mf,T<:Real}
     dispersion::F
