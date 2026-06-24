@@ -440,3 +440,15 @@ end
     @test T ≈ T'                              # lossless when linewidth=0
     @test !(polder_permeability(; f0=f0, fm=fm, linewidth=0.5)(f) ≈ T)  # loss changes it
 end
+
+@testset "magnetic-substrate transmittance uses μ⁻¹" begin
+    # vacuum | vacuum-index magnetic film | magnetic substrate (ε=2, μ=3) — energy must conserve
+    air = Layer(λ->1.0, 1.0)
+    film = Layer(λ->1.0, 0.3; mu = 2.5)
+    sub = Layer(λ->sqrt(2.0), 1.0; mu = 3.0)
+    for θ in (0.0, 0.4)
+        r = transfer(1.0, [air, film, sub]; θ=θ)
+        @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-7)
+        @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-7)
+    end
+end

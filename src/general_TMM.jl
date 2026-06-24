@@ -217,7 +217,12 @@ reflected Poynting vectors use incident-medium wavevectors (`k_in[3,:]`,
     output. Reflectance is computed as ``R = |r|^2`` from the transfer matrix
     coefficients — see [`transfer`](@ref) for the rationale.
 """
-function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
+function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
+                  μ_in::AbstractMatrix  = SMatrix{3,3,ComplexF64}(I),
+                  μ_out::AbstractMatrix = SMatrix{3,3,ComplexF64}(I))
+
+    μin_inv  = inv(SMatrix{3,3,ComplexF64}(μ_in))
+    μout_inv = inv(SMatrix{3,3,ComplexF64}(μ_out))
 
     # create the wavevector in the first layer
     k_in = @MMatrix zeros(ComplexF64, 4, 3)
@@ -226,10 +231,10 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     for (i, q_i) in enumerate(q_in)
         k_in[i, 3] = q_i
     end
-    
+
     k_in ./= c_0
     k_in = SMatrix(k_in)
-    
+
     E_forward_in_p =  γ_in[1, :]  # p-polarized incident electric field
     E_forward_in_s =  γ_in[2, :]  # s-polarized incident electric field
     # E_backward_in_p = γ_in[3, :]
@@ -246,8 +251,8 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     E_ref_p = r_coefs[1] * γ_in[3, :] + r_coefs[2] * γ_in[4, :]
     E_ref_s = r_coefs[3] * γ_in[3, :] + r_coefs[4] * γ_in[4, :]
 
-    S_in_p = real(0.5 * E_forward_in_p × conj(k_in[1, :] × E_forward_in_p))
-    S_in_s = real(0.5 * E_forward_in_s × conj(k_in[2, :] × E_forward_in_s))
+    S_in_p = real(0.5 * E_forward_in_p × conj(μin_inv * (k_in[1, :] × E_forward_in_p)))
+    S_in_s = real(0.5 * E_forward_in_s × conj(μin_inv * (k_in[2, :] × E_forward_in_s)))
 
     k_out = @MMatrix zeros(ComplexF64, 4, 3)
     k_out[:, 1] .= ξ
@@ -266,16 +271,16 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs)
     # no net z-flux, so the per-mode sum is the physical transmitted flux.
     # (For an isotropic substrate k_out[1]=k_out[2] and this reduces to the
     # single-wavevector form, since the p/s cross term carries no z-power.)
-    S_out_p = real(0.5 * E_out_p1 × conj(k_out[1, :] × E_out_p1)) +
-              real(0.5 * E_out_p2 × conj(k_out[2, :] × E_out_p2))
-    S_out_s = real(0.5 * E_out_s1 × conj(k_out[1, :] × E_out_s1)) +
-              real(0.5 * E_out_s2 × conj(k_out[2, :] × E_out_s2))
+    S_out_p = real(0.5 * E_out_p1 × conj(μout_inv * (k_out[1, :] × E_out_p1))) +
+              real(0.5 * E_out_p2 × conj(μout_inv * (k_out[2, :] × E_out_p2)))
+    S_out_s = real(0.5 * E_out_s1 × conj(μout_inv * (k_out[1, :] × E_out_s1))) +
+              real(0.5 * E_out_s2 × conj(μout_inv * (k_out[2, :] × E_out_s2)))
 
     # Reflected waves: use incident-medium wavevectors (k_in modes 3,4),
     # not substrate wavevectors, because reflected light propagates backward
     # through the incident medium with its own q-values.
-    S_refl_p = real(0.5 * E_ref_p × conj(k_in[3, :] × E_ref_p))
-    S_refl_s = real(0.5 * E_ref_s × conj(k_in[4, :] × E_ref_s))
+    S_refl_p = real(0.5 * E_ref_p × conj(μin_inv * (k_in[3, :] × E_ref_p)))
+    S_refl_s = real(0.5 * E_ref_s × conj(μin_inv * (k_in[4, :] × E_ref_s)))
 
     return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s)
 end
@@ -404,7 +409,9 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     Γ = (Λ_1324 \ Γ) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
-    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r)
+    μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
+    μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
+    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S
 end
@@ -455,7 +462,9 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     Γ = (Λ_1324 \ Γ) * Λ_1324
     r, R, t, T = calculate_tr(Γ)
-    S = poynting(ξ, q_1, qs[N], γ_1, γs[N], t, r)
+    μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
+    μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
+    S = poynting(ξ, q_1, qs[N], γ_1, γs[N], t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S, Ds, Ps, γs, qs
 end
@@ -1035,14 +1044,27 @@ end
 
 
 # H eigenvectors per mode from the E eigenvectors γ and eigenvalues q:
-# H_m = (1/μ)(-q γ₂, q γ₁ - ξ γ₃, ξ γ₂) = (Hx, Hy, Hz). Rows 2,1 match
-# dynamical_matrix rows 3,4 (H_y and -Hx); row 3 (Hz) is (k×E)_z = ξ E_y.
-function _h_eigvecs(γ, q, ξ, μ)
+# H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q γ₂, q γ₁ - ξ γ₃, ξ γ₂) = (Hx, Hy, Hz).
+# The scalar method uses the fast scalar path; the matrix method applies the
+# full μ tensor. Rows 2,1 match dynamical_matrix rows 3,4 (H_y and -Hx);
+# row 3 (Hz) is (k×E)_z = ξ E_y.
+function _h_eigvecs(γ, q, ξ, μ::Number)
     η = @MMatrix zeros(ComplexF64, 4, 3)
     for m in 1:4
         η[m, 1] = (-q[m] * γ[m, 2]) / μ
         η[m, 2] = (q[m] * γ[m, 1] - ξ * γ[m, 3]) / μ
         η[m, 3] = (ξ * γ[m, 2]) / μ
+    end
+    return SMatrix(η)
+end
+
+function _h_eigvecs(γ, q, ξ, μ::AbstractMatrix)
+    μinv = inv(SMatrix{3,3,ComplexF64}(μ))
+    η = @MMatrix zeros(ComplexF64, 4, 3)
+    for m in 1:4
+        E = SVector{3,ComplexF64}(γ[m, 1], γ[m, 2], γ[m, 3])
+        H = μinv * (_kcross(ξ, q[m]) * E)
+        η[m, 1] = H[1]; η[m, 2] = H[2]; η[m, 3] = H[3]
     end
     return SMatrix(η)
 end
