@@ -91,4 +91,53 @@ using .MuReference
         end
     end
 
+    @testset "circular basis under :exp == :eig" begin
+        amb = Layer(λ -> 1.0, 1.0); sub = Layer(λ -> 1.4, 1.0)
+        film = Layer(λ -> 1.5, 0.3; mu=gyrotropic_tensor(2.0, 0.6))
+        for θ in (0.0, 0.5)
+            ce = transfer(1.0, [amb, film, sub]; θ=θ, basis=:circular, method=:eig)
+            cx = transfer(1.0, [amb, film, sub]; θ=θ, basis=:circular, method=:exp)
+            for f in (:Trr, :Tll, :Trl, :Tlr, :Rrr, :Rll, :Rrl, :Rlr)
+                @test isapprox(getfield(ce, f), getfield(cx, f); atol=1e-12)
+            end
+        end
+    end
+
+    @testset "energy conservation under :exp (lossless)" begin
+        amb = Layer(λ -> 1.0, 1.0); sub = Layer(λ -> 1.0, 1.0)
+        films = (Layer(λ -> 1.6, λ -> 1.6, λ -> 1.9, 0.4; euler=(π/6, π/4, 0)),  # out-of-plane tilt (#70)
+                 Layer(λ -> 1.5, 0.3; mu=gyrotropic_tensor(2.0, 0.6)))           # gyromagnetic μ
+        for film in films, θ in (0.0, 0.3, 0.6, 0.9)
+            r = transfer(1.0, [amb, film, sub]; θ=θ, method=:exp)
+            @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-9)
+            @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-9)
+        end
+    end
+
+    @testset "interior mixed propagating/evanescent: :eig throws, :exp conserves" begin
+        amb = Layer(λ -> 2.0, 1.0)                          # higher-index ambient
+        interior = Layer(λ -> 1.4, λ -> 1.6, λ -> 1.7, 0.5) # axis-aligned, all n < 2
+        sub = Layer(λ -> 2.5, 1.0)                          # clean (propagating) substrate
+        stack = [amb, interior, sub]; θ = 0.97
+        @test 1.6 < 2.0 * sin(θ) < 1.7                      # one transmitted mode evanescent
+        @test_throws ArgumentError transfer(1.0, stack; θ=θ, method=:eig)
+        r = transfer(1.0, stack; θ=θ, method=:exp)
+        @test all(isfinite, (r.Rpp, r.Rps, r.Tpp, r.Rss, r.Rsp, r.Tss))
+        @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-9)
+        @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-9)
+    end
+
+    @testset ":exp public API == MuReference.transfer_exp" begin
+        amb = Layer(λ -> 1.0, 1.0); sub = Layer(λ -> 1.5, 1.0)
+        uni = Layer(λ -> 1.6, λ -> 1.6, λ -> 1.8, 0.4; euler=(0.4, 0.6, 0.2))
+        ls = [amb, uni, sub]
+        for θ in (0.0, 0.6)
+            rx = transfer(1.0, ls; θ=θ, method=:exp)
+            g = transfer_exp([glayer_from_package(L, 1.0) for L in ls], 1.0; θ=θ)
+            @test isapprox(rx.Rpp, g.Rpp; atol=1e-12)
+            @test isapprox(rx.Tpp, g.Tpp; atol=1e-12)
+            @test isapprox(rx.Rps, g.Rps; atol=1e-12)
+        end
+    end
+
 end
