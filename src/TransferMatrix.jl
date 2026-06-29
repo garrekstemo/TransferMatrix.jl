@@ -49,6 +49,7 @@ include("layer.jl")
 include("dispersion_models.jl")
 include("sheet.jl")
 include("results.jl")
+include("poynting.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
 
