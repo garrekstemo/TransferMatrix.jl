@@ -14,7 +14,7 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
 
     nx_in, _, _ = get_refractive_indices(layers[1], λ)
-    ξ = √(dielectric_constant(nx_in)) * sin(θ)
+    k_par = √(dielectric_constant(nx_in)) * sin(θ)
 
     first_layer = layers[1]
     last_layer = layers[end]
@@ -74,7 +74,7 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     μs = [ismagnetic(L) ? get_permeability(L, λ) : μ_mat for L in layers]
 
     return (; zs, boundaries = interface_positions[1:end - 1],
-              amp_p, amp_s, layer_of_z, γs, qs, ξ, μ, μs)
+              amp_p, amp_s, layer_of_z, γs, qs, k_par, μ, μs)
 end
 
 
@@ -130,15 +130,15 @@ end
 
 
 # H eigenvectors per mode from the E eigenvectors γ and eigenvalues q:
-# H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q γ₂, q γ₁ - ξ γ₃, ξ γ₂) = (Hx, Hy, Hz).
+# H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q γ₂, q γ₁ - k_par γ₃, k_par γ₂) = (Hx, Hy, Hz).
 # Applies the full μ⁻¹ tensor. Rows 2,1 match dynamical_matrix rows 3,4
-# (H_y and -Hx); row 3 (Hz) is (k×E)_z = ξ E_y.
-function _h_eigvecs(γ, q, ξ, μ::AbstractMatrix)
+# (H_y and -Hx); row 3 (Hz) is (k×E)_z = k_par E_y.
+function _h_eigvecs(γ, q, k_par, μ::AbstractMatrix)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ))
     η = @MMatrix zeros(ComplexF64, 4, 3)
     for m in 1:4
         E = SVector{3,ComplexF64}(γ[m, 1], γ[m, 2], γ[m, 3])
-        H = μinv * (_kcross(ξ, q[m]) * E)
+        H = μinv * (_kcross(k_par, q[m]) * E)
         η[m, 1] = H[1]; η[m, 2] = H[2]; η[m, 3] = H[3]
     end
     return SMatrix(η)
@@ -165,7 +165,7 @@ function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
     # η depends only on the layer index (via γ and q), not on the z-sample, so
     # build it once per layer and index by layer rather than rebuilding per z.
-    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.ξ, F.μs[li]) for li in eachindex(F.γs)]
+    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.k_par, F.μs[li]) for li in eachindex(F.γs)]
 
     for j in 1:nz
         η = ηs[F.layer_of_z[j]]

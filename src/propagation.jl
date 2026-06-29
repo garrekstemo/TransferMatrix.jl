@@ -19,7 +19,7 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     N = length(layers)
     nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
-    ξ = √(ε_0in) * sin(θ)
+    k_par = √(ε_0in) * sin(θ)  # reduced in-plane wavevector, = n·sinθ
 
     Λ_1324 = @SMatrix [1 0 0 0;
                        0 0 1 0;
@@ -28,14 +28,14 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     no_sheets = sheets === nothing || isempty(sheets)
 
-    D_prev, _, γ_first, q_first = layer_matrices(layers[1], λ, ξ, μ)
+    D_prev, _, γ_first, q_first = layer_matrices(layers[1], λ, k_par, μ)
     γ_last = γ_first
     q_last = q_first
 
     Γ = SMatrix{4,4,ComplexF64}(I)
     for i in 2:N
         layer = layers[i]
-        D_cur, P_cur, γ_cur, q_cur = layer_matrices(layer, λ, ξ, μ)
+        D_cur, P_cur, γ_cur, q_cur = layer_matrices(layer, λ, k_par, μ)
         if no_sheets || !haskey(sheets, i - 1)
             L = D_prev \ D_cur                                  # interface (i-1, i)
         else
@@ -56,7 +56,7 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
-    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
+    S = poynting(k_par, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S
 end
@@ -77,11 +77,11 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     N = length(layers)
     nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
-    ξ = √(ε_0in) * sin(θ)
+    k_par = √(ε_0in) * sin(θ)
     ω = 2π * c_0 / λ
 
-    D_1, _, γ_first, q_first = layer_matrices(layers[1], λ, ξ, μ)
-    D_N, _, γ_last,  q_last  = layer_matrices(layers[N], λ, ξ, μ)
+    D_1, _, γ_first, q_first = layer_matrices(layers[1], λ, k_par, μ)
+    D_N, _, γ_last,  q_last  = layer_matrices(layers[N], λ, k_par, μ)
 
     # Interior product in the dynamical-matrix basis. Tangential fields are
     # continuous across plain interfaces, so interior layers chain directly; a
@@ -92,7 +92,7 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
         core = core * sheet_matrix(sheets[1], λ)
     end
     for i in 2:N-1
-        core = core * layer_transfer_exp(layers[i], λ, ξ, ω, μ)
+        core = core * layer_transfer_exp(layers[i], λ, k_par, ω, μ)
         if !no_sheets && haskey(sheets, i)
             core = core * sheet_matrix(sheets[i], λ)
         end
@@ -103,7 +103,7 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
-    S = poynting(ξ, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
+    S = poynting(k_par, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S
 end
@@ -127,7 +127,7 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     N = length(layers)
     nx_in, _, _ = get_refractive_indices(layers[1], λ)
     ε_0in = dielectric_constant(nx_in)
-    ξ = √(ε_0in) * sin(θ)
+    k_par = √(ε_0in) * sin(θ)
 
     Λ_1324 = @SMatrix [1 0 0 0;
                        0 0 1 0;
@@ -136,7 +136,7 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     no_sheets = sheets === nothing || isempty(sheets)
 
-    D_1, P_1, γ_1, q_1 = layer_matrices(layers[1], λ, ξ, μ)
+    D_1, P_1, γ_1, q_1 = layer_matrices(layers[1], λ, k_par, μ)
     Ds = Vector{typeof(D_1)}(undef, N)
     Ps = Vector{typeof(P_1)}(undef, N)
     γs = Vector{typeof(γ_1)}(undef, N)
@@ -145,7 +145,7 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     Γ = SMatrix{4,4,ComplexF64}(I)
     for i in 2:N
-        D_i, P_i, γ_i, q_i = layer_matrices(layers[i], λ, ξ, μ)
+        D_i, P_i, γ_i, q_i = layer_matrices(layers[i], λ, k_par, μ)
         Ds[i] = D_i; Ps[i] = P_i; γs[i] = γ_i; qs[i] = q_i
         if no_sheets || !haskey(sheets, i - 1)
             L = Ds[i - 1] \ D_i
@@ -162,7 +162,7 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
-    S = poynting(ξ, q_1, qs[N], γ_1, γs[N], t, r, μ_in_mat, μ_out_mat)
+    S = poynting(k_par, q_1, qs[N], γ_1, γs[N], t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S, Ds, Ps, γs, qs
 end

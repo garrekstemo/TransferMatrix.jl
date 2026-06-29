@@ -160,7 +160,7 @@ function _layer_epsilon(layer, λ)
 end
 
 """
-    layer_matrices(ω, ξ, layer, μ)
+    layer_matrices(ω, k_par, layer, μ)
 
 Calculate all parameters for a single layer, particularly
 the propagation matrix and dynamical matrix so that
@@ -170,31 +170,31 @@ Supports both isotropic layers (single refractive index) and anisotropic layers
 (different refractive indices along principal axes), with optional crystal rotation
 via Euler angles.
 """
-function layer_matrices(layer, λ, ξ, μ_i)
+function layer_matrices(layer, λ, k_par, μ_i)
     ω = 2π * c_0 / λ
     ε = _layer_epsilon(layer, λ)
 
     if ismagnetic(layer)
         μmat = get_permeability(layer, λ)                 # SMatrix{3,3,ComplexF64}
         M = construct_M(ε, μmat)
-        a = construct_a(ξ, M); Δ = construct_Δ(ξ, M, a)
+        a = construct_a(k_par, M); Δ = construct_Δ(k_par, M, a)
         q, S = calculate_q(Δ, a); q = ComplexF64.(q)
-        γ = calculate_γ_tensor(ξ, q, ε, μmat)
-        D = dynamical_matrix(ξ, q, γ, μmat)
+        γ = calculate_γ_tensor(k_par, q, ε, μmat)
+        D = dynamical_matrix(k_par, q, γ, μmat)
     else
         μ = permeability_tensor(μ_i, μ_i, μ_i)
         M = construct_M(ε, μ)
-        a = construct_a(ξ, M); Δ = construct_Δ(ξ, M, a)
+        a = construct_a(k_par, M); Δ = construct_Δ(k_par, M, a)
         q, S = calculate_q(Δ, a); q = ComplexF64.(q)
-        γ = calculate_γ(ξ, q, ε, μ_i)
-        D = dynamical_matrix(ξ, q, γ, μ_i)
+        γ = calculate_γ(k_par, q, ε, μ_i)
+        D = dynamical_matrix(k_par, q, γ, μ_i)
     end
     P = propagation_matrix(ω, q)
     return D, P, γ, q
 end
 
 """
-    layer_transfer_exp(layer, λ, ξ, ω, μ_i)
+    layer_transfer_exp(layer, λ, k_par, ω, μ_i)
 
 Interior-layer 4×4 transfer matrix in the dynamical-matrix field basis
 `(Eₓ, Eᵧ, Hᵧ, −Hₓ)`, computed as the **matrix exponential** of the Berreman Δ
@@ -204,7 +204,7 @@ matrix rather than by eigenmode decomposition:
 T = Λ_{1324}\\, \\exp\\!\\left(-i\\frac{ω}{c}\\,Δ\\,d\\right) Λ_{1324}.
 ```
 
-`Δ = construct_Δ(ξ, construct_M(ε, μ), a)` is built from the full 3×3 ε (with any
+`Δ = construct_Δ(k_par, construct_M(ε, μ), a)` is built from the full 3×3 ε (with any
 Euler rotation) and μ (the scalar fallback `μ_i·I`, or the layer's tensor `mu`).
 Because Δ's eigenvalues are the mode wavevectors `q`, `exp(-i(ω/c)Δd)` equals the
 eigenmode propagator `D·P(d)·D⁻¹` **without** diagonalizing, so this path needs no
@@ -219,12 +219,12 @@ Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
 Mackay & Lakhtakia, 2020, https://doi.org/10.1007/978-3-031-02022-3
 Higham, 2005, https://doi.org/10.1137/04061101X
 """
-function layer_transfer_exp(layer, λ, ξ, ω, μ_i)
+function layer_transfer_exp(layer, λ, k_par, ω, μ_i)
     ε = _layer_epsilon(layer, λ)
     μ = ismagnetic(layer) ? get_permeability(layer, λ) : permeability_tensor(μ_i, μ_i, μ_i)
     M = construct_M(ε, μ)
-    a = construct_a(ξ, M)
-    Δ = construct_Δ(ξ, M, a)
+    a = construct_a(k_par, M)
+    Δ = construct_Δ(k_par, M, a)
     return _Λ1324 * exp(-im * (ω / c_0) * Δ * layer.thickness) * _Λ1324
 end
 
@@ -286,26 +286,26 @@ construct_M(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}}, μ::SMatrix{3,3,Comp
 
 
 """
-    construct_a(ξ, M)
+    construct_a(k_par, M)
 
 Construct the elements of the intermediate 6x6 matrix ``a`` in terms of the
 elements of matrix ``M`` (the 6x6 matrix holding the material dielectric and permeability tensors)
-and propagation vector ξ. This is implemented as described in 
+and propagation vector k_par. This is implemented as described in 
 
 Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
 """
-function construct_a(ξ, M)
+function construct_a(k_par, M)
     d = M[3,3] * M[6,6] - M[3,6] * M[6,3]
 
     a31 = (M[6,1] * M[3,6] - M[3,1] * M[6,6]) / d
-    a32 =((M[6,2] - ξ) * M[3,6] - M[3,2] * M[6,6]) / d
+    a32 =((M[6,2] - k_par) * M[3,6] - M[3,2] * M[6,6]) / d
     a34 = (M[6,4] * M[3,6] -  M[3,4] * M[6,6]) / d
-    a35 = (M[6,5] * M[3,6] - (M[3,5] + ξ) * M[6,6]) / d
+    a35 = (M[6,5] * M[3,6] - (M[3,5] + k_par) * M[6,6]) / d
 
     a61 = (M[6,3] * M[3,1] - M[3,3] * M[6,1]) / d
-    a62 = (M[6,3] * M[3,2] - M[3,3] * (M[6,2] - ξ)) / d
+    a62 = (M[6,3] * M[3,2] - M[3,3] * (M[6,2] - k_par)) / d
     a64 = (M[6,3] * M[3,4] - M[3,3] * M[6,4]) / d
-    a65 = (M[6,3] * (M[3,5] + ξ) - M[3,3] * M[6,5]) / d
+    a65 = (M[6,3] * (M[3,5] + k_par) - M[3,3] * M[6,5]) / d
     
     return @SMatrix [
         0 0 0 0 0 0;
@@ -319,10 +319,10 @@ end
 
 
 """
-    construct_Δ(ξ, M, a)
+    construct_Δ(k_par, M, a)
 
 Construct the reordered matrix Δ in terms of the elements of
-the two matrices, M and a, and the in-plane reduced wavevector ξ = ``k_x / k_0``.
+the two matrices, M and a, and the in-plane reduced wavevector k_par = ``k_x / k_0``.
 The matrix Δ is involved in the relation
 
 ```math
@@ -333,12 +333,12 @@ and Δ is the reordered S matrix in Berreman's formulation.
 
 Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
 """
-function construct_Δ(ξ, M, a)
+function construct_Δ(k_par, M, a)
 
-    Δ11 =  M[5,1] + (M[5,3] + ξ) * a[3,1] + M[5,6] * a[6,1]
-    Δ12 =  M[5,5] + (M[5,3] + ξ) * a[3,5] + M[5,6] * a[6,5]
-    Δ13 =  M[5,2] + (M[5,3] + ξ) * a[3,2] + M[5,6] * a[6,2]
-    Δ14 = -M[5,4] - (M[5,3] + ξ) * a[3,4] - M[5,6] * a[6,4]
+    Δ11 =  M[5,1] + (M[5,3] + k_par) * a[3,1] + M[5,6] * a[6,1]
+    Δ12 =  M[5,5] + (M[5,3] + k_par) * a[3,5] + M[5,6] * a[6,5]
+    Δ13 =  M[5,2] + (M[5,3] + k_par) * a[3,2] + M[5,6] * a[6,2]
+    Δ14 = -M[5,4] - (M[5,3] + k_par) * a[3,4] - M[5,6] * a[6,4]
 
     Δ21 =  M[1,1] + M[1,3] * a[3,1] + M[1,6] * a[6,1]
     Δ22 =  M[1,5] + M[1,3] * a[3,5] + M[1,6] * a[6,5]
@@ -350,10 +350,10 @@ function construct_Δ(ξ, M, a)
     Δ33 = -M[4,2] - M[4,3] * a[3,2] - M[4,6] * a[6,2]
     Δ34 =  M[4,4] + M[4,3] * a[3,4] + M[4,6] * a[6,4]
 
-    Δ41 =  M[2,1] + M[2,3] * a[3,1] + (M[2,6] - ξ) * a[6,1]
-    Δ42 =  M[2,5] + M[2,3] * a[3,5] + (M[2,6] - ξ) * a[6,5]
-    Δ43 =  M[2,2] + M[2,3] * a[3,2] + (M[2,6] - ξ) * a[6,2]
-    Δ44 = -M[2,4] - M[2,3] * a[3,4] - (M[2,6] - ξ) * a[6,4]
+    Δ41 =  M[2,1] + M[2,3] * a[3,1] + (M[2,6] - k_par) * a[6,1]
+    Δ42 =  M[2,5] + M[2,3] * a[3,5] + (M[2,6] - k_par) * a[6,5]
+    Δ43 =  M[2,2] + M[2,3] * a[3,2] + (M[2,6] - k_par) * a[6,2]
+    Δ44 = -M[2,4] - M[2,3] * a[3,4] - (M[2,6] - k_par) * a[6,4]
 
     return @SMatrix [
         Δ11 Δ12 Δ13 Δ14;
@@ -429,7 +429,7 @@ end
 
 
 """
-    calculate_γ(ξ, q, ε, μ)
+    calculate_γ(k_par, q, ε, μ)
 
 The 4 x 3 matrix γ contains vector components that belong
 to the electric field calculated such that singularities are identified and removed.
@@ -449,7 +449,7 @@ making it unsuitable as a normalization factor.
 This is based on the work in
 Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
-function calculate_γ(ξ, q, ε, μ)
+function calculate_γ(k_par, q, ε, μ)
 
     γ = @MMatrix zeros(ComplexF64, 4, 3)
     γ[1,1] = 1
@@ -458,15 +458,15 @@ function calculate_γ(ξ, q, ε, μ)
     γ[3,1] = -1
 
     # Common denominator term - can become singular at specific angles
-    denom_33 = μ * ε[3,3] - ξ^2
+    denom_33 = μ * ε[3,3] - k_par^2
     singular_33 = abs(denom_33) < eps(Float64)
 
     if isapprox(q[1], q[2])
         γ[1,2] = 0
         γ[2,1] = 0
     else
-        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + ξ * q[1]) - μ * ε[2,1] * denom_33) / (denom_33 * (μ * ε[2,2] - ξ^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[2]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + ξ * q[2]) * (μ * ε[3,1] + ξ * q[2]))
+        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + k_par * q[1]) - μ * ε[2,1] * denom_33) / (denom_33 * (μ * ε[2,2] - k_par^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + k_par * q[2]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + k_par * q[2]) * (μ * ε[3,1] + k_par * q[2]))
     end
 
     # γ[i,3] components use denom_33 directly - set to zero if singular
@@ -474,16 +474,16 @@ function calculate_γ(ξ, q, ε, μ)
         γ[1,3] = 0
         γ[2,3] = 0
     else
-        γ[1,3] = (-μ * ε[3,1] - ξ * q[1] - μ * ε[3,2] * γ[1,2]) / denom_33
-        γ[2,3] = (-(μ * ε[3,1] + ξ * q[2]) * γ[2,1] - μ * ε[3,2]) / denom_33
+        γ[1,3] = (-μ * ε[3,1] - k_par * q[1] - μ * ε[3,2] * γ[1,2]) / denom_33
+        γ[2,3] = (-(μ * ε[3,1] + k_par * q[2]) * γ[2,1] - μ * ε[3,2]) / denom_33
     end
 
     if isapprox(q[3], q[4])
         γ[3,2] = 0.0
         γ[4,1] = 0.0
     else
-        γ[3,2] = (μ * ε[2,1] * denom_33 - μ * ε[2,3] * (μ * ε[3,1] + ξ * q[3])) / (denom_33 * (μ * ε[2,2] - ξ^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + ξ * q[4]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + ξ * q[4]) * (μ * ε[3,1] + ξ * q[4]))
+        γ[3,2] = (μ * ε[2,1] * denom_33 - μ * ε[2,3] * (μ * ε[3,1] + k_par * q[3])) / (denom_33 * (μ * ε[2,2] - k_par^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
+        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + k_par * q[4]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + k_par * q[4]) * (μ * ε[3,1] + k_par * q[4]))
     end
 
     # γ[i,3] components for backward modes - set to zero if singular
@@ -491,8 +491,8 @@ function calculate_γ(ξ, q, ε, μ)
         γ[3,3] = 0
         γ[4,3] = 0
     else
-        γ[3,3] = (μ * ε[3,1] + ξ * q[3] - μ * ε[3,2] * γ[3,2]) / denom_33
-        γ[4,3] = (-(μ * ε[3,1] + ξ * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
+        γ[3,3] = (μ * ε[3,1] + k_par * q[3] - μ * ε[3,2] * γ[3,2]) / denom_33
+        γ[4,3] = (-(μ * ε[3,1] + k_par * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
     end
 
     # Normalize γ using the Hermitian norm: |v| = √(Σ|vᵢ|²).
@@ -521,12 +521,12 @@ function calculate_γ(ξ, q, ε, μ)
 end
 
 
-# k̄ × v cross-product matrix for k̄ = (ξ, 0, q)
-_kcross(ξ, q) = SMatrix{3,3,ComplexF64}(0, q, 0,  -q, 0, ξ,  0, -ξ, 0)
+# k̄ × v cross-product matrix for k̄ = (k_par, 0, q)
+_kcross(k_par, q) = SMatrix{3,3,ComplexF64}(0, q, 0,  -q, 0, k_par,  0, -k_par, 0)
 
 
 """
-    calculate_γ_tensor(ξ, q, ε, μ)
+    calculate_γ_tensor(k_par, q, ε, μ)
 
 E-field eigenvectors for a layer with a full 3×3 permeability tensor `μ`, as the
 null space of `W(q) = K μ⁻¹ K + ε` for each mode `q`. Degenerate pairs (qᵢ ≈ qⱼ,
@@ -534,12 +534,12 @@ e.g. isotropic media) share a 2-D null space; both orthogonal null vectors are
 assigned, avoiding the singular dynamical matrix a naive per-mode null space
 produces. Rows are unit-Hermitian-normalized, matching [`calculate_γ`].
 """
-function calculate_γ_tensor(ξ, q, ε, μ; rtol=1e-7)
+function calculate_γ_tensor(k_par, q, ε, μ; rtol=1e-7)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ)); εm = SMatrix{3,3,ComplexF64}(ε)
     γ = @MMatrix zeros(ComplexF64, 4, 3); assigned = MVector{4,Bool}(false, false, false, false)
     for m in 1:4
         assigned[m] && continue
-        K = _kcross(ξ, q[m]); F = svd(Matrix(K*μinv*K + εm))
+        K = _kcross(k_par, q[m]); F = svd(Matrix(K*μinv*K + εm))
         partner = 0
         for n in (m+1):4
             if !assigned[n] && abs(q[n]-q[m]) < rtol*max(abs(q[m]), 1.0)
@@ -556,16 +556,16 @@ end
 
 
 """
-    dynamical_matrix(ξ, q, γ, μ::AbstractMatrix)
+    dynamical_matrix(k_par, q, γ, μ::AbstractMatrix)
 
 Dynamical matrix for a tensor μ. Rows are `(Eₓ, Eᵧ, Hᵧ, −Hₓ)` per mode with
 `H = μ⁻¹ (k̄ × E)`. Reduces to the scalar-μ method when `μ = μ·I`.
 """
-function dynamical_matrix(ξ, q, γ, μ::AbstractMatrix)
+function dynamical_matrix(k_par, q, γ, μ::AbstractMatrix)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ))
     cols = ntuple(4) do m
         E = SVector{3,ComplexF64}(γ[m,1], γ[m,2], γ[m,3])
-        H = μinv * (_kcross(ξ, q[m]) * E)
+        H = μinv * (_kcross(k_par, q[m]) * E)
         SVector{4,ComplexF64}(E[1], E[2], H[2], -H[1])
     end
     return hcat(cols...)::SMatrix{4,4,ComplexF64}
@@ -573,7 +573,7 @@ end
 
 
 """
-    dynamical_matrix(ξ, q, γ, μ)
+    dynamical_matrix(k_par, q, γ, μ)
 
 The dynamical matrix relating two layers at the interface
 where matrix ``A_i`` for layer ``i`` relates the field ``E_i`` to
@@ -585,8 +585,8 @@ the field in the previous layer ``i - 1`` via
 
 Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
-function dynamical_matrix(ξ, q, γ, μ)
-    A_3 = (γ[:, 1] .* q .- ξ * γ[:, 3]) ./ μ
+function dynamical_matrix(k_par, q, γ, μ)
+    A_3 = (γ[:, 1] .* q .- k_par * γ[:, 3]) ./ μ
     A_4 = γ[:, 2] .* q ./ μ
 
     return @SMatrix [

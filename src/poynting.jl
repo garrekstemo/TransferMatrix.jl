@@ -44,7 +44,7 @@ end
 
 
 """
-    poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs[, μ_in, μ_out])
+    poynting(k_par, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs[, μ_in, μ_out])
 
 Calculate the Poynting vector from wavevectors ``q``,
 components of the electric field γ, and transmission
@@ -59,7 +59,7 @@ the ambient (incident) and substrate media respectively (default: identity, i.e.
 non-magnetic). They are used to form ``H = μ^{-1}(k̄ \\times E)`` when computing
 the Poynting flux, so that energy conservation holds for a magnetic substrate.
 A magnetic ambient is only correctly handled at normal incidence; at oblique
-incidence the conserved in-plane wavevector ξ is still computed from the
+incidence the conserved in-plane wavevector k_par is still computed from the
 ambient permittivity alone (see issue #71), so results may be inaccurate.
 
 !!! note "Transmittance vs reflectance"
@@ -68,7 +68,7 @@ ambient permittivity alone (see issue #71), so results may be inaccurate.
     output. Reflectance is computed as ``R = |r|^2`` from the transfer matrix
     coefficients — see [`transfer`](@ref) for the rationale.
 """
-function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
+function poynting(k_par, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
                   μ_in::AbstractMatrix  = SMatrix{3,3,ComplexF64}(I),
                   μ_out::AbstractMatrix = SMatrix{3,3,ComplexF64}(I))
 
@@ -77,7 +77,7 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
 
     # create the wavevector in the first layer
     k_in = @MMatrix zeros(ComplexF64, 4, 3)
-    k_in[:, 1] .= ξ
+    k_in[:, 1] .= k_par
 
     for (i, q_i) in enumerate(q_in)
         k_in[i, 3] = q_i
@@ -106,7 +106,7 @@ function poynting(ξ, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
     S_in_s = real(0.5 * E_forward_in_s × conj(μin_inv * (k_in[2, :] × E_forward_in_s)))
 
     k_out = @MMatrix zeros(ComplexF64, 4, 3)
-    k_out[:, 1] .= ξ
+    k_out[:, 1] .= k_par
 
     for (i, q_i) in enumerate(q_out)
         k_out[i, 3] = q_i
