@@ -52,6 +52,7 @@ include("results.jl")
 include("poynting.jl")
 include("coefficients.jl")
 include("propagation.jl")
+include("transfer.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
 
