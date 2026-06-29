@@ -48,6 +48,7 @@ include("matrix_constructors.jl")
 include("layer.jl")
 include("dispersion_models.jl")
 include("sheet.jl")
+include("results.jl")
 include("general_TMM.jl")
 include("optics_functions.jl")
 
