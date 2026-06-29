@@ -53,7 +53,7 @@ include("poynting.jl")
 include("coefficients.jl")
 include("propagation.jl")
 include("transfer.jl")
-include("general_TMM.jl")
+include("fields.jl")
 include("optics_functions.jl")
 
 # Precompile common workloads to reduce time-to-first-execution
