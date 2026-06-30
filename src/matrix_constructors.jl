@@ -436,12 +436,12 @@ to the electric field calculated such that singularities are identified and remo
 `q[1]` and `q[2]` are forward-traveling modes and
 `q[3]` and `q[4]` are backward-traveling modes.
 
-Each row is normalized to unit length using the Hermitian norm
-``|E_modes| = √(Σ|E_modes_i|²)`` as prescribed by the 2019 erratum (Passler &
+Each row `v` of `E_modes` is normalized to unit length using the Hermitian norm
+``‖v‖ = √(Σ|vᵢ|²)`` as prescribed by the 2019 erratum (Passler &
 Paarmann, JOSAB 36, 3246). The Hermitian norm is the correct choice
-because E_modes represents an electric field polarization direction: its
+because each row represents an electric field polarization direction: its
 physical "length" is the field amplitude, which is ``√(E⋅E*) = √(Σ|Eᵢ|²)``.
-The bilinear form ``√(Σ E_modes_i²)`` has no physical meaning for complex fields
+The bilinear form ``√(Σ vᵢ²)`` has no physical meaning for complex fields
 and can vanish for nonzero vectors (e.g. circular polarization),
 making it unsuitable as a normalization factor.
 
