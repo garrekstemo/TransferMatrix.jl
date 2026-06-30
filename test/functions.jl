@@ -222,14 +222,14 @@ end
     @test μ[1,2] == 0
 end
 
-@testset "construct_M overloads" begin
-    # Test general construct_M with magnetoelectric coupling
+@testset "construct_constitutive overloads" begin
+    # Test general construct_constitutive with magnetoelectric coupling
     ε = Diagonal([2.25, 2.25, 2.25])
     μ = Diagonal([1.0, 1.0, 1.0])
     ρ1 = [0.1 0 0; 0 0.1 0; 0 0 0.1]
     ρ2 = [0.2 0 0; 0 0.2 0; 0 0 0.2]
 
-    M = TransferMatrix.construct_M(ε, μ, ρ1, ρ2)
+    M = TransferMatrix.construct_constitutive(ε, μ, ρ1, ρ2)
     @test size(M) == (6, 6)
     @test M[1:3, 1:3] == ε
     @test M[4:6, 4:6] == μ
@@ -239,7 +239,7 @@ end
     # Test specialized Diagonal method (isotropic, no magnetoelectric coupling)
     ε_diag = Diagonal(SVector{3, ComplexF64}(2.25, 2.25, 2.25))
     μ_diag = Diagonal(SVector{3, ComplexF64}(1.0, 1.0, 1.0))
-    M_iso = TransferMatrix.construct_M(ε_diag, μ_diag)
+    M_iso = TransferMatrix.construct_constitutive(ε_diag, μ_diag)
     @test M_iso isa SMatrix{6,6}
     @test M_iso[1,1] ≈ 2.25
     @test M_iso[4,4] ≈ 1.0
@@ -250,7 +250,7 @@ end
     ε_full = @SMatrix [2.25+0im 0.1+0im 0.0+0im;
                        0.1+0im 2.0+0im 0.0+0im;
                        0.0+0im 0.0+0im 1.5+0im]
-    M_aniso = TransferMatrix.construct_M(ε_full, μ_diag)
+    M_aniso = TransferMatrix.construct_constitutive(ε_full, μ_diag)
     @test M_aniso isa SMatrix{6,6}
     @test M_aniso[1,1] ≈ 2.25
     @test M_aniso[1,2] ≈ 0.1  # Off-diagonal element preserved
@@ -263,7 +263,7 @@ end
     # Test with isotropic material at normal incidence
     ε = Diagonal(SVector{3, ComplexF64}(2.25, 2.25, 2.25))
     μ = Diagonal(SVector{3, ComplexF64}(1.0, 1.0, 1.0))
-    M = TransferMatrix.construct_M(ε, μ)
+    M = TransferMatrix.construct_constitutive(ε, μ)
 
     ξ = 0.0  # Normal incidence
     a = TransferMatrix.construct_a(ξ, M)
@@ -284,7 +284,7 @@ end
 @testset "construct_Δ" begin
     ε = Diagonal(SVector{3, ComplexF64}(2.25, 2.25, 2.25))
     μ = Diagonal(SVector{3, ComplexF64}(1.0, 1.0, 1.0))
-    M = TransferMatrix.construct_M(ε, μ)
+    M = TransferMatrix.construct_constitutive(ε, μ)
 
     ξ = 0.0
     a = TransferMatrix.construct_a(ξ, M)
@@ -348,7 +348,7 @@ end
     μ_val = 1.0
 
     μ_tensor = TransferMatrix.permeability_tensor(μ_val, μ_val, μ_val)
-    M = TransferMatrix.construct_M(ε, μ_tensor)
+    M = TransferMatrix.construct_constitutive(ε, μ_tensor)
     a = TransferMatrix.construct_a(ξ, M)
     Δ = TransferMatrix.construct_Δ(ξ, M, a)
     q, _ = TransferMatrix.calculate_q(Matrix(Δ), a)

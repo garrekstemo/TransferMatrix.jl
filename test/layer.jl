@@ -66,7 +66,7 @@ end
 end
 
 
-@testset "construct_M" begin
+@testset "construct_constitutive" begin
     ε_i = (1.0 + 2.0im)^2
     μ_i = 1.0 + 0.0im
     ε = Diagonal([ε_i, ε_i, ε_i])
@@ -74,7 +74,7 @@ end
     ρ1 = [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0]
     ρ2 = [9.0 8.0 7.0; 6.0 5.0 4.0; 3.0 2.0 1.0]
 
-    M1 = TransferMatrix.construct_M(ε, μ, ρ1, ρ2)
+    M1 = TransferMatrix.construct_constitutive(ε, μ, ρ1, ρ2)
     M1_true = [
         ε_i 0.0 0.0 1.0 2.0 3.0;
         0.0 ε_i 0.0 4.0 5.0 6.0;
@@ -84,7 +84,7 @@ end
         3.0 2.0 1.0 0.0 0.0 μ_i
     ]
 
-    M2 = TransferMatrix.construct_M(ε, μ)
+    M2 = TransferMatrix.construct_constitutive(ε, μ)
     M2_true = [
         ε_i 0.0 0.0 0.0 0.0 0.0;
         0.0 ε_i 0.0 0.0 0.0 0.0;
@@ -94,7 +94,7 @@ end
         0.0 0.0 0.0 0.0 0.0 μ_i
     ]
 
-    M3 = TransferMatrix.construct_M(ε)
+    M3 = TransferMatrix.construct_constitutive(ε)
     M3_true = [
         ε_i 0.0 0.0 0.0 0.0 0.0;
         0.0 ε_i 0.0 0.0 0.0 0.0;
@@ -108,17 +108,17 @@ end
     @test M2 == M2_true
     @test M3 == M3_true
 
-    @testset "construct_M full μ tensor" begin
+    @testset "construct_constitutive full μ tensor" begin
         ε = SMatrix{3,3,ComplexF64}(2,0,0, 0,2,0, 0,0,2)
         μ = SMatrix{3,3,ComplexF64}(2,-0.6im,0, 0.6im,2,0, 0,0,1)
-        M = TransferMatrix.construct_M(ε, μ)
+        M = TransferMatrix.construct_constitutive(ε, μ)
         @test M[4:6, 4:6] == μ
         @test M[1:3, 1:3] == ε
         @test all(==(0), M[1:3, 4:6]) && all(==(0), M[4:6, 1:3])
 
         ε_diag = Diagonal(SVector{3,ComplexF64}(2, 2, 2))
-        M_bridge = TransferMatrix.construct_M(ε_diag, μ)
-        @test M_bridge == TransferMatrix.construct_M(SMatrix{3,3,ComplexF64}(ε_diag), μ)
+        M_bridge = TransferMatrix.construct_constitutive(ε_diag, μ)
+        @test M_bridge == TransferMatrix.construct_constitutive(SMatrix{3,3,ComplexF64}(ε_diag), μ)
     end
 end
 
@@ -481,7 +481,7 @@ end
 @testset "tensor-μ dynamical matrix reduces to scalar" begin
     ε = TransferMatrix.dielectric_tensor(4.0+0im, 6.25+0im, 9.0+0im)
     ξ = 0.5; μs = 1.3
-    M = TransferMatrix.construct_M(ε, TransferMatrix.permeability_tensor(μs,μs,μs))
+    M = TransferMatrix.construct_constitutive(ε, TransferMatrix.permeability_tensor(μs,μs,μs))
     a = TransferMatrix.construct_a(ξ, M); Δ = TransferMatrix.construct_Δ(ξ, M, a)
     q, _ = TransferMatrix.calculate_q(Δ, a); q = ComplexF64.(q)
     γref = TransferMatrix.calculate_E_modes(ξ, q, ε, μs)
