@@ -218,7 +218,7 @@ end
 end
 
 
-@testset "calculate_γ" begin
+@testset "calculate_E_modes" begin
 
     μ = 1.0
 
@@ -239,12 +239,12 @@ end
     q3 = [1. + 1im, 1. + 1im, 1. + 1im, 1. + 1im]
     q4 = [1. + 1im, 2. + 1im, 1. + 1im, 2. + 1im]
 
-    γ1 = TransferMatrix.calculate_γ(ξ1, q1, ε1, μ)
-    γ2 = TransferMatrix.calculate_γ(ξ1, q1, ε2, μ)
-    γ3 = TransferMatrix.calculate_γ(ξ2, q2, ε3, μ)
-    γ4 = TransferMatrix.calculate_γ(ξ2, q1, ε4, μ)
-    γ5 = TransferMatrix.calculate_γ(ξ3, q3, ε5, μ)
-    γ6 = TransferMatrix.calculate_γ(ξ3, q4, ε5, μ)
+    γ1 = TransferMatrix.calculate_E_modes(ξ1, q1, ε1, μ)
+    γ2 = TransferMatrix.calculate_E_modes(ξ1, q1, ε2, μ)
+    γ3 = TransferMatrix.calculate_E_modes(ξ2, q2, ε3, μ)
+    γ4 = TransferMatrix.calculate_E_modes(ξ2, q1, ε4, μ)
+    γ5 = TransferMatrix.calculate_E_modes(ξ3, q3, ε5, μ)
+    γ6 = TransferMatrix.calculate_E_modes(ξ3, q4, ε5, μ)
 
     γ1_test = ComplexF64[
         1 0 0;
@@ -484,10 +484,10 @@ end
     M = TransferMatrix.construct_M(ε, TransferMatrix.permeability_tensor(μs,μs,μs))
     a = TransferMatrix.construct_a(ξ, M); Δ = TransferMatrix.construct_Δ(ξ, M, a)
     q, _ = TransferMatrix.calculate_q(Δ, a); q = ComplexF64.(q)
-    γref = TransferMatrix.calculate_γ(ξ, q, ε, μs)
+    γref = TransferMatrix.calculate_E_modes(ξ, q, ε, μs)
     Dref = TransferMatrix.dynamical_matrix(ξ, q, γref, μs)
     μmat = SMatrix{3,3,ComplexF64}(μs*I)
-    γt = TransferMatrix.calculate_γ_tensor(ξ, q, ε, μmat)
+    γt = TransferMatrix.calculate_E_modes_tensor(ξ, q, ε, μmat)
     Dt = TransferMatrix.dynamical_matrix(ξ, q, γt, μmat)
     # D·P·D⁻¹ is basis-invariant ⇒ compare the layer transfer, not raw D
     P = TransferMatrix.propagation_matrix(2π, q)

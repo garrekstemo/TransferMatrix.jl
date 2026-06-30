@@ -298,7 +298,7 @@ end
     @test any(v -> isapprox(abs(v), n, atol=1e-10), eigvals)
 end
 
-@testset "calculate_γ edge cases" begin
+@testset "calculate_E_modes edge cases" begin
     # Test with degenerate q values (q[1] ≈ q[2])
     # This triggers the isapprox(q[1], q[2]) branch
     q_degen = SVector(1.5+0im, 1.5+0im, -1.5+0im, -1.5+0im)
@@ -306,7 +306,7 @@ end
     ξ = 0.0
     μ = 1.0
 
-    γ = TransferMatrix.calculate_γ(ξ, q_degen, ε, μ)
+    γ = TransferMatrix.calculate_E_modes(ξ, q_degen, ε, μ)
     @test γ isa SMatrix{4,3}
     # With degenerate eigenvalues, specific elements should be zero
     @test γ[1,2] ≈ 0
@@ -320,7 +320,7 @@ end
     ξ_singular = 0.5  # ξ² = 0.25 = μ * ε[3,3] when μ = 1
     q_singular = SVector(1.0+0im, 0.5+0im, -1.0+0im, -0.5+0im)
 
-    γ_singular = TransferMatrix.calculate_γ(ξ_singular, q_singular, ε_singular, μ)
+    γ_singular = TransferMatrix.calculate_E_modes(ξ_singular, q_singular, ε_singular, μ)
     @test γ_singular isa SMatrix{4,3}
     # γ[:,3] elements should be zero due to singular_33 branch
     @test γ_singular[1,3] ≈ 0
@@ -329,7 +329,7 @@ end
     @test γ_singular[4,3] ≈ 0
 end
 
-@testset "calculate_γ z-constraint (Maxwell)" begin
+@testset "calculate_E_modes z-constraint (Maxwell)" begin
     # The z-component of E is constrained by Maxwell's equations:
     #   (με₃₁ + ξqⱼ)γⱼ₁ + με₃₂γⱼ₂ + (με₃₃ - ξ²)γⱼ₃ = 0
     # for all modes j. Test with a rotated uniaxial crystal so ε₃₂ ≠ 0.
@@ -354,15 +354,15 @@ end
     q, _ = TransferMatrix.calculate_q(Matrix(Δ), a)
     q_c = ComplexF64.(q)
 
-    γ = TransferMatrix.calculate_γ(ξ, q_c, ε, μ_val)
+    γ = TransferMatrix.calculate_E_modes(ξ, q_c, ε, μ_val)
 
     # Verify ε has off-diagonal elements (rotation worked)
     @test abs(ε[3,2]) > 0.1
 
-    # Check z-constraint for all 4 modes (unnormalized γ would also work,
+    # Check z-constraint for all 4 modes (unnormalized E_modes would also work,
     # but the normalized vectors still satisfy the constraint up to the norm factor).
-    # Reconstruct unnormalized γ to test the raw formula.
-    γ_raw = TransferMatrix.calculate_γ(ξ, q_c, ε, μ_val)
+    # Reconstruct unnormalized E_modes to test the raw formula.
+    γ_raw = TransferMatrix.calculate_E_modes(ξ, q_c, ε, μ_val)
 
     for j in 1:4
         residual = (μ_val * ε[3,1] + ξ * q_c[j]) * γ_raw[j,1] +

@@ -10,7 +10,7 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     _validate_sheet_indices(sd, length(layers))
     no_sheets = sd === nothing || isempty(sd)
 
-    Γ, S, Ds, Ps, γs, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
+    Γ, S, Ds, Ps, E_modes_per_layer, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
     r, R, t, T = calculate_tr(Γ)
 
     nx_in, _, _ = get_refractive_indices(layers[1], λ)
@@ -74,7 +74,7 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     μs = [ismagnetic(L) ? get_permeability(L, λ) : μ_mat for L in layers]
 
     return (; zs, boundaries = interface_positions[1:end - 1],
-              amp_p, amp_s, layer_of_z, γs, qs, k_par, μ, μs)
+              amp_p, amp_s, layer_of_z, E_modes_per_layer, qs, k_par, μ, μs)
 end
 
 
@@ -118,26 +118,26 @@ function efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     s = zeros(ComplexF64, 3, nz)
 
     for j in 1:nz
-        γ = F.γs[F.layer_of_z[j]]
+        E_modes = F.E_modes_per_layer[F.layer_of_z[j]]
         ap = view(F.amp_p, :, j)
         as = view(F.amp_s, :, j)
-        @views p[:, j] = ap[1] * γ[1, :] + ap[2] * γ[2, :] + ap[3] * γ[3, :] + ap[4] * γ[4, :]
-        @views s[:, j] = as[1] * γ[1, :] + as[2] * γ[2, :] + as[3] * γ[3, :] + as[4] * γ[4, :]
+        @views p[:, j] = ap[1] * E_modes[1, :] + ap[2] * E_modes[2, :] + ap[3] * E_modes[3, :] + ap[4] * E_modes[4, :]
+        @views s[:, j] = as[1] * E_modes[1, :] + as[2] * E_modes[2, :] + as[3] * E_modes[3, :] + as[4] * E_modes[4, :]
     end
 
     return ElectricField(F.zs, p, s, F.boundaries)
 end
 
 
-# H eigenvectors per mode from the E eigenvectors γ and eigenvalues q:
-# H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q γ₂, q γ₁ - k_par γ₃, k_par γ₂) = (Hx, Hy, Hz).
+# H eigenvectors per mode from the E eigenvectors E_modes and eigenvalues q:
+# H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q E_modes₂, q E_modes₁ - k_par E_modes₃, k_par E_modes₂) = (Hx, Hy, Hz).
 # Applies the full μ⁻¹ tensor. Rows 2,1 match dynamical_matrix rows 3,4
 # (H_y and -Hx); row 3 (Hz) is (k×E)_z = k_par E_y.
-function _h_eigvecs(γ, q, k_par, μ::AbstractMatrix)
+function _h_eigvecs(E_modes, q, k_par, μ::AbstractMatrix)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ))
     η = @MMatrix zeros(ComplexF64, 4, 3)
     for m in 1:4
-        E = SVector{3,ComplexF64}(γ[m, 1], γ[m, 2], γ[m, 3])
+        E = SVector{3,ComplexF64}(E_modes[m, 1], E_modes[m, 2], E_modes[m, 3])
         H = μinv * (_kcross(k_par, q[m]) * E)
         η[m, 1] = H[1]; η[m, 2] = H[2]; η[m, 3] = H[3]
     end
@@ -163,9 +163,9 @@ function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     p = zeros(ComplexF64, 3, nz)
     s = zeros(ComplexF64, 3, nz)
 
-    # η depends only on the layer index (via γ and q), not on the z-sample, so
+    # η depends only on the layer index (via E_modes and q), not on the z-sample, so
     # build it once per layer and index by layer rather than rebuilding per z.
-    ηs = [_h_eigvecs(F.γs[li], F.qs[li], F.k_par, F.μs[li]) for li in eachindex(F.γs)]
+    ηs = [_h_eigvecs(F.E_modes_per_layer[li], F.qs[li], F.k_par, F.μs[li]) for li in eachindex(F.E_modes_per_layer)]
 
     for j in 1:nz
         η = ηs[F.layer_of_z[j]]

@@ -56,7 +56,7 @@ function boundaryD(L::GLayer, λ, ξ)
     M = TM.construct_M(Diagonal(ε), Diagonal(μ))
     a = TM.construct_a(ξ, M); Δ = TM.construct_Δ(ξ, M, a)
     q, _ = TM.calculate_q(Δ, a); q = ComplexF64.(q)
-    γ = TM.calculate_γ(ξ, q, Diagonal(ε), μs)
+    γ = TM.calculate_E_modes(ξ, q, Diagonal(ε), μs)
     D = TM.dynamical_matrix(ξ, q, γ, μs)
     return Matrix(D), SMatrix{4,3,ComplexF64}(γ), q
 end

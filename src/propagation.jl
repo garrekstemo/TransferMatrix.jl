@@ -13,7 +13,7 @@ end
 
 
 # Lightweight path: only computes Γ and S without allocating per-layer
-# Ds, Ps, γs vectors. Used by `transfer` in tight spectral loops.
+# Ds, Ps, E_modes_per_layer vectors. Used by `transfer` in tight spectral loops.
 function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     N = length(layers)
@@ -28,14 +28,14 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     no_sheets = sheets === nothing || isempty(sheets)
 
-    D_prev, _, γ_first, q_first = layer_matrices(layers[1], λ, k_par, μ)
-    γ_last = γ_first
+    D_prev, _, E_modes_first, q_first = layer_matrices(layers[1], λ, k_par, μ)
+    E_modes_last = E_modes_first
     q_last = q_first
 
     Γ = SMatrix{4,4,ComplexF64}(I)
     for i in 2:N
         layer = layers[i]
-        D_cur, P_cur, γ_cur, q_cur = layer_matrices(layer, λ, k_par, μ)
+        D_cur, P_cur, E_modes_cur, q_cur = layer_matrices(layer, λ, k_par, μ)
         if no_sheets || !haskey(sheets, i - 1)
             L = D_prev \ D_cur                                  # interface (i-1, i)
         else
@@ -47,7 +47,7 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
         end
         D_prev = D_cur
         if i == N
-            γ_last = γ_cur
+            E_modes_last = E_modes_cur
             q_last = q_cur
         end
     end
@@ -56,7 +56,7 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
-    S = poynting(k_par, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
+    S = poynting(k_par, q_first, q_last, E_modes_first, E_modes_last, t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S
 end
@@ -80,8 +80,8 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     k_par = √(ε_0in) * sin(θ)
     ω = 2π * c_0 / λ
 
-    D_1, _, γ_first, q_first = layer_matrices(layers[1], λ, k_par, μ)
-    D_N, _, γ_last,  q_last  = layer_matrices(layers[N], λ, k_par, μ)
+    D_1, _, E_modes_first, q_first = layer_matrices(layers[1], λ, k_par, μ)
+    D_N, _, E_modes_last,  q_last  = layer_matrices(layers[N], λ, k_par, μ)
 
     # Interior product in the dynamical-matrix basis. Tangential fields are
     # continuous across plain interfaces, so interior layers chain directly; a
@@ -103,7 +103,7 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
-    S = poynting(k_par, q_first, q_last, γ_first, γ_last, t, r, μ_in_mat, μ_out_mat)
+    S = poynting(k_par, q_first, q_last, E_modes_first, E_modes_last, t, r, μ_in_mat, μ_out_mat)
 
     return Γ, S
 end
@@ -118,7 +118,7 @@ _propagate(::Val{M}, λ, layers; kwargs...) where {M} =
 """
     _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
-Internal full transfer-matrix pass. Returns `(Γ, S, Ds, Ps, γs, qs)` — like
+Internal full transfer-matrix pass. Returns `(Γ, S, Ds, Ps, E_modes_per_layer, qs)` — like
 [`propagate`](@ref) but also returns the per-layer eigenvalue vectors `qs`,
 needed for magnetic-field reconstruction. Supports conductive sheets (Task: sheets).
 """
@@ -136,17 +136,17 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
     no_sheets = sheets === nothing || isempty(sheets)
 
-    D_1, P_1, γ_1, q_1 = layer_matrices(layers[1], λ, k_par, μ)
+    D_1, P_1, E_modes_1, q_1 = layer_matrices(layers[1], λ, k_par, μ)
     Ds = Vector{typeof(D_1)}(undef, N)
     Ps = Vector{typeof(P_1)}(undef, N)
-    γs = Vector{typeof(γ_1)}(undef, N)
+    E_modes_per_layer = Vector{typeof(E_modes_1)}(undef, N)
     qs = Vector{typeof(q_1)}(undef, N)
-    Ds[1] = D_1; Ps[1] = P_1; γs[1] = γ_1; qs[1] = q_1
+    Ds[1] = D_1; Ps[1] = P_1; E_modes_per_layer[1] = E_modes_1; qs[1] = q_1
 
     Γ = SMatrix{4,4,ComplexF64}(I)
     for i in 2:N
-        D_i, P_i, γ_i, q_i = layer_matrices(layers[i], λ, k_par, μ)
-        Ds[i] = D_i; Ps[i] = P_i; γs[i] = γ_i; qs[i] = q_i
+        D_i, P_i, E_modes_i, q_i = layer_matrices(layers[i], λ, k_par, μ)
+        Ds[i] = D_i; Ps[i] = P_i; E_modes_per_layer[i] = E_modes_i; qs[i] = q_i
         if no_sheets || !haskey(sheets, i - 1)
             L = Ds[i - 1] \ D_i
         else
@@ -162,17 +162,17 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     r, R, t, T = calculate_tr(Γ)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
-    S = poynting(k_par, q_1, qs[N], γ_1, γs[N], t, r, μ_in_mat, μ_out_mat)
+    S = poynting(k_par, q_1, qs[N], E_modes_1, E_modes_per_layer[N], t, r, μ_in_mat, μ_out_mat)
 
-    return Γ, S, Ds, Ps, γs, qs
+    return Γ, S, Ds, Ps, E_modes_per_layer, qs
 end
 
 """
     propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
 Calculate the transfer matrix and Poynting vector for the structure, plus the
-per-layer `D`, `P`, and `γ` matrices used for field reconstruction. Returns the
-5-tuple `(Γ, S, Ds, Ps, γs)`. See [`transfer`](@ref) for the public R/T API.
+per-layer `D`, `P`, and `E_modes` matrices used for field reconstruction. Returns the
+5-tuple `(Γ, S, Ds, Ps, E_modes_per_layer)`. See [`transfer`](@ref) for the public R/T API.
 """
 propagate(λ, layers; θ=0.0, μ=1.0, sheets=nothing) =
     _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sheets)[1:5]

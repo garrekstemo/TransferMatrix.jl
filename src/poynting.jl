@@ -44,10 +44,10 @@ end
 
 
 """
-    poynting(k_par, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs[, μ_in, μ_out])
+    poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs[, μ_in, μ_out])
 
 Calculate the Poynting vector from wavevectors ``q``,
-components of the electric field γ, and transmission
+components of the electric field E_modes, and transmission
 and reflection coefficients.
 
 Transmitted Poynting vectors use substrate wavevectors (`q_out`), while
@@ -68,7 +68,7 @@ ambient permittivity alone (see issue #71), so results may be inaccurate.
     output. Reflectance is computed as ``R = |r|^2`` from the transfer matrix
     coefficients — see [`transfer`](@ref) for the rationale.
 """
-function poynting(k_par, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
+function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
                   μ_in::AbstractMatrix  = SMatrix{3,3,ComplexF64}(I),
                   μ_out::AbstractMatrix = SMatrix{3,3,ComplexF64}(I))
 
@@ -86,21 +86,21 @@ function poynting(k_par, q_in, q_out, γ_in, γ_out, t_coefs, r_coefs,
     k_in ./= c_0
     k_in = SMatrix(k_in)
 
-    E_forward_in_p =  γ_in[1, :]  # p-polarized incident electric field
-    E_forward_in_s =  γ_in[2, :]  # s-polarized incident electric field
-    # E_backward_in_p = γ_in[3, :]
-    # E_backward_in_s = γ_in[4, :]
+    E_forward_in_p =  E_modes_in[1, :]  # p-polarized incident electric field
+    E_forward_in_s =  E_modes_in[2, :]  # s-polarized incident electric field
+    # E_backward_in_p = E_modes_in[3, :]
+    # E_backward_in_s = E_modes_in[4, :]
 
     # Each transmitted/reflected field is a superposition of the two
     # substrate (resp. incident) eigenmodes, which carry the substrate mode-1
-    # field γ_out[1] and mode-2 field γ_out[2].
-    E_out_p1 = t_coefs[1] * γ_out[1, :]
-    E_out_p2 = t_coefs[2] * γ_out[2, :]
-    E_out_s1 = t_coefs[3] * γ_out[1, :]
-    E_out_s2 = t_coefs[4] * γ_out[2, :]
+    # field E_modes_out[1] and mode-2 field E_modes_out[2].
+    E_out_p1 = t_coefs[1] * E_modes_out[1, :]
+    E_out_p2 = t_coefs[2] * E_modes_out[2, :]
+    E_out_s1 = t_coefs[3] * E_modes_out[1, :]
+    E_out_s2 = t_coefs[4] * E_modes_out[2, :]
 
-    E_ref_p = r_coefs[1] * γ_in[3, :] + r_coefs[2] * γ_in[4, :]
-    E_ref_s = r_coefs[3] * γ_in[3, :] + r_coefs[4] * γ_in[4, :]
+    E_ref_p = r_coefs[1] * E_modes_in[3, :] + r_coefs[2] * E_modes_in[4, :]
+    E_ref_s = r_coefs[3] * E_modes_in[3, :] + r_coefs[4] * E_modes_in[4, :]
 
     S_in_p = real(0.5 * E_forward_in_p × conj(μin_inv * (k_in[1, :] × E_forward_in_p)))
     S_in_s = real(0.5 * E_forward_in_s × conj(μin_inv * (k_in[2, :] × E_forward_in_s)))
@@ -172,7 +172,7 @@ Passler et al., 2019, https://doi.org/10.1364/JOSAB.36.003246
 """
 # Sort one mode pair (a transmitted or reflected pair) so the p-like mode is
 # first and the s-like mode second, matching the fixed polarization references
-# in `calculate_γ`.
+# in `calculate_E_modes`.
 #
 # The Poynting ratio C = |Sx|²/(|Sx|²+|Sy|²) distinguishes p from s only when
 # the modes actually differ along x vs y. For an axis-aligned (diagonal-ε)
@@ -200,9 +200,9 @@ function evaluate_birefringence(Ψ, S, t_modes, r_modes)
     # Sort each pair (transmitted, reflected) so the p-like mode is first
     # (slot 1 / slot 3) and the s-like mode second (slot 2 / slot 4). This
     # ordering is assumed by the fixed polarization references in
-    # `calculate_γ` (γ[1,1]=1, γ[2,2]=1, γ[3,1]=-1, γ[4,2]=1); getting it
+    # `calculate_E_modes` (E_modes[1,1]=1, E_modes[2,2]=1, E_modes[3,1]=-1, E_modes[4,2]=1); getting it
     # wrong assigns each mode the wrong polarization, which both makes the
-    # cross-polarization denominators in `calculate_γ` vanish (0/0 → NaN) and
+    # cross-polarization denominators in `calculate_E_modes` vanish (0/0 → NaN) and
     # corrupts the r/t coefficients (energy is not conserved).
     sort_polarization_pair!(t_modes, Ψ, S)
     sort_polarization_pair!(r_modes, Ψ, S)

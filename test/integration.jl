@@ -384,7 +384,7 @@ end
     # s-polarized eigenmode satisfies q² = ε_yy − ξ² exactly (and the p-mode the
     # analogous in-plane relation), which the old Poynting-only mode sort could
     # not distinguish (both modes have Sy = 0), mis-ordering p/s and triggering
-    # a 0/0 in calculate_γ. Because there is no rotation, the diagonal path has
+    # a 0/0 in calculate_E_modes. Because there is no rotation, the diagonal path has
     # no p–s coupling and must conserve energy to ~machine precision.
     λ = 1.0
     air = Layer(λ -> 1.0, 1.0)

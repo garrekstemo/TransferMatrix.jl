@@ -179,18 +179,18 @@ function layer_matrices(layer, λ, k_par, μ_i)
         M = construct_M(ε, μmat)
         a = construct_a(k_par, M); Δ = construct_Δ(k_par, M, a)
         q, S = calculate_q(Δ, a); q = ComplexF64.(q)
-        γ = calculate_γ_tensor(k_par, q, ε, μmat)
-        D = dynamical_matrix(k_par, q, γ, μmat)
+        E_modes = calculate_E_modes_tensor(k_par, q, ε, μmat)
+        D = dynamical_matrix(k_par, q, E_modes, μmat)
     else
         μ = permeability_tensor(μ_i, μ_i, μ_i)
         M = construct_M(ε, μ)
         a = construct_a(k_par, M); Δ = construct_Δ(k_par, M, a)
         q, S = calculate_q(Δ, a); q = ComplexF64.(q)
-        γ = calculate_γ(k_par, q, ε, μ_i)
-        D = dynamical_matrix(k_par, q, γ, μ_i)
+        E_modes = calculate_E_modes(k_par, q, ε, μ_i)
+        D = dynamical_matrix(k_par, q, E_modes, μ_i)
     end
     P = propagation_matrix(ω, q)
-    return D, P, γ, q
+    return D, P, E_modes, q
 end
 
 """
@@ -429,75 +429,75 @@ end
 
 
 """
-    calculate_γ(k_par, q, ε, μ)
+    calculate_E_modes(k_par, q, ε, μ)
 
-The 4 x 3 matrix γ contains vector components that belong
+The 4 x 3 matrix E_modes contains vector components that belong
 to the electric field calculated such that singularities are identified and removed.
 
 `q[1]` and `q[2]` are forward-traveling modes and
 `q[3]` and `q[4]` are backward-traveling modes.
 
 Each row is normalized to unit length using the Hermitian norm
-``|γ| = √(Σ|γᵢ|²)`` as prescribed by the 2019 erratum (Passler &
+``|E_modes| = √(Σ|E_modes_i|²)`` as prescribed by the 2019 erratum (Passler &
 Paarmann, JOSAB 36, 3246). The Hermitian norm is the correct choice
-because γ represents an electric field polarization direction: its
+because E_modes represents an electric field polarization direction: its
 physical "length" is the field amplitude, which is ``√(E⋅E*) = √(Σ|Eᵢ|²)``.
-The bilinear form ``√(Σγᵢ²)`` has no physical meaning for complex fields
+The bilinear form ``√(Σ E_modes_i²)`` has no physical meaning for complex fields
 and can vanish for nonzero vectors (e.g. circular polarization),
 making it unsuitable as a normalization factor.
 
 This is based on the work in
 Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
-function calculate_γ(k_par, q, ε, μ)
+function calculate_E_modes(k_par, q, ε, μ)
 
-    γ = @MMatrix zeros(ComplexF64, 4, 3)
-    γ[1,1] = 1
-    γ[2,2] = 1
-    γ[4,2] = 1
-    γ[3,1] = -1
+    E_modes = @MMatrix zeros(ComplexF64, 4, 3)
+    E_modes[1,1] = 1
+    E_modes[2,2] = 1
+    E_modes[4,2] = 1
+    E_modes[3,1] = -1
 
     # Common denominator term - can become singular at specific angles
     denom_33 = μ * ε[3,3] - k_par^2
     singular_33 = abs(denom_33) < eps(Float64)
 
     if isapprox(q[1], q[2])
-        γ[1,2] = 0
-        γ[2,1] = 0
+        E_modes[1,2] = 0
+        E_modes[2,1] = 0
     else
-        γ[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + k_par * q[1]) - μ * ε[2,1] * denom_33) / (denom_33 * (μ * ε[2,2] - k_par^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + k_par * q[2]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + k_par * q[2]) * (μ * ε[3,1] + k_par * q[2]))
+        E_modes[1,2] = (μ * ε[2,3] * (μ * ε[3,1] + k_par * q[1]) - μ * ε[2,1] * denom_33) / (denom_33 * (μ * ε[2,2] - k_par^2 - q[1]^2) - μ^2 * ε[2,3] * ε[3,2])
+        E_modes[2,1] = (μ * ε[3,2] * (μ * ε[1,3] + k_par * q[2]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[2]^2) - (μ * ε[1,3] + k_par * q[2]) * (μ * ε[3,1] + k_par * q[2]))
     end
 
-    # γ[i,3] components use denom_33 directly - set to zero if singular
+    # E_modes[i,3] components use denom_33 directly - set to zero if singular
     if singular_33
-        γ[1,3] = 0
-        γ[2,3] = 0
+        E_modes[1,3] = 0
+        E_modes[2,3] = 0
     else
-        γ[1,3] = (-μ * ε[3,1] - k_par * q[1] - μ * ε[3,2] * γ[1,2]) / denom_33
-        γ[2,3] = (-(μ * ε[3,1] + k_par * q[2]) * γ[2,1] - μ * ε[3,2]) / denom_33
+        E_modes[1,3] = (-μ * ε[3,1] - k_par * q[1] - μ * ε[3,2] * E_modes[1,2]) / denom_33
+        E_modes[2,3] = (-(μ * ε[3,1] + k_par * q[2]) * E_modes[2,1] - μ * ε[3,2]) / denom_33
     end
 
     if isapprox(q[3], q[4])
-        γ[3,2] = 0.0
-        γ[4,1] = 0.0
+        E_modes[3,2] = 0.0
+        E_modes[4,1] = 0.0
     else
-        γ[3,2] = (μ * ε[2,1] * denom_33 - μ * ε[2,3] * (μ * ε[3,1] + k_par * q[3])) / (denom_33 * (μ * ε[2,2] - k_par^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
-        γ[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + k_par * q[4]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + k_par * q[4]) * (μ * ε[3,1] + k_par * q[4]))
+        E_modes[3,2] = (μ * ε[2,1] * denom_33 - μ * ε[2,3] * (μ * ε[3,1] + k_par * q[3])) / (denom_33 * (μ * ε[2,2] - k_par^2 - q[3]^2) - μ^2 * ε[2,3] * ε[3,2])
+        E_modes[4,1] = (μ * ε[3,2] * (μ * ε[1,3] + k_par * q[4]) - μ * ε[1,2] * denom_33) / (denom_33 * (μ * ε[1,1] - q[4]^2) - (μ * ε[1,3] + k_par * q[4]) * (μ * ε[3,1] + k_par * q[4]))
     end
 
-    # γ[i,3] components for backward modes - set to zero if singular
+    # E_modes[i,3] components for backward modes - set to zero if singular
     if singular_33
-        γ[3,3] = 0
-        γ[4,3] = 0
+        E_modes[3,3] = 0
+        E_modes[4,3] = 0
     else
-        γ[3,3] = (μ * ε[3,1] + k_par * q[3] - μ * ε[3,2] * γ[3,2]) / denom_33
-        γ[4,3] = (-(μ * ε[3,1] + k_par * q[4]) * γ[4,1] - μ * ε[3,2] ) / denom_33
+        E_modes[3,3] = (μ * ε[3,1] + k_par * q[3] - μ * ε[3,2] * E_modes[3,2]) / denom_33
+        E_modes[4,3] = (-(μ * ε[3,1] + k_par * q[4]) * E_modes[4,1] - μ * ε[3,2] ) / denom_33
     end
 
-    # Normalize γ using the Hermitian norm: |v| = √(Σ|vᵢ|²).
+    # Normalize E_modes using the Hermitian norm: |v| = √(Σ|vᵢ|²).
     #
-    # Each γ row is a polarization eigenvector of the electric field. The
+    # Each E_modes row is a polarization eigenvector of the electric field. The
     # physical amplitude of a complex field E is √(E⋅E*) = √(Σ|Eᵢ|²),
     # not √(Σ Eᵢ²). The bilinear form √(Σvᵢ²) conflates phase information
     # with amplitude — for example, v = [1, i, 0] (circular polarization)
@@ -505,19 +505,19 @@ function calculate_γ(k_par, q, ε, μ)
     # has unit amplitude. The Hermitian norm is positive-definite on nonzero
     # vectors by construction, so it is always safe as a normalization factor.
     #
-    # For real γ (lossless isotropic media) both norms coincide, so the
-    # distinction only matters for complex γ (absorbing or anisotropic media).
+    # For real E_modes (lossless isotropic media) both norms coincide, so the
+    # distinction only matters for complex E_modes (absorbing or anisotropic media).
     for i in 1:4
-        v = SVector(γ[i,1], γ[i,2], γ[i,3])
+        v = SVector(E_modes[i,1], E_modes[i,2], E_modes[i,3])
         Z = norm(v)
         if abs(Z) > eps(Float64)
-            γ[i,1] /= Z
-            γ[i,2] /= Z
-            γ[i,3] /= Z
+            E_modes[i,1] /= Z
+            E_modes[i,2] /= Z
+            E_modes[i,3] /= Z
         end
     end
 
-    return SMatrix(γ)
+    return SMatrix(E_modes)
 end
 
 
@@ -526,17 +526,17 @@ _kcross(k_par, q) = SMatrix{3,3,ComplexF64}(0, q, 0,  -q, 0, k_par,  0, -k_par, 
 
 
 """
-    calculate_γ_tensor(k_par, q, ε, μ)
+    calculate_E_modes_tensor(k_par, q, ε, μ)
 
 E-field eigenvectors for a layer with a full 3×3 permeability tensor `μ`, as the
 null space of `W(q) = K μ⁻¹ K + ε` for each mode `q`. Degenerate pairs (qᵢ ≈ qⱼ,
 e.g. isotropic media) share a 2-D null space; both orthogonal null vectors are
 assigned, avoiding the singular dynamical matrix a naive per-mode null space
-produces. Rows are unit-Hermitian-normalized, matching [`calculate_γ`].
+produces. Rows are unit-Hermitian-normalized, matching [`calculate_E_modes`].
 """
-function calculate_γ_tensor(k_par, q, ε, μ; rtol=1e-7)
+function calculate_E_modes_tensor(k_par, q, ε, μ; rtol=1e-7)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ)); εm = SMatrix{3,3,ComplexF64}(ε)
-    γ = @MMatrix zeros(ComplexF64, 4, 3); assigned = MVector{4,Bool}(false, false, false, false)
+    E_modes = @MMatrix zeros(ComplexF64, 4, 3); assigned = MVector{4,Bool}(false, false, false, false)
     for m in 1:4
         assigned[m] && continue
         K = _kcross(k_par, q[m]); F = svd(Matrix(K*μinv*K + εm))
@@ -546,25 +546,25 @@ function calculate_γ_tensor(k_par, q, ε, μ; rtol=1e-7)
                 partner = n; break
             end
         end
-        v1 = SVector{3,ComplexF64}(F.V[:,3]...); γ[m,:] = v1 ./ norm(v1); assigned[m] = true
+        v1 = SVector{3,ComplexF64}(F.V[:,3]...); E_modes[m,:] = v1 ./ norm(v1); assigned[m] = true
         if partner != 0
-            v2 = SVector{3,ComplexF64}(F.V[:,2]...); γ[partner,:] = v2 ./ norm(v2); assigned[partner] = true
+            v2 = SVector{3,ComplexF64}(F.V[:,2]...); E_modes[partner,:] = v2 ./ norm(v2); assigned[partner] = true
         end
     end
-    return SMatrix(γ)
+    return SMatrix(E_modes)
 end
 
 
 """
-    dynamical_matrix(k_par, q, γ, μ::AbstractMatrix)
+    dynamical_matrix(k_par, q, E_modes, μ::AbstractMatrix)
 
 Dynamical matrix for a tensor μ. Rows are `(Eₓ, Eᵧ, Hᵧ, −Hₓ)` per mode with
 `H = μ⁻¹ (k̄ × E)`. Reduces to the scalar-μ method when `μ = μ·I`.
 """
-function dynamical_matrix(k_par, q, γ, μ::AbstractMatrix)
+function dynamical_matrix(k_par, q, E_modes, μ::AbstractMatrix)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ))
     cols = ntuple(4) do m
-        E = SVector{3,ComplexF64}(γ[m,1], γ[m,2], γ[m,3])
+        E = SVector{3,ComplexF64}(E_modes[m,1], E_modes[m,2], E_modes[m,3])
         H = μinv * (_kcross(k_par, q[m]) * E)
         SVector{4,ComplexF64}(E[1], E[2], H[2], -H[1])
     end
@@ -573,7 +573,7 @@ end
 
 
 """
-    dynamical_matrix(k_par, q, γ, μ)
+    dynamical_matrix(k_par, q, E_modes, μ)
 
 The dynamical matrix relating two layers at the interface
 where matrix ``A_i`` for layer ``i`` relates the field ``E_i`` to
@@ -585,13 +585,13 @@ the field in the previous layer ``i - 1`` via
 
 Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
-function dynamical_matrix(k_par, q, γ, μ)
-    A_3 = (γ[:, 1] .* q .- k_par * γ[:, 3]) ./ μ
-    A_4 = γ[:, 2] .* q ./ μ
+function dynamical_matrix(k_par, q, E_modes, μ)
+    A_3 = (E_modes[:, 1] .* q .- k_par * E_modes[:, 3]) ./ μ
+    A_4 = E_modes[:, 2] .* q ./ μ
 
     return @SMatrix [
-        γ[1, 1] γ[2, 1] γ[3, 1] γ[4, 1];
-        γ[1, 2] γ[2, 2] γ[3, 2] γ[4, 2];
+        E_modes[1, 1] E_modes[2, 1] E_modes[3, 1] E_modes[4, 1];
+        E_modes[1, 2] E_modes[2, 2] E_modes[3, 2] E_modes[4, 2];
         A_3[1] A_3[2] A_3[3] A_3[4];
         A_4[1] A_4[2] A_4[3] A_4[4]
     ]

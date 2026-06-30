@@ -58,12 +58,12 @@ println("allocs: ", lpad(trial.allocs, 3), " | ", BenchmarkTools.prettytime(mini
 
 q, S = TransferMatrix.calculate_q(Δ, a)
 
-# calculate_γ
-print("calculate_γ:       ")
-trial = @benchmark TransferMatrix.calculate_γ($ξ, $q, $ε, $μ)
+# calculate_E_modes
+print("calculate_E_modes: ")
+trial = @benchmark TransferMatrix.calculate_E_modes($ξ, $q, $ε, $μ)
 println("allocs: ", lpad(trial.allocs, 3), " | ", BenchmarkTools.prettytime(minimum(trial).time))
 
-γ = TransferMatrix.calculate_γ(ξ, q, ε, μ)
+γ = TransferMatrix.calculate_E_modes(ξ, q, ε, μ)
 
 # dynamical_matrix
 print("dynamical_matrix:  ")
