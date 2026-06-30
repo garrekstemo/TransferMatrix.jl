@@ -133,15 +133,15 @@ end
 # H_m = μ⁻¹(k̄×E)_m = μ⁻¹(-q E_modes₂, q E_modes₁ - k_par E_modes₃, k_par E_modes₂) = (Hx, Hy, Hz).
 # Applies the full μ⁻¹ tensor. Rows 2,1 match dynamical_matrix rows 3,4
 # (H_y and -Hx); row 3 (Hz) is (k×E)_z = k_par E_y.
-function _h_eigvecs(E_modes, q, k_par, μ::AbstractMatrix)
+function _calculate_H_modes(E_modes, q, k_par, μ::AbstractMatrix)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ))
-    η = @MMatrix zeros(ComplexF64, 4, 3)
+    H_modes = @MMatrix zeros(ComplexF64, 4, 3)
     for m in 1:4
         E = SVector{3,ComplexF64}(E_modes[m, 1], E_modes[m, 2], E_modes[m, 3])
         H = μinv * (_kcross(k_par, q[m]) * E)
-        η[m, 1] = H[1]; η[m, 2] = H[2]; η[m, 3] = H[3]
+        H_modes[m, 1] = H[1]; H_modes[m, 2] = H[2]; H_modes[m, 3] = H[3]
     end
-    return SMatrix(η)
+    return SMatrix(H_modes)
 end
 
 """
@@ -163,16 +163,16 @@ function hfield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     p = zeros(ComplexF64, 3, nz)
     s = zeros(ComplexF64, 3, nz)
 
-    # η depends only on the layer index (via E_modes and q), not on the z-sample, so
+    # H_modes depends only on the layer index (via E_modes and q), not on the z-sample, so
     # build it once per layer and index by layer rather than rebuilding per z.
-    ηs = [_h_eigvecs(F.E_modes_per_layer[li], F.qs[li], F.k_par, F.μs[li]) for li in eachindex(F.E_modes_per_layer)]
+    H_modes_per_layer = [_calculate_H_modes(F.E_modes_per_layer[li], F.qs[li], F.k_par, F.μs[li]) for li in eachindex(F.E_modes_per_layer)]
 
     for j in 1:nz
-        η = ηs[F.layer_of_z[j]]
+        H_modes = H_modes_per_layer[F.layer_of_z[j]]
         ap = view(F.amp_p, :, j)
         as = view(F.amp_s, :, j)
-        @views p[:, j] = ap[1] * η[1, :] + ap[2] * η[2, :] + ap[3] * η[3, :] + ap[4] * η[4, :]
-        @views s[:, j] = as[1] * η[1, :] + as[2] * η[2, :] + as[3] * η[3, :] + as[4] * η[4, :]
+        @views p[:, j] = ap[1] * H_modes[1, :] + ap[2] * H_modes[2, :] + ap[3] * H_modes[3, :] + ap[4] * H_modes[4, :]
+        @views s[:, j] = as[1] * H_modes[1, :] + as[2] * H_modes[2, :] + as[3] * H_modes[3, :] + as[4] * H_modes[4, :]
     end
 
     return MagneticField(F.zs, p, s, F.boundaries)
