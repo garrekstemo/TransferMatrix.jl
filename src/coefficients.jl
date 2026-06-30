@@ -34,17 +34,16 @@ end
 
 
 """
-    calculate_tr(Γ)
+    calculate_tr(M_sys)
 
 Read the reflection and transmission coefficients off the full-stack transfer
-matrix `Γ`.
+matrix `M_sys`.
 
-`Γ` is the ``4\\times4`` transfer matrix for the whole stack, reordered into the
+`M_sys` is the ``4\\times4`` transfer matrix for the whole stack, reordered into the
 p/s block convention (the two p modes first, then the two s modes) so the
-reflection and transmission Jones blocks can be read straight off its elements —
-the matrix Passler & Paarmann write as ``Γ^*``. The function returns the co- and
-cross-polarized amplitude coefficients (`rpp, rss, rps, rsp`, `tpp, tss, tps,
-tsp`) and their squared magnitudes.
+reflection and transmission Jones blocks can be read straight off its elements.
+The function returns the co- and cross-polarized amplitude coefficients
+(`rpp, rss, rps, rsp`, `tpp, tss, tps, tsp`) and their squared magnitudes.
 
 Reflectance is ``R = |r|^2`` directly. The returned ``|t|^2`` is *not* the
 physical transmittance — the transmitted wave is in a different medium — so the
@@ -58,19 +57,19 @@ References:
 - Yeh, 1979, https://doi.org/10.1364/JOSA.69.000742
 - Passler & Paarmann, 2017, https://doi.org/10.1364/JOSAB.34.002128
 """
-function calculate_tr(Γ)
+function calculate_tr(M_sys)
 
-    d = Γ[1,1] * Γ[3,3] - Γ[1,3] * Γ[3,1]
+    d = M_sys[1,1] * M_sys[3,3] - M_sys[1,3] * M_sys[3,1]
 
-    rpp = (Γ[2,1] * Γ[3,3] - Γ[2,3] * Γ[3,1]) / d
-    rss = (Γ[1,1] * Γ[4,3] - Γ[4,1] * Γ[1,3]) / d
-    rps = (Γ[4,1] * Γ[3,3] - Γ[4,3] * Γ[3,1]) / d
-    rsp = (Γ[1,1] * Γ[2,3] - Γ[2,1] * Γ[1,3]) / d
+    rpp = (M_sys[2,1] * M_sys[3,3] - M_sys[2,3] * M_sys[3,1]) / d
+    rss = (M_sys[1,1] * M_sys[4,3] - M_sys[4,1] * M_sys[1,3]) / d
+    rps = (M_sys[4,1] * M_sys[3,3] - M_sys[4,3] * M_sys[3,1]) / d
+    rsp = (M_sys[1,1] * M_sys[2,3] - M_sys[2,1] * M_sys[1,3]) / d
 
-    tpp =  Γ[3,3] / d
-    tss =  Γ[1,1] / d
-    tps = -Γ[3,1] / d
-    tsp = -Γ[1,3] / d
+    tpp =  M_sys[3,3] / d
+    tss =  M_sys[1,1] / d
+    tps = -M_sys[3,1] / d
+    tsp = -M_sys[1,3] / d
 
     Rpp = abs2(rpp)
     Rss = abs2(rss)

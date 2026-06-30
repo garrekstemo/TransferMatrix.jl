@@ -97,12 +97,12 @@ function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=fal
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
-    Γ, S = _propagate(Val(method), λ, layers; θ=θ, μ=μ, sheets=sd)
-    return _assemble(Val(basis), Γ, S, λ, layers, sd, validate)
+    M_sys, S = _propagate(Val(method), λ, layers; θ=θ, μ=μ, sheets=sd)
+    return _assemble(Val(basis), M_sys, S, λ, layers, sd, validate)
 end
 
-function _assemble(::Val{:linear}, Γ, S, λ, layers, sd, validate)
-    r, R, t, T = calculate_tr(Γ)
+function _assemble(::Val{:linear}, M_sys, S, λ, layers, sd, validate)
+    r, R, t, T = calculate_tr(M_sys)
     Tpp, Tss, _, _ = calculate_tr(S)
 
     # Diagonal terms from matrix calculation; cross terms remapped from the
@@ -121,13 +121,13 @@ function _assemble(::Val{:linear}, Γ, S, λ, layers, sd, validate)
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
 end
 
-function _assemble(::Val{:circular}, Γ, S, λ, layers, sd, validate)
-    r, _, t, _ = calculate_tr(Γ)
+function _assemble(::Val{:circular}, M_sys, S, λ, layers, sd, validate)
+    r, _, t, _ = calculate_tr(M_sys)
     Tpp, Tss, _, _ = calculate_tr(S)
     return _circular_result(r, t, Tpp, Tss)
 end
 
-_assemble(::Val{B}, Γ, S, λ, layers, sd, validate) where {B} =
+_assemble(::Val{B}, M_sys, S, λ, layers, sd, validate) where {B} =
     throw(ArgumentError("basis must be :linear or :circular, got :$B"))
 
 

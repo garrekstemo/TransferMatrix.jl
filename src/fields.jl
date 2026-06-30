@@ -10,8 +10,8 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
     _validate_sheet_indices(sd, length(layers))
     no_sheets = sd === nothing || isempty(sd)
 
-    Γ, S, Ds, Ps, E_modes_per_layer, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
-    r, R, t, T = calculate_tr(Γ)
+    M_sys, S, Ds, Ps, E_modes_per_layer, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
+    r, R, t, T = calculate_tr(M_sys)
 
     nx_in, _, _ = get_refractive_indices(layers[1], λ)
     k_par = √(dielectric_constant(nx_in)) * sin(θ)
