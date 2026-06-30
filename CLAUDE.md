@@ -48,8 +48,8 @@ permeability for that layer. Accepted forms:
 scalar fallback permeability for every layer whose `mu` field is `nothing`. A
 layer whose `mu` is not `nothing` overrides the global value for that layer only.
 Tensor-μ layers (including a magnetic substrate) are fully supported. A magnetic
-*ambient at oblique incidence* shares the existing #71 ξ caveat: the conserved
-in-plane wavevector ξ is computed from the ambient permittivity only.
+*ambient at oblique incidence* shares the existing #71 k_par caveat: the conserved
+in-plane wavevector k_par is computed from the ambient permittivity only.
 
 **Helper functions:**
 - `gyrotropic_tensor(d, od; axis=:z)` — constant 3×3 Hermitian gyrotropic tensor
@@ -120,7 +120,7 @@ conservation): `.claude/rules/berreman-4x4-equations.md`.
   fixed in `poynting()`: the two transmitted substrate eigenmodes carry different
   wavevectors, so their Poynting vectors are now summed per-mode instead of using one
   wavevector for the combined field.
-- **#71**: anisotropic ambient at oblique incidence → NaN (uses nx for ξ).
+- **#71**: anisotropic ambient at oblique incidence → NaN (uses nx for k_par).
 - **#72**: absorbing incident medium — |r|² is not a true energy reflectance. The
   Poynting vector is non-additive for absorbing incident media (interference
   cross-terms; Ortiz & Mochán 2005), so only the transmitted Poynting vectors are
