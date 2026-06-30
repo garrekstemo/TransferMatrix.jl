@@ -48,7 +48,12 @@ include("matrix_constructors.jl")
 include("layer.jl")
 include("dispersion_models.jl")
 include("sheet.jl")
-include("general_TMM.jl")
+include("results.jl")
+include("poynting.jl")
+include("coefficients.jl")
+include("propagation.jl")
+include("transfer.jl")
+include("fields.jl")
 include("optics_functions.jl")
 
 # Precompile common workloads to reduce time-to-first-execution

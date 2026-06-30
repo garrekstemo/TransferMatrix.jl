@@ -53,10 +53,10 @@ Kmat(ξ, q) = SMatrix{3,3,ComplexF64}(0, q, 0,  -q, 0, ξ,  0, -ξ, 0)
 function boundaryD(L::GLayer, λ, ξ)
     ε = SMatrix{3,3,ComplexF64}(L.εf(λ)); μ = SMatrix{3,3,ComplexF64}(L.μf(λ))
     μs = μ[1,1]
-    M = TM.construct_M(Diagonal(ε), Diagonal(μ))
+    M = TM.construct_constitutive(Diagonal(ε), Diagonal(μ))
     a = TM.construct_a(ξ, M); Δ = TM.construct_Δ(ξ, M, a)
     q, _ = TM.calculate_q(Δ, a); q = ComplexF64.(q)
-    γ = TM.calculate_γ(ξ, q, Diagonal(ε), μs)
+    γ = TM.calculate_E_modes(ξ, q, Diagonal(ε), μs)
     D = TM.dynamical_matrix(ξ, q, γ, μs)
     return Matrix(D), SMatrix{4,3,ComplexF64}(γ), q
 end
@@ -64,7 +64,7 @@ end
 # Interior-layer transfer (D-convention) via the matrix exponential of Δ.
 function layerT_exp(L::GLayer, λ, ξ, ω)
     ε = SMatrix{3,3,ComplexF64}(L.εf(λ)); μ = SMatrix{3,3,ComplexF64}(L.μf(λ))
-    M = TM.construct_M(ε, μ); a = TM.construct_a(ξ, M); Δ = TM.construct_Δ(ξ, M, a)
+    M = TM.construct_constitutive(ε, μ); a = TM.construct_a(ξ, M); Δ = TM.construct_Δ(ξ, M, a)
     return Matrix(Λ1324) * exp(-im * (ω / C0) * Matrix(Δ) * L.d) * Matrix(Λ1324)
 end
 
@@ -130,7 +130,7 @@ function transfer_candidate(stack::Vector{GLayer}, λ; θ=0.0, gammafn=gamma_nul
     ξ = sqrt(ε_amb[1,1]) * sin(θ); ω = 2π * C0 / λ
     function layerD(L)
         ε = SMatrix{3,3,ComplexF64}(L.εf(λ)); μ = SMatrix{3,3,ComplexF64}(L.μf(λ))
-        M = TM.construct_M(ε, μ); a = TM.construct_a(ξ, M); Δ = TM.construct_Δ(ξ, M, a)
+        M = TM.construct_constitutive(ε, μ); a = TM.construct_a(ξ, M); Δ = TM.construct_Δ(ξ, M, a)
         q, _ = TM.calculate_q(Δ, a); q = ComplexF64.(q)
         D = dynmat_tensor(μ, ξ, q, gammafn(ε, μ, ξ, q))
         return Matrix(D), TM.propagation_matrix(ω, q)
