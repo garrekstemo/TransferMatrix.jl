@@ -143,10 +143,9 @@ function polder_permeability(; f0, fm, linewidth=0.0, axis::Symbol=:z)
 end
 
 
-# Field-vector reorder swapping slots 2↔3, converting between Berreman's order
-# (Eₓ, Hᵧ, Eᵧ, −Hₓ) and the dynamical-matrix order (Eₓ, Eᵧ, Hᵧ, −Hₓ). Its own
-# inverse (Λ² = I), so `Λ \ X` and `Λ * X` coincide.
-const _Λ1324 = @SMatrix [1.0 0 0 0; 0 0 1 0; 0 1 0 0; 0 0 0 1]
+# Field-slot reorder swapping slots 2↔3 (transposition (2 3)); its own inverse
+# (swap23² = I), so `swap23 \ X` and `swap23 * X` coincide.
+const _swap23 = @SMatrix [1.0 0 0 0; 0 0 1 0; 0 1 0 0; 0 0 0 1]
 
 # Rotation-aware dielectric tensor for a layer at wavelength λ. Shared by the
 # eigenmode path (`layer_matrices`) and the matrix-exponential path
@@ -201,14 +200,14 @@ Interior-layer 4×4 transfer matrix in the dynamical-matrix field basis
 matrix rather than by eigenmode decomposition:
 
 ```math
-T = Λ_{1324}\\, \\exp\\!\\left(-i\\frac{ω}{c}\\,Δ\\,d\\right) Λ_{1324}.
+T = swap23\\, \\exp\\!\\left(-i\\frac{ω}{c}\\,Δ\\,d\\right) swap23.
 ```
 
 `Δ = construct_Δ(k_par, construct_M(ε, μ), a)` is built from the full 3×3 ε (with any
 Euler rotation) and μ (the scalar fallback `μ_i·I`, or the layer's tensor `mu`).
 Because Δ's eigenvalues are the mode wavevectors `q`, `exp(-i(ω/c)Δd)` equals the
 eigenmode propagator `D·P(d)·D⁻¹` **without** diagonalizing, so this path needs no
-eigenvalue sorting and is degeneracy-immune. `Λ₁₃₂₄` reorders between Berreman's
+eigenvalue sorting and is degeneracy-immune. `swap23` reorders between Berreman's
 field vector `(Eₓ, Hᵧ, Eᵧ, −Hₓ)` and the dynamical-matrix basis; the `exp(-iωt)`
 sign matches [`propagation_matrix`](@ref).
 
@@ -225,7 +224,7 @@ function layer_transfer_exp(layer, λ, k_par, ω, μ_i)
     M = construct_M(ε, μ)
     a = construct_a(k_par, M)
     Δ = construct_Δ(k_par, M, a)
-    return _Λ1324 * exp(-im * (ω / c_0) * Δ * layer.thickness) * _Λ1324
+    return _swap23 * exp(-im * (ω / c_0) * Δ * layer.thickness) * _swap23
 end
 
 

@@ -21,7 +21,7 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     ε_0in = dielectric_constant(nx_in)
     k_par = √(ε_0in) * sin(θ)  # reduced in-plane wavevector, = n·sinθ
 
-    Λ_1324 = @SMatrix [1 0 0 0;
+    swap23 = @SMatrix [1 0 0 0;
                        0 0 1 0;
                        0 1 0 0;
                        0 0 0 1]
@@ -52,7 +52,7 @@ function _propagate_core(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
         end
     end
 
-    M_sys = (Λ_1324 \ M_sys) * Λ_1324
+    M_sys = (swap23 \ M_sys) * swap23
     r, R, t, T = calculate_tr(M_sys)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
@@ -99,7 +99,7 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     end
     core = core * D_N
 
-    M_sys = (_Λ1324 \ (D_1 \ core)) * _Λ1324
+    M_sys = (_swap23 \ (D_1 \ core)) * _swap23
     r, R, t, T = calculate_tr(M_sys)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
@@ -129,7 +129,7 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     ε_0in = dielectric_constant(nx_in)
     k_par = √(ε_0in) * sin(θ)
 
-    Λ_1324 = @SMatrix [1 0 0 0;
+    swap23 = @SMatrix [1 0 0 0;
                        0 0 1 0;
                        0 1 0 0;
                        0 0 0 1]
@@ -158,7 +158,7 @@ function _propagate_full(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
         end
     end
 
-    M_sys = (Λ_1324 \ M_sys) * Λ_1324
+    M_sys = (swap23 \ M_sys) * swap23
     r, R, t, T = calculate_tr(M_sys)
     μ_in_mat  = ismagnetic(layers[1])   ? get_permeability(layers[1],   λ) : SMatrix{3,3,ComplexF64}(μ*I)
     μ_out_mat = ismagnetic(layers[end]) ? get_permeability(layers[end], λ) : SMatrix{3,3,ComplexF64}(μ*I)
