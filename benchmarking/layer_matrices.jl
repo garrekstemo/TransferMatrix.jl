@@ -30,12 +30,12 @@ println("  time: ", BenchmarkTools.prettytime(minimum(trial).time),
 println("\nIndividual functions:")
 println("-" ^ 40)
 
-# construct_M
-print("construct_M:       ")
-trial = @benchmark TransferMatrix.construct_M($ε, $μ_tensor)
+# construct_constitutive
+print("construct_constitutive: ")
+trial = @benchmark TransferMatrix.construct_constitutive($ε, $μ_tensor)
 println("allocs: ", lpad(trial.allocs, 3), " | ", BenchmarkTools.prettytime(minimum(trial).time))
 
-M = TransferMatrix.construct_M(ε, μ_tensor)
+M = TransferMatrix.construct_constitutive(ε, μ_tensor)
 
 # construct_a
 print("construct_a:       ")

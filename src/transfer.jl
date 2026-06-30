@@ -1,5 +1,5 @@
 """
-    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear, method=:eig)
+    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear, method=:exp)
 
 Calculate the transmittance and reflectance of a layered structure.
 
