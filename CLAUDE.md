@@ -4,8 +4,11 @@ Berreman 4×4 transfer matrix method (TMM) for EM wave propagation in layered
 optical media. R/T spectra, angle-resolved properties, E-field profiles,
 anisotropic/birefringent media, 2D conductive sheets.
 
-Entry point: `src/general_TMM.jl` (core algorithm). Browse `src/` for the rest
-(`layer.jl`, `sheet.jl`, `matrix_constructors.jl`, `optics_functions.jl`).
+Entry point: `src/transfer.jl` (public R/T API). The Berreman core — once a single
+`general_TMM.jl` — now lives in `transfer.jl`, `propagation.jl`, `coefficients.jl`,
+`poynting.jl`, `fields.jl`, and `results.jl`, with per-layer matrix math in
+`matrix_constructors.jl`. Browse `src/` for the rest (`layer.jl`, `sheet.jl`,
+`optics_functions.jl`).
 General Julia/Makie/Pkg conventions live in the global `~/.claude/CLAUDE.md`.
 
 ## API
