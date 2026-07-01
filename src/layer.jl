@@ -211,11 +211,43 @@ function isrotated(layer::Layer)
     return φ != 0.0 || θ != 0.0 || ψ != 0.0
 end
 
+# Immutable linear interpolation over sorted knots. Stateless by design: dispersion
+# closures are evaluated concurrently by the threaded sweeps (`sweep_angle` /
+# `sweep_thickness` share one `layers` vector across threads), so evaluation must
+# not mutate the interpolant. DataInterpolations' LinearInterpolation writes a
+# search-hint `Base.RefValue` on every call, which was a data race here.
+struct TabulatedInterpolation{V<:AbstractVector, W<:AbstractVector}
+    knots::V
+    values::W
+
+    function TabulatedInterpolation(knots::V, values::W) where {V<:AbstractVector, W<:AbstractVector}
+        length(knots) == length(values) ||
+            throw(ArgumentError("knot and value vectors must have equal length"))
+        length(knots) >= 2 ||
+            throw(ArgumentError("interpolation requires at least 2 data points"))
+        # Strictly increasing: a duplicated knot creates a zero-width segment,
+        # which evaluates to NaN if λ lands on it (e.g. a duplicated endpoint).
+        issorted(knots, lt = <=) ||
+            throw(ArgumentError("wavelength knots must be strictly increasing (no duplicates)"))
+        new{V,W}(knots, values)
+    end
+end
+
+function (itp::TabulatedInterpolation)(λ)
+    knots, values = itp.knots, itp.values
+    first(knots) <= λ <= last(knots) ||
+        throw(DomainError(λ, "wavelength outside tabulated range [$(first(knots)), $(last(knots))]"))
+    i = min(searchsortedlast(knots, λ), lastindex(knots) - 1)
+    t = (λ - knots[i]) / (knots[i+1] - knots[i])
+    return values[i] + t * (values[i+1] - values[i])
+end
+
 """
     refractive_index(λs, ns, ks)
 
 Build a complex dispersion function `λ -> n(λ) + i·k(λ)` by linearly interpolating
-tabulated real (`ns`) and imaginary (`ks`) refractive-index data over wavelengths `λs`.
+tabulated real (`ns`) and imaginary (`ks`) refractive-index data over wavelengths `λs`
+(sorted, increasing). Evaluation outside the tabulated range throws a `DomainError`.
 
 A `refractive_index(material::RefractiveMaterial)` method that derives the dispersion
 function from a RefractiveIndex.jl material is provided by the `RefractiveIndexExt`
@@ -223,8 +255,8 @@ package extension — load `RefractiveIndex` to enable it (along with the
 `Layer(::RefractiveMaterial, d)` and `Sheet(::RefractiveMaterial, d)` constructors).
 """
 function refractive_index(λs::AbstractVector, ns::AbstractVector, ks::AbstractVector)
-    n_real = LinearInterpolation(ns, λs)
-    n_imag = LinearInterpolation(ks, λs)
+    n_real = TabulatedInterpolation(λs, ns)
+    n_imag = TabulatedInterpolation(λs, ks)
     return λ -> begin
         n_real(λ) + im * n_imag(λ)
     end
