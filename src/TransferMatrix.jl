@@ -1,6 +1,5 @@
 module TransferMatrix
 
-using DataInterpolations
 using LinearAlgebra
 using PrecompileTools
 using StaticArrays

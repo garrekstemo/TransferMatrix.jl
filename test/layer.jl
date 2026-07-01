@@ -18,6 +18,23 @@
 end
 
 
+# Recursively check whether a Base.RefValue is reachable from `x`. Pins the
+# refractive_index thread-safety fix: a RefValue captured by a dispersion closure
+# means per-evaluation mutable state, which the threaded sweeps race on.
+function captures_refvalue(x, seen=Base.IdSet{Any}())
+    x isa Base.RefValue && return true
+    T = typeof(x)
+    (isbitstype(T) || x isa Union{Symbol, String, Module, Type}) && return false
+    x in seen && return false
+    push!(seen, x)
+    if x isa AbstractArray
+        isbitstype(eltype(x)) && return false
+        return any(i -> isassigned(x, i) && captures_refvalue(x[i], seen), eachindex(x))
+    end
+    isstructtype(T) || return false
+    return any(i -> isdefined(x, i) && captures_refvalue(getfield(x, i), seen), 1:fieldcount(T))
+end
+
 @testset "refractive_index" begin
     air = RefractiveMaterial("other", "air", "Ciddor")
     au = RefractiveMaterial("main", "Au", "Rakic-LD")
@@ -26,7 +43,7 @@ end
     @test TransferMatrix.refractive_index(air)(1.0) == dispersion(air, 1.0) + 0.0im
     @test TransferMatrix.refractive_index(air)(1.0) == 1.0002741661312147 + 0.0im
     @test TransferMatrix.refractive_index(au)(1.0) == 0.2557301597051597 + 5.986408108108109im
-    
+
     λs = [1.0, 2.0, 3.0]
     ns = [1.5, 2.0, 2.5]
     ks = [0.5, 1.0, 1.5]
@@ -35,6 +52,27 @@ end
     @test refractive_index_func(1.0) == 1.5 + 0.5im
     @test refractive_index_func(2.0) == 2.0 + 1.0im
     @test refractive_index_func(3.0) == 2.5 + 1.5im
+
+    # Linear interpolation between knots
+    @test refractive_index_func(1.5) ≈ 1.75 + 0.75im
+    @test refractive_index_func(2.25) ≈ 2.125 + 1.125im
+
+    # Out-of-domain wavelengths throw rather than silently extrapolating
+    @test_throws DomainError refractive_index_func(0.5)
+    @test_throws DomainError refractive_index_func(3.5)
+
+    # Construction-time validation
+    @test_throws ArgumentError refractive_index([3.0, 2.0, 1.0], ns, ks)  # unsorted λs
+    @test_throws ArgumentError refractive_index(λs, [1.5, 2.0], ks)      # length mismatch
+    @test_throws ArgumentError refractive_index([1.0], [1.5], [0.5])     # too few points
+    # Duplicate wavelengths are data errors: a duplicated final knot made the
+    # endpoint evaluate to NaN (zero-width segment), so reject at construction.
+    @test_throws ArgumentError refractive_index([1.0, 2.0, 3.0, 3.0], [1.5, 2.0, 2.5, 9.0], [0.0, 0.0, 0.0, 0.0])
+
+    # Thread-safety regression: the closure must not capture mutable evaluation
+    # state. DataInterpolations' LinearInterpolation wrote a Guesser idx_prev
+    # RefValue on every call — a data race in the threaded sweeps.
+    @test !captures_refvalue(refractive_index_func)
 end
 
 
