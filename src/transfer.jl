@@ -23,6 +23,17 @@ rather than ``|t|^2``, because the transmitted wave propagates in a different
 medium than the incident wave. As noted in the 2019 erratum (JOSAB 36, 3246):
 ``T ≠ |t|^2`` in general; only when the substrate is vacuum does ``T = |t|^2``.
 
+All four linear transmittances are per-output-mode flux ratios: the transmitted
+field is decomposed into the two forward substrate eigenmodes (p-like and
+s-like), and each channel is that mode's own Poynting z-flux — with its own
+wavevector — divided by the incident flux. Distinct eigenmodes of a lossless
+substrate carry no cross z-flux, so this decomposition is exact for any
+transparent exit medium, isotropic or birefringent, at any incidence angle.
+The per-input-polarization energy budgets therefore close exactly for a
+lossless stack:
+
+``R_{pp} + R_{ps} + T_{pp} + T_{ps} = 1``, and likewise for s input.
+
 # Arguments
 - `λ`: Wavelength in μm (must match units used for layer thicknesses)
 - `layers`: Vector of `Layer` objects representing the stack
@@ -59,17 +70,19 @@ Higham, 2005, https://doi.org/10.1137/04061101X
 
   Circular **reflectance** is `|r_circ|²` (a true energy ratio under the same
   condition as linear `R`: transparent incident medium, cf. issue #72). Circular
-  **transmittance** is `N·|t_circ|²` with a single Poynting normalization scalar
-  `N = (Tpp+Tss)/(|tpp|²+|tss|²)`; this is exact and energy-conserving for an
-  isotropic substrate (and reduces to `|t_circ|²` for a vacuum/index-matched
-  substrate). For an **anisotropic substrate** the single scalar `N` is only
-  approximate: the two transmitted eigenmodes carry different wavevectors, so
-  their Poynting-to-`|t|²` conversion factors differ, and one polarization-
-  independent scalar cannot capture both. (The linear basis avoids this by
-  summing each transmitted eigenmode with its own wavevector in `poynting()`,
-  so linear `T` — including the cross-pol `Tps/Tsp` — is per-mode exact.)
-  Circular `T` for an anisotropic substrate is therefore not guaranteed to be
-  energy-conserving to machine precision. `validate` applies to the linear basis only.
+  **transmittance** maps each circular input through the linear Jones matrix to
+  the substrate (p,s) amplitude pair, whose per-eigenmode Poynting flux gives
+  the exact total transmitted power for that input; the total is then split
+  between the L/R outputs in proportion to `|t_circ|²`. For an **isotropic
+  substrate** (degenerate eigenmodes) the split itself is exact, so circular
+  `T` is energy-conserving to machine precision (and reduces to `|t_circ|²`
+  for a vacuum/index-matched substrate). For an **anisotropic substrate** the
+  two transmitted eigenmodes carry different wavevectors and are not circular,
+  so the L/R *split* is only the natural `|t_circ|²`-weighted estimate — but
+  the per-input total `Trr+Tlr` (resp. `Tll+Trl`) remains exact, so the energy
+  budget still closes. (The linear basis is per-mode exact in all channels,
+  because the substrate eigenmodes ARE the linear output channels.)
+  `validate` applies to the linear basis only.
 
 # Wave Propagation Convention
 - Light propagates in the **+z direction** (from first layer toward last layer)
@@ -103,19 +116,20 @@ end
 
 function _assemble(::Val{:linear}, M_sys, S, λ, layers, sd, validate)
     r, R, t, T = calculate_tr(M_sys)
-    Tpp, Tss, _, _ = calculate_tr(S)
 
-    # Diagonal terms from matrix calculation; cross terms remapped from the
-    # SVector packing (R = (Rpp,Rss,Rsp,Rps), T = (Tpp,Tss,Tsp,Tps)).
+    # ALL four transmittances are per-output-mode Poynting flux ratios (the
+    # |t|² values from calculate_tr(M_sys) are amplitude ratios, not fluxes).
+    # Reflectances are |r|² per channel, exact for a transparent isotropic
+    # incident medium. R SVector packing: R = (Rpp,Rss,Rsp,Rps).
+    Tpp, Tss, _, _, Tps, Tsp = calculate_tr(S)
     Rpp = R[1]
     Rss = R[2]
     Rps = R[4]
     Rsp = R[3]
-    Tps = T[4]
-    Tsp = T[3]
 
     if validate
-        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=sd)
+        _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss;
+                          sheets=sd, Tps=Tps, Tsp=Tsp, Rps=Rps, Rsp=Rsp)
     end
 
     return TransferResult(Tpp, Tss, Tps, Tsp, Rpp, Rss, Rps, Rsp)
@@ -123,8 +137,7 @@ end
 
 function _assemble(::Val{:circular}, M_sys, S, λ, layers, sd, validate)
     r, _, t, _ = calculate_tr(M_sys)
-    Tpp, Tss, _, _ = calculate_tr(S)
-    return _circular_result(r, t, Tpp, Tss)
+    return _circular_result(r, t, S.f_out1, S.f_out2, S.in_p[3], S.in_s[3])
 end
 
 _assemble(::Val{B}, M_sys, S, λ, layers, sd, validate) where {B} =
@@ -132,17 +145,23 @@ _assemble(::Val{B}, M_sys, S, λ, layers, sd, validate) where {B} =
 
 
 """
-    _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; atol=1e-6, k_threshold=1e-10)
+    _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; Tps=0.0, Tsp=0.0, Rps=0.0, Rsp=0.0, atol=1e-6, k_threshold=1e-10)
 
 Validate physical constraints on R and T values:
 1. Bounds check: 0 ≤ R, T ≤ 1 (always)
 2. Energy conservation: R + T ≈ 1 (for non-absorbing media only)
 
+The energy budget per input polarization includes the cross-polarized channels
+(zero unless the caller passes them): `Rpp + Rps + Tpp + Tps ≈ 1` for p input
+and `Rss + Rsp + Tss + Tsp ≈ 1` for s input.
+
 Issues warnings if constraints are violated.
 
 Internal function called by `transfer` when `validate=true`.
 """
-function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=1e-6, k_threshold=1e-10)
+function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss;
+                           sheets=nothing, Tps=0.0, Tsp=0.0, Rps=0.0, Rsp=0.0,
+                           atol=1e-6, k_threshold=1e-10)
     # Check for NaN values (indicates numerical failure)
     if any(isnan, (Tpp, Tss, Rpp, Rss))
         @warn "NaN detected in R/T values" Tpp Tss Rpp Rss
@@ -177,28 +196,27 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; sheets=nothing, atol=
 
     is_lossless = layers_lossless && sheets_lossless
 
+    # Per-input-polarization budgets include the cross-polarized channels
+    # (nonzero only for converting anisotropic/gyrotropic stacks).
+    sum_p = Tpp + Tps + Rpp + Rps
+    sum_s = Tss + Tsp + Rss + Rsp
+
     if is_lossless
         # Energy conservation: R + T = 1 for lossless media
-        sum_p = Tpp + Rpp
-        sum_s = Tss + Rss
-
         if !isapprox(sum_p, 1.0; atol=atol)
-            @warn "Energy conservation violated for p-polarization" Tpp Rpp sum=sum_p expected=1.0 deviation=abs(sum_p - 1.0)
+            @warn "Energy conservation violated for p-polarization" Tpp Tps Rpp Rps sum=sum_p expected=1.0 deviation=abs(sum_p - 1.0)
         end
 
         if !isapprox(sum_s, 1.0; atol=atol)
-            @warn "Energy conservation violated for s-polarization" Tss Rss sum=sum_s expected=1.0 deviation=abs(sum_s - 1.0)
+            @warn "Energy conservation violated for s-polarization" Tss Tsp Rss Rsp sum=sum_s expected=1.0 deviation=abs(sum_s - 1.0)
         end
     else
         # For lossy media: R + T ≤ 1
-        sum_p = Tpp + Rpp
-        sum_s = Tss + Rss
-
         if sum_p > 1.0 + atol
-            @warn "Absorption violation: R + T > 1 for p-polarization" Tpp Rpp sum=sum_p
+            @warn "Absorption violation: R + T > 1 for p-polarization" Tpp Tps Rpp Rps sum=sum_p
         end
         if sum_s > 1.0 + atol
-            @warn "Absorption violation: R + T > 1 for s-polarization" Tss Rss sum=sum_s
+            @warn "Absorption violation: R + T > 1 for s-polarization" Tss Tsp Rss Rsp sum=sum_s
         end
     end
 

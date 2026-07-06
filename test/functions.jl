@@ -464,7 +464,15 @@ end
     sub = Layer(λ->sqrt(2.0), 1.0; mu = 3.0)
     for θ in (0.0, 0.4)
         r = transfer(1.0, [air, film, sub]; θ=θ)
-        @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-7)
-        @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-7)
+        @test isapprox(r.Rpp + r.Rps + r.Tpp + r.Tps, 1.0; atol=1e-7)
+        @test isapprox(r.Rss + r.Rsp + r.Tss + r.Tsp, 1.0; atol=1e-7)
+        # Everything is isotropic (scalar μ), so nothing converts p↔s: the
+        # cross channels must vanish. Guards the degenerate-pair orientation
+        # in calculate_E_modes_tensor — an arbitrarily rotated substrate mode
+        # basis leaks the entire transmitted power into the "cross" label.
+        @test isapprox(r.Tps, 0.0; atol=1e-10)
+        @test isapprox(r.Tsp, 0.0; atol=1e-10)
+        @test isapprox(r.Rps, 0.0; atol=1e-10)
+        @test isapprox(r.Rsp, 0.0; atol=1e-10)
     end
 end

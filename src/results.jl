@@ -1,3 +1,27 @@
+"""
+    Poynting
+
+Time-averaged Poynting vectors for the incident, transmitted, and reflected
+waves of a stack, with the transmitted flux resolved per substrate eigenmode.
+
+The transmitted field for each input polarization is a superposition of the two
+forward substrate eigenmodes (mode 1 is p-like, mode 2 is s-like). Each
+per-channel vector is that mode's own Poynting vector, evaluated with its own
+wavevector:
+
+- `out_pp` / `out_ps`: p input → substrate mode 1 / mode 2
+- `out_sp` / `out_ss`: s input → substrate mode 1 / mode 2
+
+`out_p = out_pp + out_ps` and `out_s = out_sp + out_ss` are the transmitted
+totals per input polarization. Distinct eigenmodes of a lossless substrate
+carry no cross z-flux (their interference term either vanishes by mode
+orthogonality or oscillates in z and must vanish because the total flux is
+z-independent), so the per-mode split is exact wherever a transmittance into
+the substrate is well defined.
+
+`f_out1` / `f_out2` are the z-fluxes of the two substrate eigenmodes at unit
+amplitude, used to convert circular-basis ``|t|^2`` into flux ratios.
+"""
 struct Poynting
     out_p::SVector{3, Float64}
     in_p::SVector{3, Float64}
@@ -5,10 +29,12 @@ struct Poynting
     in_s::SVector{3, Float64}
     refl_p::SVector{3, Float64}
     refl_s::SVector{3, Float64}
-
-    function Poynting(out_p::T, in_p::T, out_s::T, in_s::T, refl_p::T, refl_s::T) where {T<:SVector{3, Float64}}
-        new(out_p, in_p, out_s, in_s, refl_p, refl_s)
-    end
+    out_pp::SVector{3, Float64}
+    out_ps::SVector{3, Float64}
+    out_sp::SVector{3, Float64}
+    out_ss::SVector{3, Float64}
+    f_out1::Float64
+    f_out2::Float64
 end
 
 """
@@ -81,6 +107,11 @@ For sweep calculations via `sweep_angle()` or `sweep_thickness()`, `T` is `Matri
 !!! note "Cross-polarization terms"
     The cross-polarization terms (`Tps`, `Tsp`, `Rps`, `Rsp`) are zero for isotropic media
     and become non-zero for anisotropic (birefringent) materials.
+
+    Every entry is a true energy flux ratio: transmittances are per-output-mode
+    Poynting fluxes (see [`transfer`](@ref)) and reflectances are ``|r|^2``.
+    For a lossless stack the per-input-polarization budgets close exactly:
+    `Rpp + Rps + Tpp + Tps = 1` and `Rss + Rsp + Tss + Tsp = 1`.
 
 # Examples
 ```julia

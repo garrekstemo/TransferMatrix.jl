@@ -117,10 +117,10 @@ function transfer_exp(stack::Vector{GLayer}, λ; θ=0.0)
     Γs = SMatrix{4,4,ComplexF64}(Γ)
     r, R, t, T = TM.calculate_tr(Γs)
     S = TM.poynting(ξ, q1, qN, γ1, γN, t, r)
-    Tpp, Tss, _, _ = TM.calculate_tr(S)
+    Tpp, Tss, _, _, Tps, Tsp = TM.calculate_tr(S)
     return (; Γ=Γs, r=r, t=t,
             Rpp=R[1], Rss=R[2], Rsp=R[3], Rps=R[4],
-            Tpp=Tpp, Tss=Tss, Tps=T[4], Tsp=T[3])
+            Tpp=Tpp, Tss=Tss, Tps=Tps, Tsp=Tsp)
 end
 
 # Full stack solve using a candidate γ for interior layers (boundaries: package).

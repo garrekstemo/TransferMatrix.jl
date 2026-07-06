@@ -1057,20 +1057,20 @@ end
 
     # Energy conservation for the rotated lossless crystal (issue #70).
     # The (π/6, π/4, 0) rotation tilts the optic axis OUT of the plane of
-    # incidence, coupling p↔s. The correct per-input-polarization budget uses
-    # the reflected cross-pol term and the Poynting transmittance (which
-    # already carries the cross-transmitted power — do NOT also add Tps/Tsp):
-    #   p-input: Rpp + Rps + Tpp = 1     s-input: Rss + Rsp + Tss = 1
+    # incidence, coupling p↔s. The complete per-input-polarization budget
+    # includes BOTH cross-pol channels (each transmittance is the per-mode
+    # Poynting flux of its own output channel):
+    #   p-input: Rpp + Rps + Tpp + Tps = 1   s-input: Rss + Rsp + Tss + Tsp = 1
     # This holds to ~machine precision. The "R+T ≈ 0.998" reported as #70 was
-    # Rpp+Tpp, which simply OMITS the reflected cross-pol Rps (≈0.0022 here) —
-    # a budget-accounting artifact, not a physics error. (Transmission into an
-    # anisotropic *substrate* was a genuine Poynting error, fixed separately in
-    # poynting(); see the "anisotropic substrate energy conservation" testset.)
+    # Rpp+Tpp, which simply OMITS the converted channels — a budget-accounting
+    # artifact, not a physics error. (Transmission into an anisotropic
+    # *substrate* was a genuine Poynting error, fixed separately in poynting();
+    # see the "anisotropic substrate energy conservation" testset.)
     result = transfer(λ, layers)
-    @test isapprox(result.Rpp + result.Rps + result.Tpp, 1.0; atol=1e-9)
-    @test isapprox(result.Rss + result.Rsp + result.Tss, 1.0; atol=1e-9)
-    # The naive co-pol-only budget falls short by exactly the omitted Rps.
-    @test isapprox(result.Rpp + result.Tpp, 1.0 - result.Rps; atol=1e-9)
+    @test isapprox(result.Rpp + result.Rps + result.Tpp + result.Tps, 1.0; atol=1e-9)
+    @test isapprox(result.Rss + result.Rsp + result.Tss + result.Tsp, 1.0; atol=1e-9)
+    # The naive co-pol-only budget falls short by exactly the omitted channels.
+    @test isapprox(result.Rpp + result.Tpp, 1.0 - result.Rps - result.Tps; atol=1e-9)
     @test result.Rps > 1e-4   # cross-pol genuinely nonzero for this out-of-plane tilt
 end
 
@@ -1083,8 +1083,10 @@ end
     # over-counts the flux and breaks energy conservation (≈1.7% at θ=0).
     #
     # Correct lossless budget per input polarization (reflection into the
-    # isotropic ambient is exact |r|²; transmission via Poynting):
-    #   p-input: Rpp + Rps + Tpp = 1     s-input: Rss + Rsp + Tss = 1
+    # isotropic ambient is exact |r|²; each transmittance is its own substrate
+    # eigenmode's Poynting flux, so the two transmitted channels have DIFFERENT
+    # flux-per-|amplitude|² factors here — the case a shared rescale gets wrong):
+    #   p-input: Rpp + Rps + Tpp + Tps = 1   s-input: Rss + Rsp + Tss + Tsp = 1
     λ = 1.0
     air = Layer(λ -> 1.0, 1.0)
     sub = Layer(λ -> 1.5, λ -> 1.7, λ -> 2.0, 1.0; euler=(π/5, π/3, π/7))
@@ -1092,10 +1094,67 @@ end
     for layers in ([air, sub], [air, Layer(λ -> 1.4, 0.4), sub])
         for θ in (0.0, 0.3, 0.6, 0.9, 1.2)
             r = transfer(λ, layers; θ=θ)
-            @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-9)
-            @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-9)
+            @test isapprox(r.Rpp + r.Rps + r.Tpp + r.Tps, 1.0; atol=1e-9)
+            @test isapprox(r.Rss + r.Rsp + r.Tss + r.Tsp, 1.0; atol=1e-9)
         end
     end
+end
+
+@testset "cross-polarized transmittance is a per-mode flux (energy budget)" begin
+    # A half-wave plate with its optic axis in the layer plane at 45° to the
+    # plane of incidence converts nearly all transmitted p light to s. Tps must
+    # be the s-like substrate eigenmode's own Poynting flux ratio — NOT |tps|²,
+    # which is an amplitude ratio. Before the fix, Tpp was the TOTAL transmitted
+    # flux and Tps=|tps|², so the p-input "budget" summed to ~1.85 here.
+    no = λ -> 1.658 + 0.0im
+    ne = λ -> 1.486 + 0.0im
+    λ_hw = 0.59
+    t_hw = λ_hw / (2 * (1.658 - 1.486))     # half-wave thickness
+    amb = Layer(λ -> 1.0 + 0.0im, 1.0)
+    vac_sub = Layer(λ -> 1.0 + 0.0im, 1.0)
+    glass = Layer(λ -> 1.5 + 0.0im, 1.0)
+    wp45 = Layer(no, no, ne, t_hw; euler=(π/4, π/2, 0.0))
+
+    # (1) Energy closure, air/air, normal AND oblique incidence, both methods.
+    # (2) Energy closure with a DIFFERENT exit medium (air -> glass): both
+    #     transmitted channels pick up the substrate flux factor, which a raw
+    #     |t|² misses entirely.
+    for sub in (vac_sub, glass), θ in (0.0, 0.3), method in (:exp, :eig)
+        r = transfer(λ_hw, [amb, wp45, sub]; θ=θ, method=method)
+        @test isapprox(r.Rpp + r.Rps + r.Tpp + r.Tps, 1.0; atol=1e-10)
+        @test isapprox(r.Rss + r.Rsp + r.Tss + r.Tsp, 1.0; atol=1e-10)
+        for v in (r.Rpp, r.Rss, r.Rps, r.Rsp, r.Tpp, r.Tss, r.Tps, r.Tsp)
+            @test 0.0 <= v <= 1.0
+        end
+    end
+
+    # (3) Conversion physics preserved: at the half-wave point nearly all
+    # transmitted light converts; the co-polarized channel is tiny.
+    r = transfer(λ_hw, [amb, wp45, vac_sub])
+    @test isapprox(r.Tps, 0.847; atol=0.01)
+    @test r.Tpp < 1e-3
+    @test isapprox(r.Tsp, r.Tps; atol=1e-10)   # normal incidence symmetry
+
+    # c-cut (optic axis ∥ z): no conversion, cross terms vanish.
+    ccut = Layer(no, no, ne, t_hw; euler=(0.0, 0.0, 0.0))
+    rc = transfer(λ_hw, [amb, ccut, vac_sub]; θ=0.3)
+    @test isapprox(rc.Tps, 0.0; atol=1e-12)
+    @test isapprox(rc.Tsp, 0.0; atol=1e-12)
+    @test isapprox(rc.Rps, 0.0; atol=1e-12)
+    @test isapprox(rc.Rsp, 0.0; atol=1e-12)
+
+    # (4) Lossy converting stack: every channel in [0, 1] and each per-input
+    # budget strictly below 1 (absorption), never above.
+    no_l = λ -> 1.658 + 0.02im
+    ne_l = λ -> 1.486 + 0.02im
+    wp_lossy = Layer(no_l, no_l, ne_l, t_hw; euler=(π/4, π/2, 0.0))
+    rl = transfer(λ_hw, [amb, wp_lossy, glass]; θ=0.3)
+    for v in (rl.Rpp, rl.Rss, rl.Rps, rl.Rsp, rl.Tpp, rl.Tss, rl.Tps, rl.Tsp)
+        @test 0.0 <= v <= 1.0
+    end
+    @test rl.Rpp + rl.Rps + rl.Tpp + rl.Tps < 1.0 - 1e-3
+    @test rl.Rss + rl.Rsp + rl.Tss + rl.Tsp < 1.0 - 1e-3
+    @test rl.Tps > 0.01    # still genuinely converting
 end
 
 @testset "TIR into anisotropic substrate throws (mode-sorting limitation)" begin

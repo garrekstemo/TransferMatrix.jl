@@ -531,7 +531,10 @@ E-field eigenvectors for a layer with a full 3×3 permeability tensor `μ`, as t
 null space of `W(q) = K μ⁻¹ K + ε` for each mode `q`. Degenerate pairs (qᵢ ≈ qⱼ,
 e.g. isotropic media) share a 2-D null space; both orthogonal null vectors are
 assigned, avoiding the singular dynamical matrix a naive per-mode null space
-produces. Rows are unit-Hermitian-normalized, matching [`calculate_E_modes`].
+produces. Degenerate pairs are oriented to the fixed p/s polarization references
+of the scalar path (see [`_orient_degenerate_pair`](@ref)) so the r/t coefficient
+labels and per-mode transmittance channels keep their p/s meaning. Rows are
+unit-Hermitian-normalized, matching [`calculate_E_modes`].
 """
 function calculate_E_modes_tensor(k_par, q, ε, μ; rtol=1e-7)
     μinv = inv(SMatrix{3,3,ComplexF64}(μ)); εm = SMatrix{3,3,ComplexF64}(ε)
@@ -545,12 +548,65 @@ function calculate_E_modes_tensor(k_par, q, ε, μ; rtol=1e-7)
                 partner = n; break
             end
         end
-        v1 = SVector{3,ComplexF64}(F.V[:,3]...); E_modes[m,:] = v1 ./ norm(v1); assigned[m] = true
-        if partner != 0
-            v2 = SVector{3,ComplexF64}(F.V[:,2]...); E_modes[partner,:] = v2 ./ norm(v2); assigned[partner] = true
+        if partner == 0
+            v1 = SVector{3,ComplexF64}(F.V[:,3]...)
+            E_modes[m,:] = v1 ./ norm(v1)
+            assigned[m] = true
+        else
+            v1 = SVector{3,ComplexF64}(F.V[:,3]...)
+            v2 = SVector{3,ComplexF64}(F.V[:,2]...)
+            w_p, w_s = _orient_degenerate_pair(v1, v2, m)
+            E_modes[m,:] = w_p
+            E_modes[partner,:] = w_s
+            assigned[m] = true
+            assigned[partner] = true
         end
     end
     return SMatrix(E_modes)
+end
+
+
+"""
+    _orient_degenerate_pair(v1, v2, slot)
+
+Rotate an orthonormal basis `(v1, v2)` of a degenerate 2-D eigenmode space so
+the pair matches the fixed p/s polarization references of the scalar-μ path
+(`calculate_E_modes`): the first returned vector is p-like (no Ey component;
+Ex real-positive for the forward pair `slot ≤ 2`, real-negative for the
+backward pair) and the second is s-like (Ey real-positive).
+
+Any orthonormal basis of the degenerate space is a valid eigenvector pair, but
+the transfer-matrix coefficient labels (`tpp`, `tps`, ...) and the per-mode
+transmittance channels assume this orientation; an arbitrary (e.g. raw SVD)
+basis silently relabels or mixes the p/s channels of a magnetic ambient or
+substrate. If the space has no ŷ component the input basis is returned as-is.
+"""
+function _orient_degenerate_pair(v1, v2, slot)
+    # Project ŷ onto span{v1, v2} to extract the s-like direction.
+    w_s = v1 * conj(v1[2]) + v2 * conj(v2[2])
+    n_s = norm(w_s)
+    if n_s > 1e-9
+        w_s = w_s / n_s
+        # p-like: the orthogonal complement of w_s within the span.
+        w_p = v1 - (w_s' * v1) * w_s
+        if norm(w_p) < 1e-9
+            w_p = v2 - (w_s' * v2) * w_s
+        end
+        w_p = w_p / norm(w_p)
+    else
+        w_p, w_s = v1, v2
+    end
+    # Fix the arbitrary complex phases to the scalar-path sign conventions:
+    # s mode Ey real-positive; p mode Ex real-positive (forward) or
+    # real-negative (backward), matching E_modes[3,1] = -1 in calculate_E_modes.
+    if abs(w_s[2]) > 1e-12
+        w_s = w_s * (conj(w_s[2]) / abs(w_s[2]))
+    end
+    if abs(w_p[1]) > 1e-12
+        phase = conj(w_p[1]) / abs(w_p[1])
+        w_p = slot <= 2 ? w_p * phase : w_p * (-phase)
+    end
+    return w_p, w_s
 end
 
 

@@ -104,13 +104,15 @@ using .MuReference
     end
 
     @testset "energy conservation under :exp (lossless)" begin
+        # Both films convert p↔s, so the budgets include the cross-polarized
+        # transmitted channels (per-mode Poynting fluxes).
         amb = Layer(λ -> 1.0, 1.0); sub = Layer(λ -> 1.0, 1.0)
         films = (Layer(λ -> 1.6, λ -> 1.6, λ -> 1.9, 0.4; euler=(π/6, π/4, 0)),  # out-of-plane tilt (#70)
                  Layer(λ -> 1.5, 0.3; mu=gyrotropic_tensor(2.0, 0.6)))           # gyromagnetic μ
         for film in films, θ in (0.0, 0.3, 0.6, 0.9)
             r = transfer(1.0, [amb, film, sub]; θ=θ, method=:exp)
-            @test isapprox(r.Rpp + r.Rps + r.Tpp, 1.0; atol=1e-9)
-            @test isapprox(r.Rss + r.Rsp + r.Tss, 1.0; atol=1e-9)
+            @test isapprox(r.Rpp + r.Rps + r.Tpp + r.Tps, 1.0; atol=1e-9)
+            @test isapprox(r.Rss + r.Rsp + r.Tss + r.Tsp, 1.0; atol=1e-9)
         end
     end
 
