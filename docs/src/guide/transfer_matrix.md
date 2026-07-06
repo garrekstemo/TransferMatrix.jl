@@ -68,9 +68,11 @@ r_{sp} &= \frac{M_{11}M_{23} - M_{21}M_{13}}{d}.
 \end{aligned}
 ```
 
-Reflectance is then ``R = |r|^2`` directly, while transmittance ``T`` is a
-Poynting-vector flux ratio rather than ``|t|^2`` (the transmitted wave lives in a
-different medium) — see [Physics Validation](validation.md). These formulas are exactly
+Reflectance is then ``R = |r|^2`` directly, while every transmittance ``T`` —
+co- and cross-polarized alike — is a Poynting-vector flux ratio rather than
+``|t|^2`` (the transmitted wave lives in a different medium): each channel is the
+flux of one substrate eigenmode, evaluated with its own wavevector — see
+[Physics Validation](validation.md). The amplitude formulas above are exactly
 what [`calculate_tr`](@ref) evaluates.
 
 The full ``16``-element map:

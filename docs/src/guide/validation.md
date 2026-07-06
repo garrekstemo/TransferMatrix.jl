@@ -70,13 +70,23 @@ Dividing by ``S_{\text{incident}}``:
 T = \frac{n_2 \cos\theta_2}{n_1 \cos\theta_1} |t|^2
 ```
 
-This is why TransferMatrix.jl uses Poynting vector calculations rather than simply squaring the transmission coefficient.
+This is why TransferMatrix.jl uses Poynting vector calculations rather than simply squaring the transmission coefficient — for **every** channel, including the cross-polarized ones (each transmittance is the Poynting flux of its own substrate eigenmode).
+
+**Anisotropic (polarization-converting) stacks:** a rotated birefringent or gyrotropic layer converts p ↔ s, so part of the incident power leaves through the cross-polarized channels. The budget checked per input polarization is therefore
+
+```math
+R_{pp} + R_{ps} + T_{pp} + T_{ps} = 1, \qquad R_{ss} + R_{sp} + T_{ss} + T_{sp} = 1 ,
+```
+
+which reduces to ``R + T = 1`` for isotropic stacks, where the cross terms vanish.
 
 **Example warning:**
 ```
 ┌ Warning: Energy conservation violated for p-polarization
 │   Tpp = 0.72
+│   Tps = 0.0
 │   Rpp = 0.25
+│   Rps = 0.0
 │   sum = 0.97
 │   expected = 1.0
 │   deviation = 0.03
@@ -142,7 +152,7 @@ Validation does **not** catch all possible errors:
 - **Field continuity:** Tangential E and H fields should be continuous across interfaces. This is tested in the test suite but not validated at runtime.
 - **Incorrect but consistent results:** If there's a systematic error that affects both R and T equally, energy conservation might still hold.
 - **Material data errors:** Validation can't detect if your refractive index data is wrong—only that the calculation is self-consistent.
-- **Anisotropic media issues:** The validation assumes isotropic materials. For birefringent media, additional checks may be needed.
+- **Per-channel errors that cancel in the budget:** The energy check sums all four channels per input polarization, so a systematic redistribution between co- and cross-polarized channels that preserves the total would not be flagged.
 
 ## Tolerance Parameters
 
