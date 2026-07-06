@@ -115,17 +115,27 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
     k_out ./= c_0
     k_out = SMatrix(k_out)
 
-    # Transmitted power is the sum of the two substrate eigenmodes' Poynting
-    # vectors, EACH evaluated with its OWN wavevector (k_out modes 1, 2). The
-    # two modes carry different wavevectors when the substrate is anisotropic,
-    # and the cross-interference between distinct propagating modes transports
-    # no net z-flux, so the per-mode sum is the physical transmitted flux.
-    # (For an isotropic substrate k_out[1]=k_out[2] and this reduces to the
-    # single-wavevector form, since the p/s cross term carries no z-power.)
-    S_out_p = real(0.5 * E_out_p1 × conj(μout_inv * (k_out[1, :] × E_out_p1))) +
-              real(0.5 * E_out_p2 × conj(μout_inv * (k_out[2, :] × E_out_p2)))
-    S_out_s = real(0.5 * E_out_s1 × conj(μout_inv * (k_out[1, :] × E_out_s1))) +
-              real(0.5 * E_out_s2 × conj(μout_inv * (k_out[2, :] × E_out_s2)))
+    # Transmitted power is resolved PER substrate eigenmode, EACH evaluated
+    # with its OWN wavevector (k_out modes 1, 2). The two modes carry different
+    # wavevectors when the substrate is anisotropic, and the cross-interference
+    # between distinct eigenmodes of a lossless substrate transports no net
+    # z-flux, so each per-mode flux is the physical power in that output
+    # polarization channel and their sum is the total transmitted flux.
+    # (For an isotropic substrate k_out[1]=k_out[2] and the cross term vanishes
+    # by p/s mode orthogonality.)
+    S_out_pp = real(0.5 * E_out_p1 × conj(μout_inv * (k_out[1, :] × E_out_p1)))
+    S_out_ps = real(0.5 * E_out_p2 × conj(μout_inv * (k_out[2, :] × E_out_p2)))
+    S_out_sp = real(0.5 * E_out_s1 × conj(μout_inv * (k_out[1, :] × E_out_s1)))
+    S_out_ss = real(0.5 * E_out_s2 × conj(μout_inv * (k_out[2, :] × E_out_s2)))
+    S_out_p = S_out_pp + S_out_ps
+    S_out_s = S_out_sp + S_out_ss
+
+    # Unit-amplitude z-flux of each substrate eigenmode (flux-per-|amplitude|²
+    # conversion factors, needed by the circular-basis transmittance).
+    E_out_1 = E_modes_out[1, :]
+    E_out_2 = E_modes_out[2, :]
+    f_out1 = real(0.5 * E_out_1 × conj(μout_inv * (k_out[1, :] × E_out_1)))[3]
+    f_out2 = real(0.5 * E_out_2 × conj(μout_inv * (k_out[2, :] × E_out_2)))[3]
 
     # Reflected waves: use incident-medium wavevectors (k_in modes 3,4),
     # not substrate wavevectors, because reflected light propagates backward
@@ -133,7 +143,8 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
     S_refl_p = real(0.5 * E_ref_p × conj(μin_inv * (k_in[3, :] × E_ref_p)))
     S_refl_s = real(0.5 * E_ref_s × conj(μin_inv * (k_in[4, :] × E_ref_s)))
 
-    return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s)
+    return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s,
+                    S_out_pp, S_out_ps, S_out_sp, S_out_ss, f_out1, f_out2)
 end
 
 
@@ -225,7 +236,19 @@ Calculate transmittance and reflectance from the Poynting vector struct,
 which contains incident, transmitted, and reflected energy flux for both
 p-polarized and s-polarized waves.
 
-Returns `(Tpp, Tss, Rpp, Rss)`.
+Returns `(Tpp, Tss, Rpp, Rss, Tps, Tsp)`.
+
+The transmittances are per-output-mode flux ratios: `Tpp` is the power carried
+by the p-like substrate eigenmode alone (co-polarized channel) and `Tps` the
+power carried by the s-like eigenmode (cross-polarized channel), each divided
+by the incident p flux; likewise `Tss`/`Tsp` for s input. For a lossless stack
+the per-input budgets close exactly: `Rpp + Rps + Tpp + Tps = 1`.
+
+`Rpp`/`Rss` here are the TOTAL reflected flux per input polarization (the
+reflected field is a coherent sum of both backward modes, so for converting
+stacks this equals `|rpp|² + |rps|²`, not the co-polarized piece alone).
+[`transfer`](@ref) takes its per-channel reflectances from ``|r|^2`` instead —
+see the `calculate_tr(M_sys)` method.
 
 # Sign Convention
 The reflected Poynting vector z-component is negative (pointing in -z direction),
@@ -233,12 +256,14 @@ so the negative sign in `Rpp = -S.refl_p[3] / S.in_p[3]` yields positive reflect
 """
 function calculate_tr(S::Poynting)
 
-    Tpp = S.out_p[3] / S.in_p[3]
-    Tss = S.out_s[3] / S.in_s[3]
+    Tpp = S.out_pp[3] / S.in_p[3]
+    Tss = S.out_ss[3] / S.in_s[3]
+    Tps = S.out_ps[3] / S.in_p[3]
+    Tsp = S.out_sp[3] / S.in_s[3]
 
     # Reflected Poynting vector points in -z, so negate to get positive R
     Rpp = -S.refl_p[3] / S.in_p[3]
     Rss = -S.refl_s[3] / S.in_s[3]
 
-    return Tpp, Tss, Rpp, Rss
+    return Tpp, Tss, Rpp, Rss, Tps, Tsp
 end

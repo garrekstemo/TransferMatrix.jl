@@ -49,10 +49,12 @@ end
     # r = (rpp, rps, rss, rsp), t = (tpp, tps, tsp, tss).
     r = SVector{4,ComplexF64}(0.2, 0.0, -0.2, 0.0)
     t = SVector{4,ComplexF64}(0.8, 0.0, 0.0, 0.8)
-    Tpp = 0.96  # Poynting transmittance (N = (0.96+0.96)/(0.64+0.64) = 1.5)
-    Tss = 0.96
+    # Poynting flux factors: unit-amplitude substrate-mode flux 1.5, unit
+    # incident flux 1.0, so each |t|² converts with factor 1.5 (0.64 -> 0.96).
+    f_out1 = f_out2 = 1.5
+    f_in_p = f_in_s = 1.0
 
-    res = TransferMatrix._circular_result(r, t, Tpp, Tss)
+    res = TransferMatrix._circular_result(r, t, f_out1, f_out2, f_in_p, f_in_s)
     @test res isa TransferMatrix.CircularTransferResult{Float64}
 
     # Reflection flips: diagonal ~0, cross = 0.04.
@@ -67,8 +69,9 @@ end
     @test isapprox(res.Trl, 0.0; atol=1e-12)
     @test isapprox(res.Tlr, 0.0; atol=1e-12)
 
-    # N guard: zero transmission amplitude -> all circular T are 0 (not NaN).
-    res0 = TransferMatrix._circular_result(r, SVector{4,ComplexF64}(0, 0, 0, 0), 0.0, 0.0)
+    # Null guard: zero transmission amplitude -> all circular T are 0 (not NaN).
+    res0 = TransferMatrix._circular_result(r, SVector{4,ComplexF64}(0, 0, 0, 0),
+                                           f_out1, f_out2, f_in_p, f_in_s)
     @test res0.Trr == 0.0
     @test res0.Tll == 0.0
     @test !isnan(res0.Trr)
@@ -136,6 +139,38 @@ end
     # Vacuum substrate + lossless -> energy conserved per input polarization.
     @test isapprox(res.Rrr + res.Rlr + res.Trr + res.Tlr, 1.0; atol=1e-6)
     @test isapprox(res.Rll + res.Rrl + res.Tll + res.Trl, 1.0; atol=1e-6)
+end
+
+@testset "circular budget closes for a polarization-converting stack" begin
+    # Half-wave plate at 45°: strong p<->s conversion in transmission. The old
+    # scalar normalization N = (Tpp+Tss)/(|tpp|²+|tss|²) double-counted the
+    # converted flux (Tpp/Tss were totals) and blew up when the co-polarized
+    # amplitudes vanished at the half-wave point. The per-mode formulation
+    # keeps every per-input circular budget exactly 1 for a lossless stack.
+    no = λ -> 1.658 + 0.0im
+    ne = λ -> 1.486 + 0.0im
+    t_hw = 0.59 / (2 * (1.658 - 1.486))
+    amb = Layer(λ -> 1.0 + 0.0im, 1.0)
+    glass = Layer(λ -> 1.5 + 0.0im, 1.0)
+    wp45 = Layer(no, no, ne, t_hw; euler=(π/4, π/2, 0.0))
+
+    for (sub, θ) in ((amb, 0.0), (amb, 0.3), (glass, 0.3))
+        res = transfer(0.59, [amb, wp45, sub]; θ=θ, basis=:circular)
+        @test isapprox(res.Rrr + res.Rlr + res.Trr + res.Tlr, 1.0; atol=1e-10)
+        @test isapprox(res.Rll + res.Rrl + res.Tll + res.Trl, 1.0; atol=1e-10)
+        for v in (res.Trr, res.Tll, res.Trl, res.Tlr, res.Rrr, res.Rll, res.Rrl, res.Rlr)
+            @test 0.0 <= v <= 1.0
+        end
+    end
+
+    # A half-wave plate flips helicity in transmission: at the half-wave point
+    # the co-handed Trr/Tll are small and the cross-handed Trl/Tlr carry the
+    # transmitted power (linear-basis analogue: Tps ≈ 0.85).
+    res = transfer(0.59, [amb, wp45, amb]; basis=:circular)
+    @test res.Tlr > 0.8
+    @test res.Trl > 0.8
+    @test res.Trr < 0.05
+    @test res.Tll < 0.05
 end
 
 @testset "circular TIR guard" begin

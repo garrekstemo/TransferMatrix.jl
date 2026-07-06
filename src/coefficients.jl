@@ -5,8 +5,9 @@
 const _C_CIRC = SMatrix{2,2,ComplexF64}(1, im, 1, -im) / sqrt(2)      # [1 1; im -im]
 const _C_CIRC_INV = SMatrix{2,2,ComplexF64}(1, 1, -im, im) / sqrt(2)  # [1 -im; 1 im]
 
-# Transmission-null tolerance: below this the transmitted Poynting flux is taken
-# as zero, so circular transmittance is defined as 0 (avoids 0/0 at a perfect mirror).
+# Transmission-null tolerance: below this the transmitted amplitude weight
+# |t_c[L,j]|² + |t_c[R,j]|² is taken as zero, so circular transmittance is
+# defined as 0 (avoids 0/0 at a perfect mirror).
 const _CIRC_T_TOL = 1e-12
 
 # Transform a 2×2 linear Jones matrix ([out,in] ordered p,s) into the circular
@@ -14,19 +15,49 @@ const _CIRC_T_TOL = 1e-12
 _jones_to_circular(J_lin) = _C_CIRC_INV * J_lin * _C_CIRC
 
 # Assemble circular-basis R/T from the linear complex Jones coefficients
-# r = (rpp,rps,rss,rsp), t = (tpp,tps,tsp,tss) and the Poynting diagonal
-# transmittances Tpp, Tss. Reflectance is |r_circ|^2; transmittance is N·|t_circ|^2
-# with the single polarization-independent Poynting scalar N (exact for an isotropic
-# substrate; see `transfer` docstring for caveats).
-function _circular_result(r, t, Tpp, Tss)
-    r_lin = SMatrix{2,2,ComplexF64}(r[1], r[4], r[2], r[3])  # [rpp rps; rsp rss]
-    t_lin = SMatrix{2,2,ComplexF64}(t[1], t[3], t[2], t[4])  # [tpp tps; tsp tss]
+# r = (rpp,rps,rss,rsp), t = (tpp,tps,tsp,tss) and the Poynting flux factors:
+# f_out1/f_out2 are the unit-amplitude z-fluxes of the two substrate eigenmodes
+# (p-like / s-like), f_in_p/f_in_s those of the incident modes.
+#
+# Reflectance is |r_circ|^2. Transmittance for circular input j is computed by
+# mapping the input Jones vector through t_lin to the substrate (p,s) amplitude
+# pair `a`, whose per-mode flux `f_out1|a₁|² + f_out2|a₂|²` is the EXACT total
+# transmitted power (distinct lossless eigenmodes carry no cross z-flux). That
+# total is then split between the L/R outputs in proportion to |t_circ|². For an
+# isotropic substrate (f_out1 = f_out2) the split itself is exact, because the
+# circular unit vectors are orthonormal combinations of degenerate modes; for an
+# anisotropic substrate the two eigenmodes are not circular, so only the per-input
+# TOTAL is exact and the L/R split is the natural |t_circ|²-weighted estimate
+# (see `transfer` docstring).
+function _circular_result(r, t, f_out1, f_out2, f_in_p, f_in_s)
+    # Package coefficients are indexed in-first (rps = p input → s output), so
+    # the [out,in] Jones matrices place the p→s conversion in row 2, column 1.
+    # (Using the transposed orientation is invisible for isotropic stacks —
+    # their Jones matrices are diagonal — but breaks flux unitarity, and hence
+    # the circular energy budget, for polarization-converting stacks.)
+    r_lin = SMatrix{2,2,ComplexF64}(r[1], r[2], r[4], r[3])  # [rpp rsp; rps rss]
+    t_lin = SMatrix{2,2,ComplexF64}(t[1], t[2], t[3], t[4])  # [tpp tsp; tps tss]
     r_c = _jones_to_circular(r_lin)
     t_c = _jones_to_circular(t_lin)
     Rc = abs2.(r_c)
-    denom = abs2(t[1]) + abs2(t[4])  # |tpp|^2 + |tss|^2
-    N = denom > _CIRC_T_TOL ? (Tpp + Tss) / denom : zero(denom)
-    Tc = N .* abs2.(t_c)
+
+    # Unit-amplitude circular incident flux: |χ_p|² f_in_p + |χ_s|² f_in_s with
+    # χ = (1, ±i)/√2 (incident p/s modes carry no cross z-flux).
+    f_in = (f_in_p + f_in_s) / 2
+
+    Tc = MMatrix{2,2,Float64}(undef)
+    for j in 1:2
+        a = t_lin * _C_CIRC[:, j]                 # substrate (p,s) amplitudes for input j (1=L, 2=R)
+        w = abs2(t_c[1, j]) + abs2(t_c[2, j])     # = |a₁|² + |a₂|² (C is unitary)
+        if w > _CIRC_T_TOL
+            T_tot = (f_out1 * abs2(a[1]) + f_out2 * abs2(a[2])) / f_in
+            Tc[1, j] = T_tot * abs2(t_c[1, j]) / w
+            Tc[2, j] = T_tot * abs2(t_c[2, j]) / w
+        else
+            Tc[1, j] = 0.0
+            Tc[2, j] = 0.0
+        end
+    end
     # circular matrices are [out,in] ordered (L,R): [1,1]=LL [1,2]=LR [2,1]=RL [2,2]=RR
     return CircularTransferResult(Tc[2, 2], Tc[1, 1], Tc[2, 1], Tc[1, 2],
                                   Rc[2, 2], Rc[1, 1], Rc[2, 1], Rc[1, 2])
@@ -45,9 +76,10 @@ reflection and transmission Jones blocks can be read straight off its elements.
 The function returns the co- and cross-polarized amplitude coefficients
 (`rpp, rss, rps, rsp`, `tpp, tss, tps, tsp`) and their squared magnitudes.
 
-Reflectance is ``R = |r|^2`` directly. The returned ``|t|^2`` is *not* the
-physical transmittance — the transmitted wave is in a different medium — so the
-diagonal `Tpp`/`Tss` reported by `transfer` come from the Poynting-vector
+Reflectance is ``R = |r|^2`` directly. The returned ``|t|^2`` values (all four,
+co- and cross-polarized) are *not* physical transmittances — the transmitted
+wave is in a different medium — so every transmittance reported by `transfer`
+(`Tpp`, `Tss`, `Tps`, `Tsp`) comes from the per-mode Poynting-vector
 calculation (`calculate_tr(S::Poynting)`) instead.
 
 The ``2\\times2`` transfer-matrix relations originate with Yeh (1979); the

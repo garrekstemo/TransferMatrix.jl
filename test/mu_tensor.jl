@@ -122,16 +122,17 @@ const E_TOL  = 1e-7      # energy / duality tolerance
 
     # ---------------------------------------------------------------------
     # (6) Energy conservation for lossless μ-tensor stacks (vacuum/vacuum):
-    # Rpp+Rps+Tpp = 1 and Rss+Rsp+Tss = 1 (Tpp/Tss are TOTAL per-input-pol
-    # Poynting transmittances). Includes gyromagnetic (Hermitian Polder) μ.
+    # Rpp+Rps+Tpp+Tps = 1 and Rss+Rsp+Tss+Tsp = 1 (each transmittance is the
+    # per-output-mode Poynting flux of its own channel). Includes gyromagnetic
+    # (Hermitian Polder) μ, which converts p↔s in transmission.
     # ---------------------------------------------------------------------
     @testset "energy conservation, lossless μ-tensor" begin
         for θ in (0.0, 0.2, 0.5, 0.9),
             μt in (μ_diag(1.5,2.5,3.5), μ_rot(1.5,2.5,3.5,0.4,0.6,0.3),
                    μ_polder(2.0,0.6), μ_polder(2.5,1.2))
             g = transfer_exp([vac(), glay(μ_iso(2.25), μt, 0.4), vac()], 1.0; θ=θ)
-            @test isapprox(g.Rpp + g.Rps + g.Tpp, 1.0; atol=E_TOL)
-            @test isapprox(g.Rss + g.Rsp + g.Tss, 1.0; atol=E_TOL)
+            @test isapprox(g.Rpp + g.Rps + g.Tpp + g.Tps, 1.0; atol=E_TOL)
+            @test isapprox(g.Rss + g.Rsp + g.Tss + g.Tsp, 1.0; atol=E_TOL)
         end
     end
 
