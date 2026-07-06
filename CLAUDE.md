@@ -96,7 +96,9 @@ Pass via the `sheets=` kwarg (Dict or iterable of `i => sheet`) on
 - **Time convention**: `exp(-iωt)` (Berreman / Passler & Paarmann), opposite of
   Yeh. Flips the sign in the propagation matrix — matters when comparing formulas.
 - **Transmittance ≠ |t|²** in general: the transmitted wave is in a different
-  medium, so T needs a Poynting-vector ratio (`T = S_out,z / S_inc,z`).
+  medium, so T needs a Poynting-vector ratio (`T = S_out,z / S_inc,z`). This holds
+  for **all four** channels: `Tpp/Tss/Tps/Tsp` are each the Poynting flux of one
+  substrate eigenmode (evaluated with its own wavevector) over the incident flux.
   Reflectance uses `R = |r|²` directly.
 - **γᵢ₃₃ sign correction**: Eq. 13 of Xu et al. (2000) / Eq. 20 of Passler (2017)
   has a sign error in γᵢ₃₃ as printed. All γⱼ₃ must satisfy the z-constraint
@@ -111,15 +113,19 @@ conservation): `.claude/rules/berreman-4x4-equations.md`.
 
 - **#70** (resolved): rotated anisotropic crystals conserve energy. The quoted
   `Tpp+Rpp ≈ 0.998` (uniaxial `euler=(π/6,π/4,0)`) was a **budget artifact** — it
-  omits the reflected cross-pol `Rps` that an out-of-plane tilt produces. The correct
-  per-input-polarization budget is `Rpp+Rps+Tpp = 1` and `Rss+Rsp+Tss = 1` (holds to
-  ~1e-14; the Poynting `Tpp` already includes the cross-*transmitted* power, so do
-  **not** also add `Tps`/`Tsp`). Convention: `r_{in,out}` — p-input cross-reflection
-  is `Rps`, not `Rsp` (they coincide only at normal incidence). Separately, a genuine
-  bug — transmission into an **anisotropic substrate** (`Rpp+Rps+Tpp ≈ 1.017`) — was
+  omits the converted channels that an out-of-plane tilt produces. The correct
+  per-input-polarization budget is `Rpp+Rps+Tpp+Tps = 1` and `Rss+Rsp+Tss+Tsp = 1`
+  (holds to ~1e-14). Every transmittance is a **per-mode Poynting flux**: `Tpp` is
+  the p-like substrate eigenmode's power only, `Tps` the s-like eigenmode's, each
+  evaluated with its own wavevector. (Historical bug: `Tpp` used to be the TOTAL
+  per-input flux while `Tps = |tps|²` was an amplitude ratio — converting stacks
+  then double-counted, e.g. a lossless half-wave plate at 45° gave a p-input sum
+  of 1.85.) Convention: `r_{in,out}` — p-input cross-reflection is `Rps`, not
+  `Rsp` (they coincide only at normal incidence). Separately, a genuine bug —
+  transmission into an **anisotropic substrate** (`Rpp+Rps+Tpp ≈ 1.017`) — was
   fixed in `poynting()`: the two transmitted substrate eigenmodes carry different
-  wavevectors, so their Poynting vectors are now summed per-mode instead of using one
-  wavevector for the combined field.
+  wavevectors, so their Poynting vectors are evaluated per-mode instead of using
+  one wavevector for the combined field.
 - **#71**: anisotropic ambient at oblique incidence → NaN (uses nx for k_par).
 - **#72**: absorbing incident medium — |r|² is not a true energy reflectance. The
   Poynting vector is non-additive for absorbing incident media (interference
