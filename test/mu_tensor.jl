@@ -193,3 +193,18 @@ end
     H = hfield(1.0, layers; θ=0.3, dz=0.01)
     @test all(isfinite, H.p) && all(isfinite, H.s)
 end
+
+@testset "_orient_degenerate_pair: span without ŷ passes through" begin
+    # A degenerate 2-D eigenmode space with no Ey content has no s-like
+    # direction to orient to, so the input basis must come back unchanged —
+    # up to the p-mode sign convention (Ex real-negative for the backward
+    # pair, matching E_modes[3,1] = -1 in calculate_E_modes).
+    x̂ = SVector{3,ComplexF64}(1, 0, 0)
+    ẑ = SVector{3,ComplexF64}(0, 0, 1)
+    w_p, w_s = TransferMatrix._orient_degenerate_pair(x̂, ẑ, 1)
+    @test w_p == x̂
+    @test w_s == ẑ
+    w_p, w_s = TransferMatrix._orient_degenerate_pair(x̂, ẑ, 3)
+    @test w_p == -x̂
+    @test w_s == ẑ
+end
