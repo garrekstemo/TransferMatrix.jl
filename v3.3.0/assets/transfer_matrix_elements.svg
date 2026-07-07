@@ -1,0 +1,72 @@
+<svg width="680" viewBox="0 0 680 480" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Significance of each element of the 4x4 transfer matrix M</title>
+<desc>A 4 by 4 grid of elements labeled M i j. Rows are incident-medium plane-wave modes (p and s, forward/incoming and backward/reflected); columns are substrate modes (p and s, forward/transmitted and backward, which is absent). The forward-substrate columns 1 and 3 at the incoming rows form the transmission block whose inverse gives t and whose determinant is d; the same columns at the reflected rows form the reflection block giving r. The backward-substrate columns 2 and 4 are inert because no wave enters from the substrate.</desc>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .th { font-size: 14px; font-weight: 500; fill: #3D3D3A; }
+  .ts { font-size: 12px; font-weight: 400; fill: #6B6A64; }
+  .fig-bg { fill: #FFFFFF; stroke: #E6E4DD; stroke-width: 1; }
+  .cell-teal { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 0.5; }
+  .cell-amber { fill: #FAEEDA; stroke: #EF9F27; stroke-width: 0.5; }
+  .cell-gray { fill: #F1EFE8; stroke: #C9C7BD; stroke-width: 0.5; }
+  .txt-teal { fill: #0F6E56; }
+  .txt-amber { fill: #854F0B; }
+  .txt-gray { fill: #444441; }
+</style>
+
+<rect class="fig-bg" x="1" y="1" width="678" height="478" rx="14"/>
+
+<text class="th" x="40" y="34">Final transfer matrix  M  —  what each element does</text>
+<text class="ts" x="40" y="54">&#968;(incident medium)  =  M &#183; &#968;(substrate)</text>
+
+<text class="ts" x="362" y="82" text-anchor="middle">substrate modes  (columns)</text>
+<text transform="rotate(-90 52 250)" x="52" y="250" class="ts" text-anchor="middle">incident medium  (rows)</text>
+
+<text class="th" x="236" y="100" text-anchor="middle">p &#8594;</text>
+<text class="ts" x="236" y="116" text-anchor="middle">transmitted</text>
+<text class="th" x="320" y="100" text-anchor="middle">p &#8592;</text>
+<text class="ts" x="320" y="116" text-anchor="middle">none</text>
+<text class="th" x="404" y="100" text-anchor="middle">s &#8594;</text>
+<text class="ts" x="404" y="116" text-anchor="middle">transmitted</text>
+<text class="th" x="488" y="100" text-anchor="middle">s &#8592;</text>
+<text class="ts" x="488" y="116" text-anchor="middle">none</text>
+
+<text class="th" x="180" y="155" text-anchor="end">p &#8594;</text>
+<text class="ts" x="180" y="171" text-anchor="end">incoming</text>
+<text class="th" x="180" y="215" text-anchor="end">p &#8592;</text>
+<text class="ts" x="180" y="231" text-anchor="end">reflected</text>
+<text class="th" x="180" y="275" text-anchor="end">s &#8594;</text>
+<text class="ts" x="180" y="291" text-anchor="end">incoming</text>
+<text class="th" x="180" y="335" text-anchor="end">s &#8592;</text>
+<text class="ts" x="180" y="351" text-anchor="end">reflected</text>
+
+<path d="M196 128 H188 V372 H196" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M528 128 H536 V372 H528" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+<rect class="cell-teal" x="196" y="132" width="80" height="56" rx="4"/><text class="th txt-teal" x="236" y="160" text-anchor="middle" dominant-baseline="central">M&#8321;&#8321;</text>
+<rect class="cell-gray" x="280" y="132" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="320" y="160" text-anchor="middle" dominant-baseline="central">M&#8321;&#8322;</text>
+<rect class="cell-teal" x="364" y="132" width="80" height="56" rx="4"/><text class="th txt-teal" x="404" y="160" text-anchor="middle" dominant-baseline="central">M&#8321;&#8323;</text>
+<rect class="cell-gray" x="448" y="132" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="488" y="160" text-anchor="middle" dominant-baseline="central">M&#8321;&#8324;</text>
+
+<rect class="cell-amber" x="196" y="192" width="80" height="56" rx="4"/><text class="th txt-amber" x="236" y="220" text-anchor="middle" dominant-baseline="central">M&#8322;&#8321;</text>
+<rect class="cell-gray" x="280" y="192" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="320" y="220" text-anchor="middle" dominant-baseline="central">M&#8322;&#8322;</text>
+<rect class="cell-amber" x="364" y="192" width="80" height="56" rx="4"/><text class="th txt-amber" x="404" y="220" text-anchor="middle" dominant-baseline="central">M&#8322;&#8323;</text>
+<rect class="cell-gray" x="448" y="192" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="488" y="220" text-anchor="middle" dominant-baseline="central">M&#8322;&#8324;</text>
+
+<rect class="cell-teal" x="196" y="252" width="80" height="56" rx="4"/><text class="th txt-teal" x="236" y="280" text-anchor="middle" dominant-baseline="central">M&#8323;&#8321;</text>
+<rect class="cell-gray" x="280" y="252" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="320" y="280" text-anchor="middle" dominant-baseline="central">M&#8323;&#8322;</text>
+<rect class="cell-teal" x="364" y="252" width="80" height="56" rx="4"/><text class="th txt-teal" x="404" y="280" text-anchor="middle" dominant-baseline="central">M&#8323;&#8323;</text>
+<rect class="cell-gray" x="448" y="252" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="488" y="280" text-anchor="middle" dominant-baseline="central">M&#8323;&#8324;</text>
+
+<rect class="cell-amber" x="196" y="312" width="80" height="56" rx="4"/><text class="th txt-amber" x="236" y="340" text-anchor="middle" dominant-baseline="central">M&#8324;&#8321;</text>
+<rect class="cell-gray" x="280" y="312" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="320" y="340" text-anchor="middle" dominant-baseline="central">M&#8324;&#8322;</text>
+<rect class="cell-amber" x="364" y="312" width="80" height="56" rx="4"/><text class="th txt-amber" x="404" y="340" text-anchor="middle" dominant-baseline="central">M&#8324;&#8323;</text>
+<rect class="cell-gray" x="448" y="312" width="80" height="56" rx="4" stroke-dasharray="3 2"/><text class="th txt-gray" x="488" y="340" text-anchor="middle" dominant-baseline="central">M&#8324;&#8324;</text>
+
+<rect class="cell-teal" x="196" y="394" width="16" height="16" rx="3"/>
+<text class="ts" x="220" y="402" dominant-baseline="central">Transmission block  {M&#8321;&#8321;, M&#8321;&#8323;, M&#8323;&#8321;, M&#8323;&#8323;}  &#8212;  invert for  t,   det = d</text>
+<rect class="cell-amber" x="196" y="420" width="16" height="16" rx="3"/>
+<text class="ts" x="220" y="428" dominant-baseline="central">Reflection block  {M&#8322;&#8321;, M&#8322;&#8323;, M&#8324;&#8321;, M&#8324;&#8323;}  &#8212;  combine with t-block for  r</text>
+<rect class="cell-gray" x="196" y="446" width="16" height="16" rx="3" stroke-dasharray="3 2"/>
+<text class="ts" x="220" y="454" dominant-baseline="central">Inert columns 2 &amp; 4  &#8212;  no wave enters from the substrate (&#215; 0)</text>
+</svg>
