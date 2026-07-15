@@ -4,12 +4,7 @@ Berreman 4×4 transfer matrix method (TMM) for EM wave propagation in layered
 optical media. R/T spectra, angle-resolved properties, E-field profiles,
 anisotropic/birefringent media, 2D conductive sheets.
 
-Entry point: `src/transfer.jl` (public R/T API). The Berreman core — once a single
-`general_TMM.jl` — now lives in `transfer.jl`, `propagation.jl`, `coefficients.jl`,
-`poynting.jl`, `fields.jl`, and `results.jl`, with per-layer matrix math in
-`matrix_constructors.jl`. Browse `src/` for the rest (`layer.jl`, `sheet.jl`,
-`optics_functions.jl`).
-General Julia/Makie/Pkg conventions live in the global `~/.claude/CLAUDE.md`.
+Entry point: `src/transfer.jl` (public R/T API); browse `src/` for the rest.
 
 ## API
 
@@ -24,46 +19,24 @@ General Julia/Makie/Pkg conventions live in the global `~/.claude/CLAUDE.md`.
   the Berreman Δ matrix (degeneracy-immune, no eigenmode sorting); `method=:eig`
   selects the eigenmode path. Both agree to ~1e-12; boundaries always use the
   eigenmode path. See `src/matrix_constructors.jl` (`layer_transfer_exp`).
-- `efield(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)` → `ElectricField`;
-  `hfield` → `MagneticField`.
-- Other exports: `Layer`, `Sheet`, `fresnel`, `fresnel_coefficients`, `airy`,
-  `stopband`, `dbr_reflectivity`, `refractive_index`, `dielectric_constant`,
-  `dielectric_tensor`, `find_bounds`, `isanisotropic`, `isrotated`,
-  `euler_rotation_matrix`, `rotate_dielectric_tensor`, `get_refractive_indices`,
-  `get_euler_angles`, `gyrotropic_tensor`, `polder_permeability`.
+- Other exports (`Layer`, `Sheet`, `efield`/`hfield`, `fresnel`, …): see
+  `src/TransferMatrix.jl` export list and docstrings.
 
 ### Per-layer permeability (`mu=`)
 
-`Layer` accepts an optional `mu=` keyword argument specifying the magnetic
-permeability for that layer. Accepted forms:
+`Layer` accepts an optional `mu=`: `nothing` (default — use the global `μ=`
+fallback passed to `transfer` / `sweep_*`), a scalar, a constant 3×3 tensor, or
+a wavelength-dependent `λ -> 3×3 matrix`. A layer whose `mu` is not `nothing`
+overrides the global value for that layer only. Tensor-μ layers (including a
+magnetic substrate) are fully supported. A magnetic *ambient at oblique
+incidence* shares the existing #71 k_par caveat: the conserved in-plane
+wavevector k_par is computed from the ambient permittivity only.
 
-| Value | Meaning |
-|-------|---------|
-| `nothing` (default) | use the global `μ=` fallback passed to `transfer` / `sweep_*` |
-| `Number` (e.g. `2.0`) | scalar isotropic μ — expanded to `μI` |
-| `3×3 AbstractMatrix` | constant tensor μ (e.g. uniaxial, diagonal) |
-| `λ -> 3×3 matrix` | wavelength-dependent tensor (e.g. Polder ferrite) |
-
-**Global vs. per-layer semantics:** `transfer(λ, layers; μ=1.0, ...)` sets a
-scalar fallback permeability for every layer whose `mu` field is `nothing`. A
-layer whose `mu` is not `nothing` overrides the global value for that layer only.
-Tensor-μ layers (including a magnetic substrate) are fully supported. A magnetic
-*ambient at oblique incidence* shares the existing #71 k_par caveat: the conserved
-in-plane wavevector k_par is computed from the ambient permittivity only.
-
-**Helper functions:**
-- `gyrotropic_tensor(d, od; axis=:z)` — constant 3×3 Hermitian gyrotropic tensor
-  with diagonal `d` and antisymmetric imaginary off-diagonal `±i·od`; for use as
-  a static `mu=` value.
-- `polder_permeability(; f0, fm, linewidth=0.0, axis=:z)` — returns a function
-  `f -> μ_tensor` for the gyromagnetic (Polder) permeability of a saturated
-  ferrite; wrap with a λ-to-frequency conversion for the `mu=` kwarg:
-  `Layer(n, d; mu = λ -> polder_permeability(f0=..., fm=...)(TransferMatrix.c_0/λ))`
-  (where `TransferMatrix.c_0` is the package's internal speed-of-light constant
-  in μm/s; map wavelength → frequency according to your own unit system).
-
-Examples and tutorials: `docs/src/guide/` (quickstart, tutorial, validation)
-and `test/`.
+Helpers `gyrotropic_tensor` and `polder_permeability`: see docstrings. Gotcha:
+`polder_permeability` returns a function of **frequency** — wrap with a
+λ-to-frequency conversion for the `mu=` kwarg (`TransferMatrix.c_0` is the
+package's internal speed-of-light constant in **μm/s**; map wavelength →
+frequency according to your own unit system).
 
 ### Renamed functions (deprecated → use)
 
@@ -78,10 +51,9 @@ and `test/`.
 
 `Sheet` is a zero-thickness 2D conductive layer (e.g. TMDC monolayer, graphene).
 Internally a callable `λ -> SMatrix{2,2,ComplexF64}` returning the **SI sheet
-conductivity tensor in Siemens**. Constructors: `Sheet(σ)`,
-`Sheet(; xx, yy, xy=0, yx=0)`, `Sheet(material, d)`, `Sheet(nx, ny, d)`.
-Pass via the `sheets=` kwarg (Dict or iterable of `i => sheet`) on
-`transfer` / `sweep_angle` / `sweep_thickness` / `efield`. See `src/sheet.jl`.
+conductivity tensor in Siemens**. Pass via the `sheets=` kwarg (Dict or iterable
+of `i => sheet`) on `transfer` / `sweep_angle` / `sweep_thickness` / `efield`.
+Constructors: see `src/sheet.jl`.
 
 ## Conventions and gotchas
 
@@ -109,44 +81,26 @@ Full equation reference (coordinate system, eigenmode sorting, γ/D/P matrices,
 transfer construction, r/t coefficients, Fresnel, edge cases, energy
 conservation): `.claude/rules/berreman-4x4-equations.md`.
 
-## Known numerical limitations
+## Energy accounting & known limitations
 
-- **#70** (resolved): rotated anisotropic crystals conserve energy. The quoted
-  `Tpp+Rpp ≈ 0.998` (uniaxial `euler=(π/6,π/4,0)`) was a **budget artifact** — it
-  omits the converted channels that an out-of-plane tilt produces. The correct
-  per-input-polarization budget is `Rpp+Rps+Tpp+Tps = 1` and `Rss+Rsp+Tss+Tsp = 1`
-  (holds to ~1e-14). Every transmittance is a **per-mode Poynting flux**: `Tpp` is
-  the p-like substrate eigenmode's power only, `Tps` the s-like eigenmode's, each
-  evaluated with its own wavevector. (Historical bug: `Tpp` used to be the TOTAL
-  per-input flux while `Tps = |tps|²` was an amplitude ratio — converting stacks
-  then double-counted, e.g. a lossless half-wave plate at 45° gave a p-input sum
-  of 1.85.) Convention: `r_{in,out}` — p-input cross-reflection is `Rps`, not
-  `Rsp` (they coincide only at normal incidence). Separately, a genuine bug —
-  transmission into an **anisotropic substrate** (`Rpp+Rps+Tpp ≈ 1.017`) — was
-  fixed in `poynting()`: the two transmitted substrate eigenmodes carry different
-  wavevectors, so their Poynting vectors are evaluated per-mode instead of using
-  one wavevector for the combined field.
+- **Energy budget is per input polarization**: `Rpp+Rps+Tpp+Tps = 1` and
+  `Rss+Rsp+Tss+Tsp = 1` (~1e-14 for lossless stacks, including rotated
+  anisotropic crystals). Every transmittance is a **per-mode Poynting flux** —
+  each substrate eigenmode evaluated with its own wavevector. Don't quote
+  `Tpp+Rpp` alone as an energy check; converting stacks put power in the cross
+  channels. Convention: `r_{in,out}` — p-input cross-reflection is `Rps`, not
+  `Rsp` (they coincide only at normal incidence).
 - **#71**: anisotropic ambient at oblique incidence → NaN (uses nx for k_par).
-- **#72**: absorbing incident medium — |r|² is not a true energy reflectance. The
-  Poynting vector is non-additive for absorbing incident media (interference
-  cross-terms; Ortiz & Mochán 2005), so only the transmitted Poynting vectors are
-  used for output.
-- **#107**: total internal reflection into an **anisotropic substrate** — when a
-  higher-index ambient transmits into a lower-index anisotropic substrate in the
-  regime where one transmitted eigenmode is propagating (real q) and the other is
-  evanescent (imaginary q), `calculate_q` throws `ArgumentError("Mode sorting
-  failed: ...")`. The single-branch real-or-imaginary classifier can't split a
-  mixed spectrum into 2 transmitted / 2 reflected, so it fails loudly rather than
-  returning a wrong mode count. Pinned by the `"TIR into anisotropic substrate
-  throws"` regression test; supporting evanescent transmitted modes in anisotropic
-  media is the eventual fix.
-- **#92** (resolved): the matrix-exponential propagator (`method=:exp`, default)
-  eliminates interior-layer eigenmode sorting, so near-degenerate and **interior**
-  mixed propagating/evanescent layers (which make the `:eig` path throw "Mode
-  sorting failed") now solve and conserve energy. It does **not** change boundary
-  handling: the anisotropic-ambient (#71) and anisotropic-substrate TIR (#107)
-  limitations are boundary problems and remain. The exp propagator fixes the
-  per-layer propagator, not the cascade overflow (#88).
+- **#72**: absorbing incident medium — |r|² is not a true energy reflectance
+  (Poynting non-additivity, interference cross-terms; Ortiz & Mochán 2005). Only
+  transmitted Poynting vectors are used for output.
+- **#107**: TIR into an **anisotropic substrate** with one propagating + one
+  evanescent transmitted eigenmode → `calculate_q` throws "Mode sorting failed"
+  (deliberately loud rather than a wrong mode count; pinned by regression test).
+  Supporting evanescent transmitted modes in anisotropic media is the eventual fix.
+- The default `method=:exp` propagator removed interior-layer mode-sorting
+  failures (#92), but #71/#107 are **boundary** problems and remain; it also does
+  not address cascade overflow (#88).
 
 ## Issue-fixing workflow
 
