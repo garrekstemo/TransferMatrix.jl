@@ -177,15 +177,19 @@ amplitude_coefficients(λ, layers)
 ```
 
 With the amplitudes in hand, ``\int E^\dagger ε E\,dz`` over each finite layer
-has a closed form, so the electric-energy fraction of a cavity mode stored in
-the gap (layer 3 here, so the second finite layer) needs no field sampling:
+has a closed form, so no field sampling is needed. Here the gap is layer 3,
+i.e. the second finite layer:
 
 ```@example tutorial
 U = layer_energies(λ, layers)
-f_E = U.p[2] / sum(U.p)
+U.p[2]
 ```
 
-`U` is in μm for a unit incident field; the fraction is dimensionless.
+`U` is in μm for a unit incident field. For transparent dielectric layers it is
+the electric energy, so in an all-dielectric structure such as a DBR cavity the
+fraction stored in the gap is `U.p[gap - 1] / sum(U.p)`. The gold mirrors here
+have `Re ε < 0`, so their entries are negative and that fraction is not
+meaningful for this stack (see [`layer_energies`](@ref)).
 
 ## User-generated refractive index data
 

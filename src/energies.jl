@@ -133,6 +133,13 @@ dielectric tensor in the lab frame — the same tensor the transfer matrix uses
 angles). For a symmetric ε this is `Re ε`, so for an isotropic lossless layer
 `U = n² ∫|E|² dz` and for an absorbing one `U = Re(n²) ∫|E|² dz`.
 
+!!! note "Metals and strongly dispersive media"
+    `U` is the electric energy only where `Re ε > 0`. In a metal below its plasma
+    frequency `Re ε < 0` and `U` is negative; the stored energy of a dispersive
+    medium needs the Brillouin weight `d(ωε)/dω` instead, which this function
+    does not apply. Energy fractions such as `U_gap / Σ U` are therefore only
+    meaningful for stacks of transparent dielectrics (e.g. a DBR cavity).
+
 # Units
 `E` is normalized to unit incident amplitude (the incident mode vector has unit
 norm) and `z` is in μm, so `U` is in μm times the (dimensionless) relative
