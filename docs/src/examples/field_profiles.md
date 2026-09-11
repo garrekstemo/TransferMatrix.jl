@@ -23,3 +23,5 @@ hfC = hfield(0.6, layersC; dz=5e-4, sheets=sheetsC)
 ```
 
 The full runnable script is [`examples/field_profiles.jl`](https://github.com/garrekstemo/TransferMatrix.jl/blob/main/examples/field_profiles.jl).
+
+The per-layer Berreman mode amplitudes that `efield`/`hfield` expand are also public: `mode_amplitudes` returns them (slot order forward p, forward s, backward p, backward s; entry-face referenced), `layer_energies` integrates ``E^\dagger ε E`` over every finite layer in closed form from those amplitudes, and `amplitude_coefficients` returns the complex `r`/`t` coefficients behind `transfer`'s intensities. See the [tutorial](../guide/tutorial.md#Mode-amplitudes-and-layer-energies).

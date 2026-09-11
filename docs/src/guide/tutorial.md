@@ -155,6 +155,38 @@ f
 ```
 
 
+## Mode amplitudes and layer energies
+
+`efield` samples the field on a z-grid; the coefficients it expands are
+available directly from `mode_amplitudes`. Each layer gets a 4-vector of
+Berreman mode amplitudes for p and for s incidence, in the slot order
+(forward p, forward s, backward p, backward s), referenced to the layer's entry
+face (the incident medium to `z = 0`), so the incident medium reads
+`(1, 0, rpp, rps)` and the exit medium `(tpp, tps, 0, 0)`:
+
+```@example tutorial
+A = mode_amplitudes(λ, layers)
+A.p[1], A.p[end]
+```
+
+The complex `r`/`t` coefficients themselves come from `amplitude_coefficients`
+(note `rpp = -rss` at normal incidence: the backward p mode vector is `-x̂`):
+
+```@example tutorial
+amplitude_coefficients(λ, layers)
+```
+
+With the amplitudes in hand, ``\int E^\dagger ε E\,dz`` over each finite layer
+has a closed form, so the electric-energy fraction of a cavity mode stored in
+the gap (layer 3 here, so the second finite layer) needs no field sampling:
+
+```@example tutorial
+U = layer_energies(λ, layers)
+f_E = U.p[2] / sum(U.p)
+```
+
+`U` is in μm for a unit incident field; the fraction is dimensionless.
+
 ## User-generated refractive index data
 
 A convenience function is available to generate a `Layer` with user-generated refractive index data.

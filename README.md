@@ -14,6 +14,7 @@ isotropic stacks and polarization-resolved results.
 - Angle and thickness sweeps for dispersion maps
 - RefractiveIndex.jl integration plus custom dispersions
 - Field profiles and interface positions for visualization
+- Per-layer mode amplitudes, closed-form layer energy integrals, and complex r/t coefficients
 - Anisotropic layers and cross-polarization available but still experimental
 
 ## Installation
