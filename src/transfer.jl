@@ -145,6 +145,49 @@ _assemble(::Val{B}, M_sys, S, λ, layers, sd, validate) where {B} =
 
 
 """
+    amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, method=:exp)
+
+Complex amplitude reflection and transmission coefficients of the stack,
+returned as a named tuple `(; rpp, rps, rsp, rss, tpp, tps, tsp, tss)`.
+Arguments match [`transfer`](@ref), which reports the corresponding intensities.
+
+Each coefficient is `xᵢₒ` = amplitude of the outgoing mode `o` per unit
+amplitude of the incident mode `i`, in the package's polarization basis: the
+first index is the **input** polarization and the second the **output**
+(`rps` is p in → s out). The amplitudes multiply the unit-norm mode vectors of
+[`ModeAmplitudes`](@ref): in the incident medium the amplitude 4-vector at
+`z = 0` is `(1, 0, rpp, rps)` for p incidence and `(0, 1, rsp, rss)` for s,
+and in the exit medium `(tpp, tps, 0, 0)` / `(tsp, tss, 0, 0)` at the last
+interface.
+
+# Sign convention
+The backward p mode vector is `−x̂` at normal incidence (`E_modes[3,:] = (−1,0,0)`),
+while both s mode vectors are `+ŷ`. At normal incidence on an isotropic stack
+the two polarizations are physically identical, so `rpp = −rss` and `tpp = tss`:
+`rss` is the reflection coefficient of the tangential electric field itself
+(it tends to `−1` for a perfect conductor), and `rpp` carries the extra sign of
+the p basis vector.
+
+# Relation to intensities
+`Rpp = |rpp|²` etc. (exact for a transparent incident medium). Transmittances
+are Poynting-flux ratios, `T = |t|² Re(q_out)/q_in` for isotropic lossless
+media (`q = n cos θ`), so `Tss = |tss|²` only when the exit medium equals the
+incident medium; see [`transfer`](@ref).
+"""
+function amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, method::Symbol=:exp)
+    λ = _to_wavelength_um(λ)
+    θ = _to_radians(θ)
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
+    M_sys, _ = _propagate(Val(method), λ, layers; θ=θ, μ=μ, sheets=sd)
+    r, _, t, _ = calculate_tr(M_sys)
+    # calculate_tr packs r = (rpp, rps, rss, rsp) and t = (tpp, tps, tsp, tss).
+    return (; rpp = r[1], rps = r[2], rsp = r[4], rss = r[3],
+              tpp = t[1], tps = t[2], tsp = t[3], tss = t[4])
+end
+
+
+"""
     _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss; Tps=0.0, Tsp=0.0, Rps=0.0, Rsp=0.0, atol=1e-6, k_threshold=1e-10)
 
 Validate physical constraints on R and T values:
