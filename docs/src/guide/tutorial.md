@@ -155,6 +155,42 @@ f
 ```
 
 
+## Mode amplitudes and layer energies
+
+`efield` samples the field on a z-grid; the coefficients it expands are
+available directly from `mode_amplitudes`. Each layer gets a 4-vector of
+Berreman mode amplitudes for p and for s incidence, in the slot order
+(forward p, forward s, backward p, backward s), referenced to the layer's entry
+face (the incident medium to `z = 0`), so the incident medium reads
+`(1, 0, rpp, rps)` and the exit medium `(tpp, tps, 0, 0)`:
+
+```@example tutorial
+A = mode_amplitudes(λ, layers)
+A.p[1], A.p[end]
+```
+
+The complex `r`/`t` coefficients themselves come from `amplitude_coefficients`
+(note `rpp = -rss` at normal incidence: the backward p mode vector is `-x̂`):
+
+```@example tutorial
+amplitude_coefficients(λ, layers)
+```
+
+With the amplitudes in hand, ``\int E^\dagger ε E\,dz`` over each finite layer
+has a closed form, so no field sampling is needed. Here the gap is layer 3,
+i.e. the second finite layer:
+
+```@example tutorial
+U = layer_energies(λ, layers)
+U.p[2]
+```
+
+`U` is in μm for a unit incident field. For transparent dielectric layers it is
+the electric energy, so in an all-dielectric structure such as a DBR cavity the
+fraction stored in the gap is `U.p[gap - 1] / sum(U.p)`. The gold mirrors here
+have `Re ε < 0`, so their entries are negative and that fraction is not
+meaningful for this stack (see [`layer_energies`](@ref)).
+
 ## User-generated refractive index data
 
 A convenience function is available to generate a `Layer` with user-generated refractive index data.

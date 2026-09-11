@@ -1,13 +1,17 @@
-# Shared core for efield/hfield: runs _propagate_full once, performs the backward
-# mode-coefficient recursion (with sheet injection), samples the z-grid, and returns
-# everything both wrappers need. E and H differ only in the final per-z reconstruction.
-function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
-    λ = _to_wavelength_um(λ)
-    dz = _to_um(dz)
-    θ = _to_radians(θ)
-
-    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
-    _validate_sheet_indices(sd, length(layers))
+# Per-layer Berreman mode amplitudes for unit-amplitude p and s incidence.
+# Runs _propagate_full once and performs the backward mode-coefficient recursion
+# (with sheet injection). Arguments are already normalized (λ in µm, θ in
+# radians, `sd` a validated sheet Dict or `nothing`).
+#
+# Reference planes (verified against the sampler in `_field`):
+#   Eplus_X[i, :]   amplitudes at the LEFT (entry) face of layer i
+#   Eminus_X[i, :]  amplitudes at the RIGHT (exit) face of layer i,
+#                   Eplus = P(d) * Eminus with P(z) = exp(-i k0 q z)
+# so the field inside layer i is Σ_m Eplus[i,m] exp(+i k0 q_m (z - z_left)) E_modes[m,:]
+# = Σ_m Eminus[i,m] exp(+i k0 q_m (z - z_right)) E_modes[m,:]. For the incident
+# layer Eminus[1,:] = (1, 0, rpp, rps) (p) / (0, 1, rsp, rss) (s) at z = 0; for
+# the exit layer Eplus[end,:] = (tpp, tps, 0, 0) / (tsp, tss, 0, 0).
+function _mode_amplitudes(λ, layers; θ=0.0, μ=1.0, sd=nothing)
     no_sheets = sd === nothing || isempty(sd)
 
     M_sys, S, Ds, Ps, E_modes_per_layer, qs = _propagate_full(λ, layers; θ=θ, μ=μ, sheets=sd)
@@ -52,7 +56,31 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
 
     interface_positions, total_thickness = find_bounds(layers)
     interface_positions .-= first_layer.thickness
-    zs = range(-first_layer.thickness, interface_positions[end], step=dz)
+
+    μ_mat = SMatrix{3,3,ComplexF64}(μ * I)
+    μs = [ismagnetic(L) ? get_permeability(L, λ) : μ_mat for L in layers]
+
+    return (; Eplus_p, Eminus_p, Eplus_s, Eminus_s, Ps, E_modes_per_layer, qs,
+              k_par, μ, μs, interface_positions)
+end
+
+
+# Shared core for efield/hfield: computes the per-layer mode amplitudes
+# (`_mode_amplitudes`), samples the z-grid, and returns everything both wrappers
+# need. E and H differ only in the final per-z reconstruction.
+function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
+    λ = _to_wavelength_um(λ)
+    dz = _to_um(dz)
+    θ = _to_radians(θ)
+
+    sd = sheets === nothing ? nothing : _sheets_dict(sheets)
+    _validate_sheet_indices(sd, length(layers))
+
+    A = _mode_amplitudes(λ, layers; θ=θ, μ=μ, sd=sd)
+    (; Eplus_p, Eminus_p, Eplus_s, Eminus_s, Ps, E_modes_per_layer, qs, k_par, μs, interface_positions) = A
+
+    nlay = length(layers)
+    zs = range(-layers[1].thickness, interface_positions[end], step=dz)
 
     nz = length(zs)
     amp_p = zeros(ComplexF64, 4, nz)
@@ -70,11 +98,9 @@ function _field(λ, layers; θ=0.0, μ=1.0, dz=0.001, sheets=nothing)
         layer_of_z[j] = i
     end
 
-    μ_mat = SMatrix{3,3,ComplexF64}(μ * I)
-    μs = [ismagnetic(L) ? get_permeability(L, λ) : μ_mat for L in layers]
-
     return (; zs, boundaries = interface_positions[1:end - 1],
-              amp_p, amp_s, layer_of_z, E_modes_per_layer, qs, k_par, μ, μs)
+              amp_p, amp_s, layer_of_z, E_modes_per_layer, qs, k_par, μ, μs,
+              Eminus_p, Eminus_s, Eplus_p, Eplus_s)
 end
 
 

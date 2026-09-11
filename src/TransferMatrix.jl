@@ -19,6 +19,11 @@ export Layer,
        MagneticField,
        efield,
        hfield,
+       mode_amplitudes,
+       ModeAmplitudes,
+       layer_energies,
+       LayerEnergies,
+       amplitude_coefficients,
        find_bounds,
        fresnel,
        fresnel_coefficients,
@@ -53,6 +58,7 @@ include("coefficients.jl")
 include("propagation.jl")
 include("transfer.jl")
 include("fields.jl")
+include("energies.jl")
 include("optics_functions.jl")
 
 # Precompile common workloads to reduce time-to-first-execution
