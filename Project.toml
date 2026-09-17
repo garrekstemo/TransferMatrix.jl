@@ -18,6 +18,7 @@ UnitfulExt = "Unitful"
 
 [compat]
 Aqua = "0.8"
+LinearAlgebra = "1.10"
 PrecompileTools = "1"
 RefractiveIndex = "0.5"
 StaticArrays = "1"
