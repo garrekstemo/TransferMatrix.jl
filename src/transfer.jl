@@ -52,10 +52,12 @@ lossless stack:
   path is roughly 10× to 100× faster per point.
 - `:decoupled` forces the 2×2 path and throws an `ArgumentError` if the stack
   couples s and p. It applies when the ambient and substrate are isotropic and
-  non-magnetic, every interior layer is isotropic or has zero Euler angles (with a
-  diagonal μ tensor if magnetic), and every sheet has σxy = σyx = 0. Each
-  polarization then propagates through a closed-form 2×2 block of Berreman's Δ and
-  the cross-polarized coefficients are exactly zero. See [`isdecoupled`](@ref).
+  non-magnetic, y (normal to the plane of incidence) is a principal axis of every
+  interior layer's lab-frame ε and μ, and every sheet has σxy = σyx = 0. That
+  includes isotropic layers, unrotated anisotropic layers, optic axes tilted in the
+  plane of incidence and μ tensors with gyration axis y. Each polarization then
+  propagates through a closed-form 2×2 block of Berreman's Δ and the
+  cross-polarized coefficients are exactly zero. See [`isdecoupled`](@ref).
 - `:exp` computes each interior layer's transfer matrix as the matrix
   exponential of the Berreman Δ matrix (see [`layer_transfer_exp`](@ref)). It needs
   no eigenmode sorting and is degeneracy-immune, so it handles near-degenerate and

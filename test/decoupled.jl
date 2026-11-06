@@ -114,6 +114,87 @@
         end
     end
 
+    @testset "rotated layers and μ tensors that keep y principal" begin
+        # Each layer below has y as a principal axis of ε and μ after rotation into the
+        # lab frame, so Δ stays block-diagonal; the p block gains diagonal terms (εxz,
+        # antisymmetric μxz) that make forward and backward p waves differ.
+        tilt   = Layer(λ -> 1.55, λ -> 1.55, λ -> 1.72, 0.3; euler=(0.0, 0.6, 0.0))     # optic axis in xz
+        tiltπ  = Layer(λ -> 1.6 + 0.02im, λ -> 1.6 + 0.02im, λ -> 1.45 + 0.01im, 0.22; euler=(π, 1.1, 0.0))
+        axisy  = Layer(λ -> 1.55, λ -> 1.55, λ -> 1.72, 0.3; euler=(π/2, π/2, 0.0))   # optic axis ∥ y
+        biaxy  = Layer(λ -> 1.5, λ -> 1.62, λ -> 1.81, 0.27; euler=(0.0, 0.7, 0.0))    # crystal y stays on lab y
+        biaxz  = Layer(λ -> 1.5, λ -> 1.62, λ -> 1.81, 0.27; euler=(π/2, 0.0, 0.0))    # x and y swapped
+        gyroy  = Layer(λ -> 1.4, 0.2; mu=gyrotropic_tensor(2.0, 0.6; axis=:y))
+        polder = Layer(λ -> 1.9 + 0.01im, 0.15; mu=λ -> polder_permeability(f0=1.0, fm=0.8, linewidth=0.05, axis=:y)(0.5 / λ))
+        both   = Layer(λ -> 1.5, λ -> 1.62, λ -> 1.81, 0.2; euler=(0.0, 0.4, 0.0), mu=gyrotropic_tensor(1.3, 0.4; axis=:y))
+        rstacks = [
+            ("tilted uniaxial",        [amb, tilt, glass]),
+            ("tilted lossy, φ = π",    [prism, tiltπ, sio2, sub_lossy]),
+            ("optic axis along y",     [amb, axisy, glass]),
+            ("biaxial about y",        [amb, biaxy, tio2, glass]),
+            ("biaxial, x↔y",           [amb, biaxz, glass]),
+            ("gyrotropic μ, axis y",   [amb, gyroy, glass]),
+            ("Polder μ, axis y",       [amb, sio2, polder, glass]),
+            ("rotated ε and μ",        [amb, both, tilt, uni0, glass]),
+            ("mixed with isotropic",   vcat([amb], repeat([tio2, tilt], 4), [gyroy, glass])),
+        ]
+        for (name, ls) in rstacks, λ in λs, θ in θs
+            @test isdecoupled(λ, ls; θ=θ)
+            a = transfer(λ, ls; θ=θ, method=:exp)
+            b = transfer(λ, ls; θ=θ, method=:decoupled)
+            for f in (:Tpp, :Tss, :Rpp, :Rss)
+                @test isapprox(getfield(a, f), getfield(b, f); atol=1e-12)
+            end
+            for f in (:Tps, :Tsp, :Rps, :Rsp)
+                @test getfield(b, f) == 0.0
+                @test abs(getfield(a, f)) < 1e-12
+            end
+            ca = amplitude_coefficients(λ, ls; θ=θ, method=:exp)
+            cb = amplitude_coefficients(λ, ls; θ=θ, method=:decoupled)
+            for f in (:rpp, :rss, :tpp, :tss)
+                za, zb = getfield(ca, f), getfield(cb, f)
+                @test abs(za - zb) <= 1e-10 * max(abs(za), 1.0)
+            end
+            Ma, _ = TransferMatrix._propagate(Val(:exp), λ, ls; θ=θ)
+            Mb, _ = TransferMatrix._propagate(Val(:decoupled), λ, ls; θ=θ)
+            @test maximum(abs, Ma - Mb) <= 1e-10 * max(maximum(abs, Ma), 1.0)
+        end
+
+        # Optic axis in the yz plane: εyz ≠ 0 couples s and p only through ξ, so the
+        # stack decouples at normal incidence and nowhere else.
+        axisyz = Layer(λ -> 1.55, λ -> 1.55, λ -> 1.72, 0.3; euler=(π/2, 0.5, 0.0))
+        ls = [amb, axisyz, glass]
+        @test isdecoupled(0.633, ls; θ=0.0)
+        @test !isdecoupled(0.633, ls; θ=0.3)
+        a = transfer(0.633, ls; θ=0.0, method=:exp)
+        b = transfer(0.633, ls; θ=0.0)
+        for f in (:Tpp, :Tss, :Rpp, :Rss)
+            @test isapprox(getfield(a, f), getfield(b, f); atol=1e-12)
+        end
+        a = transfer(0.633, ls; θ=0.3, method=:exp)
+        b = transfer(0.633, ls; θ=0.3)
+        for f in fieldnames(TransferResult)
+            @test getfield(a, f) == getfield(b, f)
+        end
+
+        # Still coupled: optic axis with a y component, in-plane rotated biaxial,
+        # gyration axis z, and a coupled layer after many decoupled ones.
+        coupled = [
+            [amb, Layer(λ -> 1.55, λ -> 1.55, λ -> 1.72, 0.3; euler=(π/4, π/2, 0.0)), glass],
+            [amb, Layer(λ -> 1.5, λ -> 1.62, λ -> 1.81, 0.27; euler=(π/5, 0.0, 0.0)), glass],
+            [amb, Layer(λ -> 1.4, 0.2; mu=gyrotropic_tensor(2.0, 0.6; axis=:z)), glass],
+            vcat([amb], repeat([tio2, tilt], 4), [Layer(λ -> 1.55, λ -> 1.55, λ -> 1.72, 0.3; euler=(0.3, 0.6, 0.0)), glass]),
+        ]
+        for ls in coupled, θ in (0.0, 0.5)
+            @test !isdecoupled(0.633, ls; θ=θ)
+            @test_throws ArgumentError transfer(0.633, ls; θ=θ, method=:decoupled)
+            a = transfer(0.633, ls; θ=θ, method=:exp)
+            b = transfer(0.633, ls; θ=θ)
+            for f in fieldnames(TransferResult)
+                @test getfield(a, f) == getfield(b, f)
+            end
+        end
+    end
+
     @testset ":auto routing" begin
         rot   = Layer(λ -> 1.55, λ -> 1.55, λ -> 1.72, 0.3; euler=(π/4, π/4, 0.0))
         gyro  = Layer(λ -> 1.4, 0.2; mu=gyrotropic_tensor(2.0, 0.6))

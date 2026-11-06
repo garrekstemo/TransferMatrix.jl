@@ -178,14 +178,27 @@ contain only ``ε_{xy}, ε_{yx}, ε_{yz}, ε_{zy}`` (and the same μ elements). 
 vanish in every layer, Δ is block-diagonal, so is every layer's propagator and so
 is their product: the whole ``4\times4`` problem is two independent ``2\times2``
 problems, each with a closed-form propagator, and the cross-polarized coefficients
-are exactly zero. `:decoupled` covers the cases decidable from the layer structure:
+are exactly zero. `:decoupled` requires:
 
 - an isotropic, non-magnetic ambient and substrate;
-- interior layers that are isotropic, or anisotropic with zero Euler angles, with a
-  diagonal μ tensor if magnetic;
+- interior layers in which y is a principal axis of the lab-frame ε and μ;
 - conductive sheets with ``σ_{xy} = σ_{yx} = 0``.
 
-Rotated layers, gyrotropic μ and Hall-type sheets use the ``4\times4`` path.
+The second condition covers isotropic layers and unrotated anisotropic layers,
+which get closed-form blocks straight from the principal values. It also covers a
+uniaxial optic axis tilted in the plane of incidence (Euler angles ``(0, θ, 0)`` or
+``(π, θ, 0)``) or along y (``(π/2, π/2, 0)``), a biaxial crystal rotated about y,
+and μ with gyration axis y (`gyrotropic_tensor(...; axis=:y)`, the transverse
+magneto-optic geometry). For these the p block gains diagonal terms
+(``ε_{xz}``, antisymmetric ``μ_{xz}``), so the forward and backward p waves need no
+longer be mirror images, but each block still has a closed-form exponential. Such
+layers are checked numerically at every point, because a coupling that enters only
+through the in-plane wavevector (``ε_{yz}``, ``μ_{yz}``, for example an optic axis
+in the yz plane) vanishes at normal incidence and nowhere else.
+
+Everything else uses the ``4\times4`` path: an optic axis with both x and y
+components (waveplates), μ with gyration axis z, gyration axis x away from normal
+incidence, and Hall-type sheets.
 `isdecoupled(λ, layers; θ, sheets)` reports which path `:auto` takes.
 
 The two ``4\times4`` paths agree to ~1e-12. They treat the semi-infinite ambient and
