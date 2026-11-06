@@ -108,11 +108,28 @@ function _propagate_core_exp(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     return M_sys, S
 end
 
-# Dispatch between the eigenmode (:eig) and matrix-exponential (:exp) cores.
+# Dispatch between the cores: eigenmode (:eig), matrix exponential (:exp), the 2×2
+# decoupled path (:decoupled, see decoupled.jl), and :auto, which takes the 2×2
+# path whenever s and p decouple at this point and the 4×4 :exp path otherwise.
 _propagate(::Val{:exp}, λ, layers; kwargs...) = _propagate_core_exp(λ, layers; kwargs...)
 _propagate(::Val{:eig}, λ, layers; kwargs...) = _propagate_core(λ, layers; kwargs...)
+function _propagate(::Val{:auto}, λ, layers; kwargs...)
+    if _decoupled_structure(layers)
+        res = _propagate_core_2x2(λ, layers; kwargs...)
+        res === nothing || return res
+    end
+    return _propagate_core_exp(λ, layers; kwargs...)
+end
+function _propagate(::Val{:decoupled}, λ, layers; kwargs...)
+    res = _decoupled_structure(layers) ? _propagate_core_2x2(λ, layers; kwargs...) : nothing
+    res === nothing && throw(ArgumentError(
+        "method=:decoupled needs a stack in which s and p decouple (isotropic, " *
+        "non-magnetic ambient and substrate; unrotated interior layers with diagonal μ; " *
+        "sheets with σxy = σyx = 0). Use method=:auto to fall back to the 4×4 path."))
+    return res
+end
 _propagate(::Val{M}, λ, layers; kwargs...) where {M} =
-    throw(ArgumentError("method must be :exp or :eig, got :$(M)"))
+    throw(ArgumentError("method must be :auto, :exp, :eig or :decoupled, got :$(M)"))
 
 
 """

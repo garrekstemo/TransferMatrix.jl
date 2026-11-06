@@ -154,19 +154,42 @@ zero for isotropic media — become nonzero; this same coupling is what the
 
 ![For anisotropic or chiral media the off-diagonal coupling blocks of M become nonzero; M₁₃ and M₃₁ drive the cross-polarization terms.](../assets/transfer_matrix_anisotropic.svg)
 
-## Numerical backends: `method=:exp` vs `:eig`
+## Numerical backends: `method`
 
-`transfer`, `sweep_angle`, and `sweep_thickness` accept `method`:
+`transfer`, `amplitude_coefficients`, `sweep_angle`, and `sweep_thickness` accept `method`:
 
-- **`:exp`** (default) propagates each interior layer with the matrix exponential of
+- **`:auto`** (default) uses the 2×2 `:decoupled` path whenever s and p cannot mix at
+  the requested point, and `:exp` otherwise. You do not need to choose: results agree
+  to ~1e-12 either way, and decoupled stacks run roughly 10× faster.
+- **`:decoupled`** forces the 2×2 path and throws an `ArgumentError` if the stack
+  couples s and p.
+- **`:exp`** propagates each interior layer with the matrix exponential of
   the Berreman Δ matrix. It avoids eigenmode sorting entirely, so it is
   degeneracy-immune and handles near-degenerate or mixed propagating/evanescent
   interior layers robustly.
 - **`:eig`** is the eigenmode/dynamical-matrix path, kept as an independent
   cross-check (`transfer(λ, layers; method=:eig)`).
 
-The two agree to ~1e-12. The semi-infinite ambient and substrate always use the
-eigenmode path, so the boundary limitations (anisotropic ambient, issue #71;
+### When the 2×2 path applies
+
+Write Berreman's field vector as ``(E_x, H_y, E_y, -H_x)``. The first pair is the p
+wave and the second the s wave, and the off-diagonal blocks of Δ that couple them
+contain only ``ε_{xy}, ε_{yx}, ε_{yz}, ε_{zy}`` (and the same μ elements). If those
+vanish in every layer, Δ is block-diagonal, so is every layer's propagator and so
+is their product: the whole ``4\times4`` problem is two independent ``2\times2``
+problems, each with a closed-form propagator, and the cross-polarized coefficients
+are exactly zero. `:decoupled` covers the cases decidable from the layer structure:
+
+- an isotropic, non-magnetic ambient and substrate;
+- interior layers that are isotropic, or anisotropic with zero Euler angles, with a
+  diagonal μ tensor if magnetic;
+- conductive sheets with ``σ_{xy} = σ_{yx} = 0``.
+
+Rotated layers, gyrotropic μ and Hall-type sheets use the ``4\times4`` path.
+`isdecoupled(λ, layers; θ, sheets)` reports which path `:auto` takes.
+
+The two ``4\times4`` paths agree to ~1e-12. They treat the semi-infinite ambient and
+substrate by eigenmodes, so the boundary limitations (anisotropic ambient, issue #71;
 anisotropic substrate under total internal reflection, issue #107) apply to both.
 
 See the [bibliography](../bibliography.md) ("Matrix-exponential layer propagator")

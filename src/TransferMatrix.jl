@@ -24,6 +24,7 @@ export Layer,
        layer_energies,
        LayerEnergies,
        amplitude_coefficients,
+       isdecoupled,
        find_bounds,
        fresnel,
        fresnel_coefficients,
@@ -55,6 +56,7 @@ include("sheet.jl")
 include("results.jl")
 include("poynting.jl")
 include("coefficients.jl")
+include("decoupled.jl")
 include("propagation.jl")
 include("transfer.jl")
 include("fields.jl")
@@ -83,6 +85,7 @@ include("optics_functions.jl")
         transfer(λ_0, layers; θ=0.3)
         transfer(λ_0, layers; basis=:circular)
         transfer(λ_0, layers; method=:eig)
+        transfer(λ_0, layers; method=:exp)
 
         # Built-in dispersion closures
         metal = Layer(drude(9.0, 0.07), 0.05)
