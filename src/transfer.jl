@@ -1,5 +1,5 @@
 """
-    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear, method=:exp)
+    transfer(λ, layers; θ=0.0, μ=1.0, validate=false, basis=:linear, method=:auto)
 
 Calculate the transmittance and reflectance of a layered structure.
 
@@ -41,21 +41,31 @@ lossless stack:
 - `μ`: Relative magnetic permeability (default: 1.0, non-magnetic)
 - `validate`: Check energy conservation R + T ≈ 1 for non-absorbing media (default: false)
 - `basis`: Output polarization basis — `:linear` (default) or `:circular`
-- `method`: propagation backend — `:eig` (eigenmode) or `:exp` (matrix exponential, see [`layer_transfer_exp`](@ref))
+- `method`: propagation backend — `:auto` (default), `:decoupled` (2×2), `:exp` (matrix exponential, see [`layer_transfer_exp`](@ref)) or `:eig` (eigenmode)
 
 # Numerical backend
 
-`method` selects how interior layers are propagated:
+`method` selects how the stack is propagated:
 
-- `:exp` (default) computes each interior layer's transfer matrix as the matrix
+- `:auto` (default) uses the 2×2 `:decoupled` path whenever s and p light cannot
+  mix at this point, and `:exp` otherwise. The two agree to ~1e-12, and the 2×2
+  path is roughly 10× to 100× faster per point.
+- `:decoupled` forces the 2×2 path and throws an `ArgumentError` if the stack
+  couples s and p. It applies when the ambient and substrate are isotropic and
+  non-magnetic, every interior layer is isotropic or has zero Euler angles (with a
+  diagonal μ tensor if magnetic), and every sheet has σxy = σyx = 0. Each
+  polarization then propagates through a closed-form 2×2 block of Berreman's Δ and
+  the cross-polarized coefficients are exactly zero. See [`isdecoupled`](@ref).
+- `:exp` computes each interior layer's transfer matrix as the matrix
   exponential of the Berreman Δ matrix (see [`layer_transfer_exp`](@ref)). It needs
   no eigenmode sorting and is degeneracy-immune, so it handles near-degenerate and
   mixed propagating/evanescent interior layers that `:eig` cannot.
 - `:eig` is the eigenmode/dynamical-matrix path, retained as a cross-check.
 
-Both agree to ~1e-12 on all supported cases. The semi-infinite ambient and substrate
-use the eigenmode path in either mode, so the anisotropic-ambient (#71) and
-anisotropic-substrate (#107) boundary limitations are unaffected by `method`.
+All agree to ~1e-12 on all supported cases. The 4×4 paths treat the semi-infinite
+ambient and substrate by eigenmodes, so the anisotropic-ambient (#71) and
+anisotropic-substrate (#107) boundary limitations are unaffected by `method`; the
+2×2 path never takes an anisotropic or magnetic ambient or substrate.
 
 Mackay & Lakhtakia, 2020, https://doi.org/10.1007/978-3-031-02022-3 ;
 Higham, 2005, https://doi.org/10.1137/04061101X
@@ -104,7 +114,7 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:auto)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
 
@@ -145,7 +155,7 @@ _assemble(::Val{B}, M_sys, S, λ, layers, sd, validate) where {B} =
 
 
 """
-    amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, method=:exp)
+    amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, method=:auto)
 
 Complex amplitude reflection and transmission coefficients of the stack,
 returned as a named tuple `(; rpp, rps, rsp, rss, tpp, tps, tsp, tss)`.
@@ -174,7 +184,7 @@ are Poynting-flux ratios, `T = |t|² Re(q_out)/q_in` for isotropic lossless
 media (`q = n cos θ`), so `Tss = |tss|²` only when the exit medium equals the
 incident medium; see [`transfer`](@ref).
 """
-function amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, method::Symbol=:exp)
+function amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, method::Symbol=:auto)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
@@ -339,13 +349,13 @@ of size `(length(θs), length(λs))`.
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
-- `method`: propagation backend, `:exp` (default) or `:eig` (see [`transfer`](@ref))
+- `method`: propagation backend, `:auto` (default), `:decoupled`, `:exp` or `:eig` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:auto)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
@@ -374,13 +384,13 @@ of size `(length(ts), length(λs))`.
 - `threads`: Enable multithreading (default: true)
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
-- `method`: propagation backend, `:exp` (default) or `:eig` (see [`transfer`](@ref))
+- `method`: propagation backend, `:auto` (default), `:decoupled`, `:exp` or `:eig` (see [`transfer`](@ref))
 
 # Units
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:exp)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:auto)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
