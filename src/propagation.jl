@@ -124,7 +124,8 @@ function _propagate(::Val{:decoupled}, λ, layers; kwargs...)
     res = _decoupled_structure(layers) ? _propagate_core_2x2(λ, layers; kwargs...) : nothing
     res === nothing && throw(ArgumentError(
         "method=:decoupled needs a stack in which s and p decouple (isotropic, " *
-        "non-magnetic ambient and substrate; unrotated interior layers with diagonal μ; " *
+        "non-magnetic ambient and substrate; no interior layer coupling them at this λ " *
+        "and θ, i.e. y a principal axis of every ε and μ; " *
         "sheets with σxy = σyx = 0). Use method=:auto to fall back to the 4×4 path."))
     return res
 end
