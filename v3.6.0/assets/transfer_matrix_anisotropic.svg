@@ -1,0 +1,60 @@
+<svg width="680" viewBox="0 0 680 404" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Anisotropic case: the off-diagonal coupling blocks of M become nonzero</title>
+<desc>The same 4 by 4 M matrix for anisotropic or chiral media. The two diagonal 2x2 blocks (p with p, s with s) give the co-polarized reflection and transmission. The two off-diagonal 2x2 blocks now become nonzero and carry the p-to-s coupling; in particular M13 and M31 drive the cross-polarized transmission t_sp and t_ps, and the determinant gains a cross term d = M11 M33 minus M13 M31, so cross-polarized reflectance and transmittance such as Rps and Rsp turn on.</desc>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .th { font-size: 14px; font-weight: 500; fill: #3D3D3A; }
+  .ts { font-size: 12px; font-weight: 400; fill: #6B6A64; }
+  .fig-bg { fill: #FFFFFF; stroke: #E6E4DD; stroke-width: 1; }
+  .box { fill: #F7F6F1; stroke: #D3D1C7; stroke-width: 0.5; }
+  .cell-teal { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 0.5; }
+  .cell-coral { fill: #FAECE7; stroke: #F0997B; stroke-width: 0.5; }
+  .txt-teal { fill: #0F6E56; }
+  .txt-coral { fill: #712B13; }
+</style>
+
+<rect class="fig-bg" x="1" y="1" width="678" height="402" rx="14"/>
+
+<text class="th" x="40" y="34">Anisotropic case &#8212; the coupling blocks switch on</text>
+<text class="ts" x="40" y="54">p and s no longer separate; the off-diagonal 2&#215;2 blocks carry the p &#8596; s coupling</text>
+
+<text class="ts" x="206" y="84" text-anchor="middle">p+</text>
+<text class="ts" x="284" y="84" text-anchor="middle">p&#8722;</text>
+<text class="ts" x="362" y="84" text-anchor="middle">s+</text>
+<text class="ts" x="440" y="84" text-anchor="middle">s&#8722;</text>
+<text class="ts" x="158" y="125" text-anchor="end">p+</text>
+<text class="ts" x="158" y="181" text-anchor="end">p&#8722;</text>
+<text class="ts" x="158" y="237" text-anchor="end">s+</text>
+<text class="ts" x="158" y="293" text-anchor="end">s&#8722;</text>
+
+<rect class="cell-teal" x="170" y="96" width="72" height="50" rx="4"/><text class="th txt-teal" x="206" y="121" text-anchor="middle" dominant-baseline="central">M&#8321;&#8321;</text>
+<rect class="box" x="248" y="96" width="72" height="50" rx="4"/><text class="th" x="284" y="121" text-anchor="middle" dominant-baseline="central">M&#8321;&#8322;</text>
+<rect class="cell-coral" x="326" y="96" width="72" height="50" rx="4"/><text class="th txt-coral" x="362" y="121" text-anchor="middle" dominant-baseline="central">M&#8321;&#8323;</text>
+<rect class="box" x="404" y="96" width="72" height="50" rx="4"/><text class="th" x="440" y="121" text-anchor="middle" dominant-baseline="central">M&#8321;&#8324;</text>
+
+<rect class="box" x="170" y="152" width="72" height="50" rx="4"/><text class="th" x="206" y="177" text-anchor="middle" dominant-baseline="central">M&#8322;&#8321;</text>
+<rect class="box" x="248" y="152" width="72" height="50" rx="4"/><text class="th" x="284" y="177" text-anchor="middle" dominant-baseline="central">M&#8322;&#8322;</text>
+<rect class="box" x="326" y="152" width="72" height="50" rx="4"/><text class="th" x="362" y="177" text-anchor="middle" dominant-baseline="central">M&#8322;&#8323;</text>
+<rect class="box" x="404" y="152" width="72" height="50" rx="4"/><text class="th" x="440" y="177" text-anchor="middle" dominant-baseline="central">M&#8322;&#8324;</text>
+
+<rect class="cell-coral" x="170" y="208" width="72" height="50" rx="4"/><text class="th txt-coral" x="206" y="233" text-anchor="middle" dominant-baseline="central">M&#8323;&#8321;</text>
+<rect class="box" x="248" y="208" width="72" height="50" rx="4"/><text class="th" x="284" y="233" text-anchor="middle" dominant-baseline="central">M&#8323;&#8322;</text>
+<rect class="cell-teal" x="326" y="208" width="72" height="50" rx="4"/><text class="th txt-teal" x="362" y="233" text-anchor="middle" dominant-baseline="central">M&#8323;&#8323;</text>
+<rect class="box" x="404" y="208" width="72" height="50" rx="4"/><text class="th" x="440" y="233" text-anchor="middle" dominant-baseline="central">M&#8323;&#8324;</text>
+
+<rect class="box" x="170" y="264" width="72" height="50" rx="4"/><text class="th" x="206" y="289" text-anchor="middle" dominant-baseline="central">M&#8324;&#8321;</text>
+<rect class="box" x="248" y="264" width="72" height="50" rx="4"/><text class="th" x="284" y="289" text-anchor="middle" dominant-baseline="central">M&#8324;&#8322;</text>
+<rect class="box" x="326" y="264" width="72" height="50" rx="4"/><text class="th" x="362" y="289" text-anchor="middle" dominant-baseline="central">M&#8324;&#8323;</text>
+<rect class="box" x="404" y="264" width="72" height="50" rx="4"/><text class="th" x="440" y="289" text-anchor="middle" dominant-baseline="central">M&#8324;&#8324;</text>
+
+<rect x="166" y="92" width="158" height="114" rx="7" fill="none" stroke="#1D9E75" stroke-width="1.5"/>
+<rect x="322" y="204" width="158" height="114" rx="7" fill="none" stroke="#1D9E75" stroke-width="1.5"/>
+<rect x="322" y="92" width="158" height="114" rx="7" fill="none" stroke="#D85A30" stroke-width="1.5" stroke-dasharray="5 3"/>
+<rect x="166" y="204" width="158" height="114" rx="7" fill="none" stroke="#D85A30" stroke-width="1.5" stroke-dasharray="5 3"/>
+
+<rect class="cell-teal" x="170" y="334" width="16" height="16" rx="3"/>
+<text class="ts" x="194" y="342" dominant-baseline="central">Diagonal blocks: p&#8594;p, s&#8594;s &#8212; give the co-pol r_pp, t_pp, r_ss, t_ss</text>
+<rect class="cell-coral" x="170" y="358" width="16" height="16" rx="3"/>
+<text class="ts" x="194" y="366" dominant-baseline="central">Coupling blocks: p &#8596; s &#8212; M&#8321;&#8323;, M&#8323;&#8321; drive cross-pol t_sp, t_ps</text>
+<text class="ts" x="40" y="390">Now d = M&#8321;&#8321;M&#8323;&#8323; &#8722; M&#8321;&#8323;M&#8323;&#8321;; the cross term mixes p and s, so cross-pol R/T turn on</text>
+</svg>
