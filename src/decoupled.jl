@@ -51,7 +51,7 @@ end
 # layer's μ tensor has off-diagonal elements (gyrotropic media couple s and p).
 @inline function _diagonal_mu(layer, λ, μ_i)
     if !ismagnetic(layer)
-        m = ComplexF64(μ_i)
+        m = complex(float(μ_i))
         return (m, m, m)
     end
     M = get_permeability(layer, λ)
@@ -65,23 +65,26 @@ end
 # which is even in q (no branch choice) and finite as q → 0.
 @inline function _cos_sinc(x, q)
     c = cos(x * q)
-    s = iszero(q) ? complex(0.0, -x) : -im * sin(x * q) / q
+    s = iszero(q) ? complex(zero(x), -x) : -im * sin(x * q) / q
     return c, s
 end
-@inline _block_from(a, b, c, s) = SMatrix{2,2,ComplexF64}(c, s * b, s * a, c)   # [c s·a; s·b c]
-@inline function _block_propagator(a, b, x)
+# The element type C of every 2×2 block is fixed by the caller (`_stack_ctype`), so
+# the per-layer function barrier below has a concrete return type even when some
+# layers carry dual numbers and others do not.
+@inline _block_from(::Type{C}, a, b, c, s) where {C} = SMatrix{2,2,C}(c, s * b, s * a, c)   # [c s·a; s·b c]
+@inline function _block_propagator(::Type{C}, a, b, x) where {C}
     c, s = _cos_sinc(x, sqrt(a * b))
-    return _block_from(a, b, c, s)
+    return _block_from(C, a, b, c, s)
 end
 
 # exp(-i x A) for a general 2×2 A. With t = tr(A)/2 and B = A − tI (traceless),
 # B² = q² I where q² = B₁₁² + B₁₂B₂₁, so exp(-i x A) = e^{-ixt} (cos(xq) I − i sin(xq)/q B).
-@inline function _expm2(A::SMatrix{2,2,ComplexF64}, x)
+@inline function _expm2(::Type{C}, A::SMatrix{2,2}, x) where {C}
     t = (A[1,1] + A[2,2]) / 2
     b11 = A[1,1] - t
     c, s = _cos_sinc(x, sqrt(b11^2 + A[1,2] * A[2,1]))
     e = exp(-im * x * t)
-    return SMatrix{2,2,ComplexF64}(e * (c + s * b11), e * s * A[2,1], e * s * A[1,2], e * (c - s * b11))
+    return SMatrix{2,2,C}(e * (c + s * b11), e * s * A[2,1], e * s * A[1,2], e * (c - s * b11))
 end
 
 # Forward branch of a mode wavevector, following `calculate_q`'s sorting rule:
@@ -98,39 +101,64 @@ end
 # and the E modes and dynamical matrix come from the package's scalar-μ builders.
 function _isotropic_boundary_modes(layer, λ, k_par, μ_i)
     n, _, _ = get_refractive_indices(layer, λ)
-    ε = dielectric_constant(n)
+    return _isotropic_modes(dielectric_constant(n), k_par, μ_i)
+end
+#
+# This is `calculate_E_modes` and the scalar-μ `dynamical_matrix` specialized to
+# ε = ε·I with q₁ = q₂ = q_z, q₃ = q₄ = −q_z: the p modes are (1, 0, ∓k∥q_z/(με − k∥²))
+# up to normalization (with the backward p mode's Eₓ = −1) and the s modes are ŷ.
+function _isotropic_modes(ε, k_par, μ_i)
     qz = _forward_branch(sqrt(complex(μ_i * ε - k_par^2)))
-    q = SVector{4,ComplexF64}(qz, qz, -qz, -qz)
-    E_modes = calculate_E_modes(k_par, q, dielectric_tensor(ε, ε, ε), μ_i)
-    D = dynamical_matrix(k_par, q, E_modes, μ_i)
+    C = complex(float(promote_type(typeof(qz), typeof(ε), typeof(k_par), typeof(μ_i))))
+    q = SVector{4,C}(qz, qz, -qz, -qz)
+    o = one(C); z = zero(C)
+    denom = μ_i * ε - k_par^2
+    singular = abs(denom) < eps(Float64)
+    e13 = singular ? z : (-k_par * qz) / denom
+    e33 = singular ? z : (k_par * (-qz)) / denom
+    v1 = SVector{3,C}(o, z, e13); v1 = v1 / norm(v1)
+    v3 = SVector{3,C}(-o, z, e33); v3 = v3 / norm(v3)
+    E_modes = SMatrix{4,3,C}(v1[1], z, v3[1], z,
+                             z,     o, z,     o,
+                             v1[3], z, v3[3], z)
+    A3 = (E_modes[:, 1] .* q .- k_par * E_modes[:, 3]) ./ μ_i
+    A4 = E_modes[:, 2] .* q ./ μ_i
+    D = SMatrix{4,4,C}(E_modes[1,1], E_modes[1,2], A3[1], A4[1],
+                       E_modes[2,1], E_modes[2,2], A3[2], A4[2],
+                       E_modes[3,1], E_modes[3,2], A3[3], A4[3],
+                       E_modes[4,1], E_modes[4,2], A3[4], A4[4])
     return D, E_modes, q
 end
 
 # p block (D-basis rows/cols 1, 3) and s block (rows/cols 2, 4) of a sheet matrix,
 # or `nothing` if the sheet couples them (σxy or σyx nonzero).
-@inline function _sheet_blocks(sheet, λ)
+@inline function _sheet_blocks(::Type{C}, sheet, λ) where {C}
     G = sheet_matrix(sheet, λ)
     off = max(abs(G[3,2]), abs(G[4,1]))
     off <= _DECOUPLE_RTOL * max(abs(G[3,1]), abs(G[4,2])) || return nothing
-    one_ = one(ComplexF64); z = zero(ComplexF64)
-    return SMatrix{2,2,ComplexF64}(one_, G[3,1], z, one_), SMatrix{2,2,ComplexF64}(one_, G[4,2], z, one_)
+    one_ = one(C); z = zero(C)
+    return SMatrix{2,2,C}(one_, G[3,1], z, one_), SMatrix{2,2,C}(one_, G[4,2], z, one_)
 end
 
 # p block (rows/cols 1, 3) and s block (rows/cols 2, 4) of a 4×4 matrix in the
 # dynamical-matrix basis (Eₓ, Eᵧ, Hᵧ, −Hₓ).
-@inline _pblock(D) = SMatrix{2,2,ComplexF64}(D[1,1], D[3,1], D[1,3], D[3,3])
-@inline _sblock(D) = SMatrix{2,2,ComplexF64}(D[2,2], D[4,2], D[2,4], D[4,4])
+@inline _pblock(D) = SMatrix{2,2}(D[1,1], D[3,1], D[1,3], D[3,3])
+@inline _sblock(D) = SMatrix{2,2}(D[2,2], D[4,2], D[2,4], D[4,4])
 
-const _Block2 = SMatrix{2,2,ComplexF64,4}
-const _BlockResult = Tuple{Bool,_Block2,_Block2}
+# Status of a per-layer 2×2 step: decoupled, couples s and p (fall back to 4×4), or
+# the element type C is too narrow for the layer's indices (recompute, see `_fits`).
+const _DECOUPLED = 0x00
+const _COUPLED = 0x01
+const _NARROW = 0x02
+const _BlockResult{C} = Tuple{UInt8,SMatrix{2,2,C,4},SMatrix{2,2,C,4}}
 
 # Berreman Δ (order Eₓ, Hᵧ, Eᵧ, −Hₓ) of a rotated or full-μ layer, and whether its
 # off-diagonal blocks vanish at this point.
-function _tensor_delta(layer, λ, k_par, μ_i)
-    ε = _layer_epsilon(layer, λ)
+function _tensor_delta(layer, λ, k_par, μ_i, ns=get_refractive_indices(layer, λ))
+    ε = _layer_epsilon(layer, ns...)
     μ = ismagnetic(layer) ? get_permeability(layer, λ) : permeability_tensor(μ_i, μ_i, μ_i)
     C = construct_constitutive(ε, μ)
-    Δ = SMatrix{4,4,ComplexF64}(construct_Δ(k_par, C, construct_a(k_par, C)))
+    Δ = SMatrix{4,4}(construct_Δ(k_par, C, construct_a(k_par, C)))
     off = max(abs(Δ[1,3]), abs(Δ[1,4]), abs(Δ[2,3]), abs(Δ[2,4]),
               abs(Δ[3,1]), abs(Δ[3,2]), abs(Δ[4,1]), abs(Δ[4,2]))
     return off <= _DECOUPLE_RTOL * maximum(abs, Δ), Δ
@@ -138,26 +166,29 @@ end
 
 # p and s propagators of a rotated or full-μ layer from the diagonal blocks of its
 # Berreman Δ, or ok = false if the off-diagonal blocks do not vanish here.
-function _tensor_blocks(layer, λ, k_par, k0, μ_i)::_BlockResult
-    ok, Δ = _tensor_delta(layer, λ, k_par, μ_i)
-    ok || return (false, zero(_Block2), zero(_Block2))
+function _tensor_blocks(::Type{C}, layer, λ, k_par, k0, μ_i, ns)::_BlockResult{C} where {C}
+    ok, Δ = _tensor_delta(layer, λ, k_par, μ_i, ns)
+    Z = zero(SMatrix{2,2,C,4})
+    ok || return (_COUPLED, Z, Z)
     x = k0 * layer.thickness
-    Δp = SMatrix{2,2,ComplexF64}(Δ[1,1], Δ[2,1], Δ[1,2], Δ[2,2])
-    Δs = SMatrix{2,2,ComplexF64}(Δ[3,3], Δ[4,3], Δ[3,4], Δ[4,4])
-    return (true, _expm2(Δp, x), _expm2(Δs, x))
+    Δp = SMatrix{2,2}(Δ[1,1], Δ[2,1], Δ[1,2], Δ[2,2])
+    Δs = SMatrix{2,2}(Δ[3,3], Δ[4,3], Δ[3,4], Δ[4,4])
+    return (_DECOUPLED, _expm2(C, Δp, x), _expm2(C, Δs, x))
 end
 
 # p and s propagators of one interior layer, or ok = false if it couples s and p.
 # Berreman's blocks for diagonal ε = (εx, εy, εz), μ = (μx, μy, μz):
 #   p: [0  μy − k∥²/εz; εx  0]      s: [0  μx; εy − k∥²/μz  0]
 # Rotated layers and full μ tensors go through `_tensor_blocks`.
-function _interior_blocks(layer, λ, k_par, k0, μ_i)::_BlockResult
-    isrotated(layer) && return _tensor_blocks(layer, λ, k_par, k0, μ_i)
+function _interior_blocks(::Type{C}, layer, λ, k_par, k0, μ_i)::_BlockResult{C} where {C}
+    ns = get_refractive_indices(layer, λ)
+    _fits(C, ns...) || return (_NARROW, zero(SMatrix{2,2,C,4}), zero(SMatrix{2,2,C,4}))
+    isrotated(layer) && return _tensor_blocks(C, layer, λ, k_par, k0, μ_i, ns)
     mu = _diagonal_mu(layer, λ, μ_i)
-    mu === nothing && return _tensor_blocks(layer, λ, k_par, k0, μ_i)
+    mu === nothing && return _tensor_blocks(C, layer, λ, k_par, k0, μ_i, ns)
     k2 = k_par^2
     μx, μy, μz = mu
-    nx, ny, nz = get_refractive_indices(layer, λ)
+    nx, ny, nz = ns
     εx = dielectric_constant(nx); εy = dielectric_constant(ny); εz = dielectric_constant(nz)
     x = k0 * layer.thickness
     ap, bp = μy - k2 / εz, εx
@@ -165,56 +196,90 @@ function _interior_blocks(layer, λ, k_par, k0, μ_i)::_BlockResult
     if !isanisotropic(layer) && μx == μy == μz
         # Isotropic: both blocks share q² = με − k∥², so one cos/sin serves both.
         c, s = _cos_sinc(x, sqrt(ap * bp))
-        return (true, _block_from(ap, bp, c, s), _block_from(as, bs, c, s))
+        return (_DECOUPLED, _block_from(C, ap, bp, c, s), _block_from(C, as, bs, c, s))
     end
-    return (true, _block_propagator(ap, bp, x), _block_propagator(as, bs, x))
+    return (_DECOUPLED, _block_propagator(C, ap, bp, x), _block_propagator(C, as, bs, x))
 end
 
 """
-    _propagate_core_2x2(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
+    _propagate_core_2x2([C,] λ, layers; θ=0.0, μ=1.0, sheets=nothing)
 
 2×2 propagation core for decoupled stacks. Returns `(M_sys, S)` in the same basis
 as [`_propagate_core_exp`](@ref), or `nothing` when a per-point check fails (an
 interior layer whose Berreman Δ couples s and p at this λ and θ, or a sheet with
 σxy ≠ 0), in which case the caller falls back to the 4×4 path. Assumes
-`_decoupled_structure(layers)`.
+`_decoupled_structure(layers)`. `C` is the complex element type of the
+calculation (see [`_stack_ctype`](@ref)); it is computed when omitted. With a `C`
+too narrow for some refractive index, returns `_WIDEN`.
 
 Per interior layer with diagonal ε = (εx, εy, εz) and μ = (μx, μy, μz), Berreman's
 blocks are p: [0  μy − k∥²/εz; εx  0] and s: [0  μx; εy − k∥²/μz  0]. A rotated
 layer or full μ tensor uses the two diagonal blocks of its Δ, exponentiated in
 closed form.
 """
-function _propagate_core_2x2(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
+_propagate_core_2x2(λ, layers; θ=0.0, μ=1.0, sheets=nothing) =
+    _propagate_core_2x2(_stack_ctype(λ, θ, μ, layers, sheets), λ, layers; θ=θ, μ=μ, sheets=sheets)
+
+function _propagate_core_2x2(::Type{C}, λ, layers; θ=0.0, μ=1.0, sheets=nothing) where {C}
     N = length(layers)
-    nx_in, _, _ = get_refractive_indices(layers[1], λ)
-    ε_0in = dielectric_constant(nx_in)
-    k_par = √(ε_0in) * sin(θ)
+    ok1, ε_1 = _boundary_epsilon(C, layers[1], λ)
+    okN, ε_N = _boundary_epsilon(C, layers[N], λ)
+    (ok1 && okN) || return _WIDEN
+    k_par = √ε_1 * sin(θ)
+    res = _block_matrices_2x2(C, λ, layers, 1, N, k_par, μ, sheets, ε_1, ε_N)
+    res isa Tuple || return res
+    Mp, Ms, q_first, q_last, E_modes_first, E_modes_last = res
+    z = zero(C)
+    M_sys = @SMatrix [Mp[1,1] Mp[1,2] z z;
+                      Mp[2,1] Mp[2,2] z z;
+                      z z Ms[1,1] Ms[1,2];
+                      z z Ms[2,1] Ms[2,2]]
+    r, R, t, T = calculate_tr(M_sys)
+    S = poynting(k_par, q_first, q_last, E_modes_first, E_modes_last, t, r, complex(float(μ)), complex(float(μ)))
+    return M_sys, S
+end
+
+# Reduced in-plane wavevector k∥ = n_ambient·sin θ, conserved through the stack.
+
+
+"""
+    _block_matrices_2x2(C, λ, layers, a, b, k_par, μ, sheets)
+
+p and s 2×2 transfer matrices (in the mode-amplitude basis, `[E⁺; E⁻]_a = M [E⁺; E⁻]_b`)
+of the sub-stack `layers[a:b]`, whose end layers `a` and `b` are isotropic,
+non-magnetic and treated as semi-infinite, together with the boundary mode
+wavevectors and E modes. `ε_a`, `ε_b` are the end layers' permittivities. Sheets are
+keyed by the global interface index (sheet `i` sits between layers `i` and `i+1`).
+Returns `nothing` if some layer or sheet in the range couples s and p, and `_WIDEN`
+if `C` cannot hold a layer's refractive index.
+"""
+function _block_matrices_2x2(::Type{C}, λ, layers, a, b, k_par, μ, sheets, ε_a, ε_b) where {C}
     k0 = (2π * c_0 / λ) / c_0
     no_sheets = sheets === nothing || isempty(sheets)
 
-    Bp = SMatrix{2,2,ComplexF64}(I)
-    Bs = SMatrix{2,2,ComplexF64}(I)
-    if !no_sheets && haskey(sheets, 1)
-        blocks = _sheet_blocks(sheets[1], λ)
+    Bp = SMatrix{2,2,C}(I)
+    Bs = SMatrix{2,2,C}(I)
+    if !no_sheets && haskey(sheets, a)
+        blocks = _sheet_blocks(C, sheets[a], λ)
         blocks === nothing && return nothing
         Bp = Bp * blocks[1]; Bs = Bs * blocks[2]
     end
-    for i in 2:N-1
+    for i in a+1:b-1
         # Function barrier: a stack mixing dispersion types is a Vector of abstract
         # Layer, so dispatch once per layer rather than once per field access.
-        ok, P, Sb = _interior_blocks(layers[i], λ, k_par, k0, μ)::_BlockResult
-        ok || return nothing
+        status, P, Sb = _interior_blocks(C, layers[i], λ, k_par, k0, μ)::_BlockResult{C}
+        status === _DECOUPLED || return status === _NARROW ? _WIDEN : nothing
         Bp = Bp * P
         Bs = Bs * Sb
         if !no_sheets && haskey(sheets, i)
-            blocks = _sheet_blocks(sheets[i], λ)
+            blocks = _sheet_blocks(C, sheets[i], λ)
             blocks === nothing && return nothing
             Bp = Bp * blocks[1]; Bs = Bs * blocks[2]
         end
     end
 
-    D_1, E_modes_first, q_first = _isotropic_boundary_modes(layers[1], λ, k_par, μ)
-    D_N, E_modes_last,  q_last  = _isotropic_boundary_modes(layers[N], λ, k_par, μ)
+    D_1, E_modes_first, q_first = _boundary_modes(C, ε_a, k_par, μ)
+    D_N, E_modes_last,  q_last  = _boundary_modes(C, ε_b, k_par, μ)
 
     # The isotropic dynamical matrices are block-diagonal too (p modes 1, 3 carry no
     # Eᵧ or Hₓ; s modes 2, 4 no Eₓ, E_z or Hᵧ), so D₁⁻¹·B·D_N splits into two 2×2
@@ -222,15 +287,27 @@ function _propagate_core_2x2(λ, layers; θ=0.0, μ=1.0, sheets=nothing)
     # rows/columns 1:2 and the s block in 3:4.
     Mp = inv(_pblock(D_1)) * Bp * _pblock(D_N)
     Ms = inv(_sblock(D_1)) * Bs * _sblock(D_N)
-    z = zero(ComplexF64)
-    M_sys = @SMatrix [Mp[1,1] Mp[1,2] z z;
-                      Mp[2,1] Mp[2,2] z z;
-                      z z Ms[1,1] Ms[1,2];
-                      z z Ms[2,1] Ms[2,2]]
-    r, R, t, T = calculate_tr(M_sys)
-    μ_mat = SMatrix{3,3,ComplexF64}(μ * I)
-    S = poynting(k_par, q_first, q_last, E_modes_first, E_modes_last, t, r, μ_mat, μ_mat)
-    return M_sys, S
+    return Mp, Ms, q_first, q_last, E_modes_first, E_modes_last
+end
+
+const _BoundaryModes{C} = Tuple{SMatrix{4,4,C,16},SMatrix{4,3,C,12},SVector{4,C}}
+
+# Permittivity of an isotropic boundary layer: the only layer-dependent (hence, for a
+# Vector of abstract Layer, dynamically dispatched) step of the boundary modes, kept
+# small so the dispatch boxes one number rather than the mode matrices.
+# Returns (fits, ε); see `_fits`.
+# (The assertion at the call site matters: `layer` is often abstractly typed, so the
+# callee's return annotation alone does not reach the caller's inference.)
+@inline _boundary_epsilon(::Type{C}, layer, λ) where {C} = _boundary_epsilon_impl(C, layer, λ)::Tuple{Bool,C}
+function _boundary_epsilon_impl(::Type{C}, layer, λ)::Tuple{Bool,C} where {C}
+    n = first(get_refractive_indices(layer, λ))
+    _fits(C, n) || return (false, zero(C))
+    return (true, C(dielectric_constant(n)))
+end
+
+function _boundary_modes(::Type{C}, ε, k_par, μ)::_BoundaryModes{C} where {C}
+    D, E, q = _isotropic_modes(ε, k_par, μ)
+    return SMatrix{4,4,C}(D), SMatrix{4,3,C}(E), SVector{4,C}(q)
 end
 
 """

@@ -24,7 +24,7 @@ https://doi.org/10.1364/JOSA.62.000502
 """
 function poynting(Ψ, a)
 
-    S = @MMatrix zeros(ComplexF64, 3, 4)
+    S = @MMatrix zeros(complex(float(promote_type(eltype(Ψ), eltype(a)))), 3, 4)
 
     for m in 1:4
         Ex =  Ψ[1, m]
@@ -72,19 +72,19 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
                   μ_in::AbstractMatrix  = SMatrix{3,3,ComplexF64}(I),
                   μ_out::AbstractMatrix = SMatrix{3,3,ComplexF64}(I))
 
-    μin_inv  = inv(SMatrix{3,3,ComplexF64}(μ_in))
-    μout_inv = inv(SMatrix{3,3,ComplexF64}(μ_out))
+    return _poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
+                     inv(SMatrix{3,3}(μ_in)), inv(SMatrix{3,3}(μ_out)))
+end
 
-    # create the wavevector in the first layer
-    k_in = @MMatrix zeros(ComplexF64, 4, 3)
-    k_in[:, 1] .= k_par
+# Scalar (isotropic) permeabilities: H = (k̄ × E)/μ, no 3×3 inverse.
+poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs, μ_in::Number, μ_out::Number) =
+    _poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs, inv(μ_in), inv(μ_out))
 
-    for (i, q_i) in enumerate(q_in)
-        k_in[i, 3] = q_i
-    end
+# `μin_inv`, `μout_inv` are the inverse permeabilities, 3×3 matrices or scalars.
+function _poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs, μin_inv, μout_inv)
 
-    k_in ./= c_0
-    k_in = SMatrix(k_in)
+    # wavevectors (k_par, 0, q_i) / c₀ of the four modes in the first layer
+    k_in = ntuple(i -> SVector(k_par, zero(k_par), q_in[i]) / c_0, 4)
 
     E_forward_in_p =  E_modes_in[1, :]  # p-polarized incident electric field
     E_forward_in_s =  E_modes_in[2, :]  # s-polarized incident electric field
@@ -102,18 +102,10 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
     E_ref_p = r_coefs[1] * E_modes_in[3, :] + r_coefs[2] * E_modes_in[4, :]
     E_ref_s = r_coefs[3] * E_modes_in[3, :] + r_coefs[4] * E_modes_in[4, :]
 
-    S_in_p = real(0.5 * E_forward_in_p × conj(μin_inv * (k_in[1, :] × E_forward_in_p)))
-    S_in_s = real(0.5 * E_forward_in_s × conj(μin_inv * (k_in[2, :] × E_forward_in_s)))
+    S_in_p = real(0.5 * E_forward_in_p × conj(μin_inv * (k_in[1] × E_forward_in_p)))
+    S_in_s = real(0.5 * E_forward_in_s × conj(μin_inv * (k_in[2] × E_forward_in_s)))
 
-    k_out = @MMatrix zeros(ComplexF64, 4, 3)
-    k_out[:, 1] .= k_par
-
-    for (i, q_i) in enumerate(q_out)
-        k_out[i, 3] = q_i
-    end
-
-    k_out ./= c_0
-    k_out = SMatrix(k_out)
+    k_out = ntuple(i -> SVector(k_par, zero(k_par), q_out[i]) / c_0, 4)
 
     # Transmitted power is resolved PER substrate eigenmode, EACH evaluated
     # with its OWN wavevector (k_out modes 1, 2). The two modes carry different
@@ -123,10 +115,10 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
     # polarization channel and their sum is the total transmitted flux.
     # (For an isotropic substrate k_out[1]=k_out[2] and the cross term vanishes
     # by p/s mode orthogonality.)
-    S_out_pp = real(0.5 * E_out_p1 × conj(μout_inv * (k_out[1, :] × E_out_p1)))
-    S_out_ps = real(0.5 * E_out_p2 × conj(μout_inv * (k_out[2, :] × E_out_p2)))
-    S_out_sp = real(0.5 * E_out_s1 × conj(μout_inv * (k_out[1, :] × E_out_s1)))
-    S_out_ss = real(0.5 * E_out_s2 × conj(μout_inv * (k_out[2, :] × E_out_s2)))
+    S_out_pp = real(0.5 * E_out_p1 × conj(μout_inv * (k_out[1] × E_out_p1)))
+    S_out_ps = real(0.5 * E_out_p2 × conj(μout_inv * (k_out[2] × E_out_p2)))
+    S_out_sp = real(0.5 * E_out_s1 × conj(μout_inv * (k_out[1] × E_out_s1)))
+    S_out_ss = real(0.5 * E_out_s2 × conj(μout_inv * (k_out[2] × E_out_s2)))
     S_out_p = S_out_pp + S_out_ps
     S_out_s = S_out_sp + S_out_ss
 
@@ -134,14 +126,14 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
     # conversion factors, needed by the circular-basis transmittance).
     E_out_1 = E_modes_out[1, :]
     E_out_2 = E_modes_out[2, :]
-    f_out1 = real(0.5 * E_out_1 × conj(μout_inv * (k_out[1, :] × E_out_1)))[3]
-    f_out2 = real(0.5 * E_out_2 × conj(μout_inv * (k_out[2, :] × E_out_2)))[3]
+    f_out1 = real(0.5 * E_out_1 × conj(μout_inv * (k_out[1] × E_out_1)))[3]
+    f_out2 = real(0.5 * E_out_2 × conj(μout_inv * (k_out[2] × E_out_2)))[3]
 
     # Reflected waves: use incident-medium wavevectors (k_in modes 3,4),
     # not substrate wavevectors, because reflected light propagates backward
     # through the incident medium with its own q-values.
-    S_refl_p = real(0.5 * E_ref_p × conj(μin_inv * (k_in[3, :] × E_ref_p)))
-    S_refl_s = real(0.5 * E_ref_s × conj(μin_inv * (k_in[4, :] × E_ref_s)))
+    S_refl_p = real(0.5 * E_ref_p × conj(μin_inv * (k_in[3] × E_ref_p)))
+    S_refl_s = real(0.5 * E_ref_s × conj(μin_inv * (k_in[4] × E_ref_s)))
 
     return Poynting(S_out_p, S_in_p, S_out_s, S_in_s, S_refl_p, S_refl_s,
                     S_out_pp, S_out_ps, S_out_sp, S_out_ss, f_out1, f_out2)

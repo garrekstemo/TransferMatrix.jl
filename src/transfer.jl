@@ -42,6 +42,56 @@ lossless stack:
 - `validate`: Check energy conservation R + T ≈ 1 for non-absorbing media (default: false)
 - `basis`: Output polarization basis — `:linear` (default) or `:circular`
 - `method`: propagation backend — `:auto` (default), `:decoupled` (2×2), `:exp` (matrix exponential, see [`layer_transfer_exp`](@ref)) or `:eig` (eigenmode)
+- `incoherent`: index, or collection of indices, of interior layers to treat as
+  incoherent (thick) layers; see *Incoherent layers* below (default: `nothing`)
+
+# Incoherent layers
+
+A layer much thicker than the coherence length of the measurement, such as a
+millimetre-thick substrate or window in an FTIR spectrometer whose etalon fringes
+are finer than the instrument resolution, should be added by intensity rather than
+by amplitude. `incoherent=[i, ...]` marks interior layers `i` as incoherent: the
+stack is cut at those layers into coherent blocks, each block is solved for its
+forward and backward power coefficients, and the blocks are chained through each
+incoherent layer's single-pass attenuation `exp(−2k₀ Im(q) d)` with the
+intensity-matrix method of Katsidis & Siapkas, Appl. Opt. 41, 3978 (2002),
+https://doi.org/10.1364/AO.41.003978. The result is the fringe-averaged spectrum:
+for a lossless thick layer it equals the coherent spectrum averaged over one
+period of the layer's round-trip phase.
+
+Incoherent layers must be isotropic and non-magnetic, and every coherent block
+must decouple s and p (see [`isdecoupled`](@ref)), since the intensity chaining is
+done per polarization. Only `basis=:linear` and `method=:auto`/`:decoupled` are
+supported, and the cross-polarized terms are zero. Sheets may sit at any interface
+of a coherent block. Reflectances are `|r|²` at each interface, so, as for the
+ambient, a strongly absorbing incoherent layer only approximates the energy flux.
+
+```julia
+air  = Layer(λ -> 1.0, 0.0)
+caf2 = Layer(λ -> 1.40, 3000.0)                     # 3 mm window, in μm
+film = Layer(λ -> 2.4, 0.5)
+transfer(5.0, [air, film, caf2, air]; incoherent=3) # film on a thick CaF₂ window
+```
+
+# Automatic differentiation
+
+`transfer` and [`amplitude_coefficients`](@ref) are generic in their number type, so
+ForwardDiff dual numbers may enter through layer thicknesses, dispersion functions
+(refractive indices), Euler angles, permeabilities, sheet conductivities, `λ`, `θ`
+and `μ`, for example to fit a stack to a measured spectrum:
+
+```julia
+using ForwardDiff
+stack(p) = [Layer(λ -> 1.0, 0.0), Layer(λ -> p[2], p[1]), Layer(λ -> 1.45, 0.0)]
+ForwardDiff.gradient(p -> transfer(1.0, stack(p)).Tss, [0.2, 1.8])
+```
+
+This holds for `method=:auto`, `:decoupled` and `:exp`, and for incoherent layers.
+`:eig` diagonalizes each layer with `eigen`, which has no dual-number method, and
+the same applies to an anisotropic or magnetic ambient or substrate whose own
+parameters (or `θ`) are differentiated, since its modes are found by
+diagonalization on every path. The field and energy functions (`efield`, `hfield`,
+`layer_energies`, `mode_amplitudes`) and the sweeps still return `Float64`.
 
 # Numerical backend
 
@@ -116,14 +166,46 @@ When `validate=true`, the function checks:
 
 Warnings are issued for any violations.
 """
-function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:auto)
+function transfer(λ, layers; θ=0.0, μ=1.0, sheets=nothing, validate::Bool=false, basis::Symbol=:linear, method::Symbol=:auto, incoherent=nothing)
     λ = _to_wavelength_um(λ)
     θ = _to_radians(θ)
 
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
-    M_sys, S = _propagate(Val(method), λ, layers; θ=θ, μ=μ, sheets=sd)
-    return _assemble(Val(basis), M_sys, S, λ, layers, sd, validate)
+    # Element type from everything but the refractive indices; if an index turns out
+    # not to fit (a dual-valued dispersion), recompute with the full type. See the
+    # note on `_stack_realtype_static`.
+    R = _stack_realtype_static(λ, θ, μ, layers, sd)
+    if incoherent !== nothing && !isempty(incoherent)
+        idx = _incoherent_indices(incoherent)
+        _validate_incoherent(idx, layers, method, basis)
+        res = _transfer_incoherent(Complex{R}, λ, layers, θ, μ, sd, idx, validate)
+        res isa _Widen || return res
+        R = _stack_realtype(λ, θ, μ, layers, sd)
+        return _transfer_incoherent(Complex{R}, λ, layers, θ, μ, sd, idx, validate)
+    end
+    res = _transfer_dispatch(R, method, basis, λ, layers, θ, μ, sd, validate)
+    res isa _Widen || return res
+    R = _stack_realtype(λ, θ, μ, layers, sd)
+    return _transfer_dispatch(R, method, basis, λ, layers, θ, μ, sd, validate)
+end
+
+# Static dispatch for ordinary Float64 inputs and the common keyword values;
+# one dynamic dispatch otherwise.
+@inline function _transfer_dispatch(R, method, basis, λ, layers, θ, μ, sd, validate)
+    if R === Float64 && basis === :linear
+        method === :auto && return _transfer_point(ComplexF64, Val(:auto), Val(:linear), λ, layers, θ, μ, sd, validate)
+        method === :exp  && return _transfer_point(ComplexF64, Val(:exp),  Val(:linear), λ, layers, θ, μ, sd, validate)
+    end
+    return _transfer_point(Complex{R}, Val(method), Val(basis), λ, layers, θ, μ, sd, validate)
+end
+
+# Function barrier on the element type `C`: everything below is type-stable.
+function _transfer_point(::Type{C}, method::Val, basis::Val, λ, layers, θ, μ, sd, validate) where {C}
+    res = _propagate(method, C, λ, layers; θ=θ, μ=μ, sheets=sd)
+    res isa _Widen && return res
+    M_sys, S = res
+    return _assemble(basis, M_sys, S, λ, layers, sd, validate)
 end
 
 function _assemble(::Val{:linear}, M_sys, S, λ, layers, sd, validate)
@@ -191,7 +273,11 @@ function amplitude_coefficients(λ, layers; θ=0.0, μ=1.0, sheets=nothing, meth
     θ = _to_radians(θ)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
     _validate_sheet_indices(sd, length(layers))
-    M_sys, _ = _propagate(Val(method), λ, layers; θ=θ, μ=μ, sheets=sd)
+    res = _propagate(Val(method), Complex{_stack_realtype_static(λ, θ, μ, layers, sd)}, λ, layers; θ=θ, μ=μ, sheets=sd)
+    if res isa _Widen
+        res = _propagate(Val(method), _stack_ctype(λ, θ, μ, layers, sd), λ, layers; θ=θ, μ=μ, sheets=sd)
+    end
+    M_sys, _ = res
     r, _, t, _ = calculate_tr(M_sys)
     # calculate_tr packs r = (rpp, rps, rss, rsp) and t = (tpp, tps, tsp, tss).
     return (; rpp = r[1], rps = r[2], rsp = r[4], rss = r[3],
@@ -279,7 +365,7 @@ function _validate_physics(λ, layers, Tpp, Tss, Rpp, Rss;
 end
 
 
-function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing, method::Symbol=:eig) where {B}
+function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, verbose::Bool=false, make_layers, angle_for, sheets=nothing, method::Symbol=:eig, incoherent=nothing) where {B}
     dims = (length(outer_vals), length(inner_vals))
     M1 = Array{Float64}(undef, dims)
     M2 = Array{Float64}(undef, dims)
@@ -298,7 +384,7 @@ function _sweep_spectra(outer_vals, inner_vals, ::Val{B}; threads::Bool=true, ve
         layers_i = make_layers(i)
         θ = angle_for(i)
         for j in eachindex(inner_vals)
-            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B, method=method)
+            result = transfer(inner_vals[j], layers_i; θ=θ, sheets=sheets, basis=B, method=method, incoherent=incoherent)
             if B === :linear
                 M1[i, j] = result.Tpp
                 M2[i, j] = result.Tss
@@ -352,12 +438,13 @@ of size `(length(θs), length(λs))`.
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
 - `method`: propagation backend, `:auto` (default), `:decoupled`, `:exp` or `:eig` (see [`transfer`](@ref))
+- `incoherent`: indices of thick layers added by intensity (see [`transfer`](@ref))
 
 # Units
 - Wavelengths: μm (micrometers) recommended
 - Angles: radians
 """
-function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:auto)
+function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:auto, incoherent=nothing)
     λs = _to_wavelength_um.(λs)
     θs = _to_radians.(θs)
     sd = sheets === nothing ? nothing : _sheets_dict(sheets)
@@ -365,7 +452,7 @@ function sweep_angle(λs, θs, layers; sheets=nothing, threads::Bool=true, verbo
     return _sweep_spectra(θs, λs, Val(basis); threads=threads, verbose=verbose,
         make_layers = _ -> layers,
         angle_for = i -> θs[i],
-        sheets = sd, method = method)
+        sheets = sd, method = method, incoherent = incoherent)
 end
 
 
@@ -387,12 +474,13 @@ of size `(length(ts), length(λs))`.
 - `verbose`: Print thread count info (default: false)
 - `basis`: `:linear` (default) → `TransferResult`; `:circular` → `CircularTransferResult` (see [`transfer`](@ref))
 - `method`: propagation backend, `:auto` (default), `:decoupled`, `:exp` or `:eig` (see [`transfer`](@ref))
+- `incoherent`: indices of thick layers added by intensity (see [`transfer`](@ref))
 
 # Units
 - Wavelengths and thicknesses: μm (micrometers) recommended
 - Angle: radians
 """
-function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:auto)
+function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, threads::Bool=true, verbose::Bool=false, basis::Symbol=:linear, method::Symbol=:auto, incoherent=nothing)
     λs = _to_wavelength_um.(λs)
     ts = _to_um.(ts)
     θ = _to_radians(θ)
@@ -409,7 +497,7 @@ function sweep_thickness(λs, ts, layers, t_index::Int; θ=0.0, sheets=nothing, 
             layers_i
         end,
         angle_for = _ -> θ,
-        sheets = sd, method = method)
+        sheets = sd, method = method, incoherent = incoherent)
 end
 
 @deprecate angle_resolved(λs, θs, layers; kwargs...) sweep_angle(λs, θs, layers; kwargs...)
