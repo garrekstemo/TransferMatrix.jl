@@ -37,14 +37,6 @@ function _validate_incoherent(idx, layers, method, basis)
     return nothing
 end
 
-# Unit-amplitude z-flux of one mode with E-mode row `E`, wavevector q, scalar μ;
-# the same expression as the transmitted flux in `poynting` (the 1/c₀ cancels in
-# every ratio, so it is dropped).
-@inline function _mode_zflux(k_par, q, E, μ)
-    k = SVector(k_par, zero(k_par), q)
-    return real(0.5 * (E × conj((k × E) / μ)))[3]
-end
-
 # Forward and backward power coefficients of the coherent block layers[a:b], whose
 # end layers are incoherent media (or the ambient/substrate), for p and s.
 function _block_powers(::Type{C}, λ, layers, a, b, k_par, μ, sd, ε_a, ε_b) where {C}
@@ -53,13 +45,9 @@ function _block_powers(::Type{C}, λ, layers, a, b, k_par, μ, sd, ε_a, ε_b) w
     res === nothing && throw(ArgumentError(
         "the coherent block between layers $a and $b couples s and p; incoherent " *
         "layers need every coherent block to be decoupled (see `isdecoupled`)"))
-    Mp, Ms, q_a, q_b, E_a, E_b = res
-    μC = complex(float(μ))
-    fa_p = _mode_zflux(k_par, q_a[1], E_a[1, :], μC)
-    fa_s = _mode_zflux(k_par, q_a[2], E_a[2, :], μC)
-    fb_p = _mode_zflux(k_par, q_b[1], E_b[1, :], μC)
-    fb_s = _mode_zflux(k_par, q_b[2], E_b[2, :], μC)
-    return _powers(Mp, fa_p, fb_p), _powers(Ms, fa_s, fb_s)
+    Mp, Ms, med_a, med_b = res
+    # forward-mode z-fluxes on either side (backward modes carry the same magnitude)
+    return _powers(Mp, med_a.Sp_f[3], med_b.Sp_f[3]), _powers(Ms, med_a.Ss_f[3], med_b.Ss_f[3])
 end
 
 # (Rf, Tf, Rb, Tb) from a 2×2 mode-amplitude transfer matrix [a] = M [b] and the

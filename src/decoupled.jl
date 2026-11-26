@@ -130,6 +130,64 @@ function _isotropic_modes(ε, k_par, μ_i)
     return D, E_modes, q
 end
 
+# What the 2×2 path needs of an isotropic, non-magnetic semi-infinite medium: the p
+# and s blocks of its dynamical matrix and the Poynting vectors of its four unit
+# modes (forward p, forward s, backward p, backward s), all in the basis of
+# `_isotropic_modes`, so `(M_sys, S)` match the 4×4 path to rounding.
+struct _IsoMedium{C<:Complex,R<:Real}
+    Dp::SMatrix{2,2,C,4}
+    Ds::SMatrix{2,2,C,4}
+    Sp_f::SVector{3,R}
+    Ss_f::SVector{3,R}
+    Sp_b::SVector{3,R}
+    Ss_b::SVector{3,R}
+end
+
+# Time-averaged Poynting vectors ½ Re(E × H*), H = (k × E)/μ with k = (k∥, 0, q)/c₀
+# (the expression used by `poynting`), written out for the two mode shapes:
+# a p mode E = (a, 0, b) has H = (0, qa − k∥b, 0)/(c₀μ); the s mode E = ŷ has
+# H = (−q, 0, k∥)/(c₀μ).
+@inline function _unit_poynting_p(a, b, k_par, q, μ)
+    h = conj((q * a - k_par * b) / (c_0 * μ))
+    return SVector(-real(b * h), zero(real(h)), real(a * h)) / 2
+end
+@inline function _unit_poynting_s(k_par, q, μ)
+    return SVector(real(k_par / μ), zero(real(q)), real(q / μ)) / (2c_0)
+end
+
+function _iso_medium(::Type{C}, ε, k_par, μ) where {C}
+    qz = _forward_branch(sqrt(complex(μ * ε - k_par^2)))
+    o = one(C); z = zero(C)
+    denom = μ * ε - k_par^2
+    singular = abs(denom) < eps(Float64)
+    e13 = singular ? z : (-k_par * qz) / denom
+    e33 = singular ? z : (k_par * (-qz)) / denom
+    # unit-normalized p modes (a, 0, b): forward (1, 0, e13), backward (−1, 0, e33)
+    n1 = sqrt(1 + abs2(e13)); a1 = o / n1; b1 = e13 / n1
+    n3 = sqrt(1 + abs2(e33)); a3 = -o / n3; b3 = e33 / n3
+    Dp = SMatrix{2,2,C}(a1, (a1 * qz - k_par * b1) / μ,
+                        a3, (a3 * (-qz) - k_par * b3) / μ)
+    Ds = SMatrix{2,2,C}(o, qz / μ, o, -qz / μ)
+    return _IsoMedium(Dp, Ds, _unit_poynting_p(a1, b1, k_par, qz, μ), _unit_poynting_s(k_par, qz, μ),
+                      _unit_poynting_p(a3, b3, k_par, -qz, μ), _unit_poynting_s(k_par, -qz, μ))
+end
+
+# Poynting struct of a decoupled stack from its boundary media and r/t coefficients
+# (r = (rpp, rps, rss, rsp), t = (tpp, tps, tsp, tss) as from `calculate_tr`). Mode
+# fluxes scale with |amplitude|², and the cross-polarized amplitudes are exactly
+# zero here, so every entry is |coefficient|² times a unit-mode vector, as `poynting`
+# would compute it.
+function _poynting_decoupled(a::_IsoMedium, b::_IsoMedium, t, r)
+    out_pp = abs2(t[1]) * b.Sp_f
+    out_ps = abs2(t[2]) * b.Ss_f
+    out_sp = abs2(t[3]) * b.Sp_f
+    out_ss = abs2(t[4]) * b.Ss_f
+    refl_p = abs2(r[1]) * a.Sp_b + abs2(r[2]) * a.Ss_b
+    refl_s = abs2(r[3]) * a.Sp_b + abs2(r[4]) * a.Ss_b
+    return Poynting(out_pp + out_ps, a.Sp_f, out_sp + out_ss, a.Ss_f, refl_p, refl_s,
+                    out_pp, out_ps, out_sp, out_ss, b.Sp_f[3], b.Ss_f[3])
+end
+
 # p block (D-basis rows/cols 1, 3) and s block (rows/cols 2, 4) of a sheet matrix,
 # or `nothing` if the sheet couples them (σxy or σyx nonzero).
 @inline function _sheet_blocks(::Type{C}, sheet, λ) where {C}
@@ -228,15 +286,17 @@ function _propagate_core_2x2(::Type{C}, λ, layers; θ=0.0, μ=1.0, sheets=nothi
     k_par = √ε_1 * sin(θ)
     res = _block_matrices_2x2(C, λ, layers, 1, N, k_par, μ, sheets, ε_1, ε_N)
     res isa Tuple || return res
-    Mp, Ms, q_first, q_last, E_modes_first, E_modes_last = res
+    Mp, Ms, med_a, med_b = res
     z = zero(C)
     M_sys = @SMatrix [Mp[1,1] Mp[1,2] z z;
                       Mp[2,1] Mp[2,2] z z;
                       z z Ms[1,1] Ms[1,2];
                       z z Ms[2,1] Ms[2,2]]
-    r, R, t, T = calculate_tr(M_sys)
-    S = poynting(k_par, q_first, q_last, E_modes_first, E_modes_last, t, r, complex(float(μ)), complex(float(μ)))
-    return M_sys, S
+    # calculate_tr(M_sys) with the zero blocks dropped: d = Mp₁₁·Ms₁₁
+    tpp = 1 / Mp[1,1]; tss = 1 / Ms[1,1]
+    r = SVector(Mp[2,1] * tpp, z, Ms[2,1] * tss, z)
+    t = SVector(tpp, z, z, tss)
+    return M_sys, _poynting_decoupled(med_a, med_b, t, r)
 end
 
 # Reduced in-plane wavevector k∥ = n_ambient·sin θ, conserved through the stack.
@@ -247,8 +307,8 @@ end
 
 p and s 2×2 transfer matrices (in the mode-amplitude basis, `[E⁺; E⁻]_a = M [E⁺; E⁻]_b`)
 of the sub-stack `layers[a:b]`, whose end layers `a` and `b` are isotropic,
-non-magnetic and treated as semi-infinite, together with the boundary mode
-wavevectors and E modes. `ε_a`, `ε_b` are the end layers' permittivities. Sheets are
+non-magnetic and treated as semi-infinite, together with the two boundary media
+(`_IsoMedium`). `ε_a`, `ε_b` are the end layers' permittivities. Sheets are
 keyed by the global interface index (sheet `i` sits between layers `i` and `i+1`).
 Returns `nothing` if some layer or sheet in the range couples s and p, and `_WIDEN`
 if `C` cannot hold a layer's refractive index.
@@ -278,16 +338,16 @@ function _block_matrices_2x2(::Type{C}, λ, layers, a, b, k_par, μ, sheets, ε_
         end
     end
 
-    D_1, E_modes_first, q_first = _boundary_modes(C, ε_a, k_par, μ)
-    D_N, E_modes_last,  q_last  = _boundary_modes(C, ε_b, k_par, μ)
+    med_a = _iso_medium(C, ε_a, k_par, μ)
+    med_b = _iso_medium(C, ε_b, k_par, μ)
 
     # The isotropic dynamical matrices are block-diagonal too (p modes 1, 3 carry no
     # Eᵧ or Hₓ; s modes 2, 4 no Eₓ, E_z or Hᵧ), so D₁⁻¹·B·D_N splits into two 2×2
     # products. In the swapped basis of `_propagate_core_exp` the p block lands in
     # rows/columns 1:2 and the s block in 3:4.
-    Mp = inv(_pblock(D_1)) * Bp * _pblock(D_N)
-    Ms = inv(_sblock(D_1)) * Bs * _sblock(D_N)
-    return Mp, Ms, q_first, q_last, E_modes_first, E_modes_last
+    Mp = inv(med_a.Dp) * Bp * med_b.Dp
+    Ms = inv(med_a.Ds) * Bs * med_b.Ds
+    return Mp, Ms, med_a, med_b
 end
 
 const _BoundaryModes{C} = Tuple{SMatrix{4,4,C,16},SMatrix{4,3,C,12},SVector{4,C}}
