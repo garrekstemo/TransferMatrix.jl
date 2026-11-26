@@ -334,7 +334,6 @@ dielectric_constant(n::Real) = Complex(n^2)
 
 _realtype(::Type{T}) where {T<:Number} = real(T)
 _realtype(::Type{T}) where {T<:AbstractArray} = real(eltype(T))
-_realtype(::Type) = Bool
 
 _mu_realtype(::Nothing, λ) = Bool
 _mu_realtype(f, λ) = _realtype(typeof(f(λ)))

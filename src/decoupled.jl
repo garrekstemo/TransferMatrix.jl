@@ -97,12 +97,8 @@ end
 end
 
 # Closed-form replacement for `layer_matrices` on an isotropic, non-magnetic
-# semi-infinite medium: the mode wavevectors are ±√(με − k∥²), twice degenerate,
-# and the E modes and dynamical matrix come from the package's scalar-μ builders.
-function _isotropic_boundary_modes(layer, λ, k_par, μ_i)
-    n, _, _ = get_refractive_indices(layer, λ)
-    return _isotropic_modes(dielectric_constant(n), k_par, μ_i)
-end
+# semi-infinite medium (used by the 4×4 path): the mode wavevectors are
+# ±√(με − k∥²), twice degenerate.
 #
 # This is `calculate_E_modes` and the scalar-μ `dynamical_matrix` specialized to
 # ε = ε·I with q₁ = q₂ = q_z, q₃ = q₄ = −q_z: the p modes are (1, 0, ∓k∥q_z/(με − k∥²))
@@ -197,11 +193,6 @@ end
     one_ = one(C); z = zero(C)
     return SMatrix{2,2,C}(one_, G[3,1], z, one_), SMatrix{2,2,C}(one_, G[4,2], z, one_)
 end
-
-# p block (rows/cols 1, 3) and s block (rows/cols 2, 4) of a 4×4 matrix in the
-# dynamical-matrix basis (Eₓ, Eᵧ, Hᵧ, −Hₓ).
-@inline _pblock(D) = SMatrix{2,2}(D[1,1], D[3,1], D[1,3], D[3,3])
-@inline _sblock(D) = SMatrix{2,2}(D[2,2], D[4,2], D[2,4], D[4,4])
 
 # Status of a per-layer 2×2 step: decoupled, couples s and p (fall back to 4×4), or
 # the element type C is too narrow for the layer's indices (recompute, see `_fits`).

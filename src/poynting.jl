@@ -76,11 +76,7 @@ function poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs,
                      inv(SMatrix{3,3}(μ_in)), inv(SMatrix{3,3}(μ_out)))
 end
 
-# Scalar (isotropic) permeabilities: H = (k̄ × E)/μ, no 3×3 inverse.
-poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs, μ_in::Number, μ_out::Number) =
-    _poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs, inv(μ_in), inv(μ_out))
-
-# `μin_inv`, `μout_inv` are the inverse permeabilities, 3×3 matrices or scalars.
+# `μin_inv`, `μout_inv` are the inverse 3×3 permeabilities.
 function _poynting(k_par, q_in, q_out, E_modes_in, E_modes_out, t_coefs, r_coefs, μin_inv, μout_inv)
 
     # wavevectors (k_par, 0, q_i) / c₀ of the four modes in the first layer
