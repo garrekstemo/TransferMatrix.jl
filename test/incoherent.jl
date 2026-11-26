@@ -117,5 +117,9 @@ end
             p = [0.5, 3000.0, 1.40]
             @test ForwardDiff.gradient(f, p) ≈ _fd_gradient(f, p) atol=1e-6
         end
+        # only the window's index is dual (the first pass runs in Float64 and is redone)
+        g(n) = transfer(λ, [air, L(2.4, 0.5), Layer(λ -> n + 1e-4im, 3000.0), air];
+                        θ=0.2, incoherent=3, validate=true).Tss
+        @test ForwardDiff.derivative(g, 1.4) ≈ _fd_gradient(x -> g(x[1]), [1.4])[1] atol=1e-6
     end
 end

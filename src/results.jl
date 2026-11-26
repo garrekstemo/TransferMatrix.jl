@@ -40,13 +40,6 @@ struct Poynting{T<:Real}
     f_out2::T
 end
 
-# Mixed element types arise when only part of the calculation carries dual numbers
-# (e.g. a Float64 ambient with a dual-valued transmitted field): promote them.
-function Poynting(args::Vararg{Any,12})
-    T = promote_type(map(eltype, args)...)
-    return Poynting{T}(args...)
-end
-
 """
     ElectricField
 

@@ -79,6 +79,10 @@ end
             g(p) = (c = amplitude_coefficients(λ, stack(p[1]); θ=0.2, method=m);
                     real(c.rpp) + imag(c.tss))
             @test ForwardDiff.gradient(g, [0.6]) ≈ _fd_gradient(g, [0.6]) atol=1e-6
+            # dual index only: the first Float64 pass is redone with the dual type
+            h(n) = real(amplitude_coefficients(λ, [Layer(λ -> 1.0, 0.0), Layer(λ -> n, 0.6),
+                                                   Layer(λ -> 1.5, 0.0)]; θ=0.2, method=m).tpp)
+            @test ForwardDiff.derivative(h, 1.8) ≈ _fd_gradient(x -> h(x[1]), [1.8])[1] atol=1e-6
         end
     end
 
