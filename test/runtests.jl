@@ -5,6 +5,7 @@ using StaticArrays
 using TransferMatrix
 using Aqua
 using Unitful
+using ForwardDiff
 
 const c_0 = 299792458
 
@@ -27,3 +28,5 @@ include("exp_propagator.jl")
 include("threading.jl")
 include("energies.jl")
 include("decoupled.jl")
+include("autodiff.jl")
+include("incoherent.jl")

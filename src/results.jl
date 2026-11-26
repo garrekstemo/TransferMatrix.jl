@@ -21,20 +21,23 @@ the substrate is well defined.
 
 `f_out1` / `f_out2` are the z-fluxes of the two substrate eigenmodes at unit
 amplitude, used to convert circular-basis ``|t|^2`` into flux ratios.
+
+`T` is `Float64` for ordinary inputs and a `ForwardDiff.Dual` under automatic
+differentiation.
 """
-struct Poynting
-    out_p::SVector{3, Float64}
-    in_p::SVector{3, Float64}
-    out_s::SVector{3, Float64}
-    in_s::SVector{3, Float64}
-    refl_p::SVector{3, Float64}
-    refl_s::SVector{3, Float64}
-    out_pp::SVector{3, Float64}
-    out_ps::SVector{3, Float64}
-    out_sp::SVector{3, Float64}
-    out_ss::SVector{3, Float64}
-    f_out1::Float64
-    f_out2::Float64
+struct Poynting{T<:Real}
+    out_p::SVector{3, T}
+    in_p::SVector{3, T}
+    out_s::SVector{3, T}
+    in_s::SVector{3, T}
+    refl_p::SVector{3, T}
+    refl_s::SVector{3, T}
+    out_pp::SVector{3, T}
+    out_ps::SVector{3, T}
+    out_sp::SVector{3, T}
+    out_ss::SVector{3, T}
+    f_out1::T
+    f_out2::T
 end
 
 """
@@ -101,7 +104,8 @@ Container for reflectance and transmittance results from transfer matrix calcula
 - `Rps::T`: cross-polarized reflectance (p-in → s-out)
 - `Rsp::T`: cross-polarized reflectance (s-in → p-out)
 
-For single-wavelength calculations via `transfer()`, `T` is `Float64`.
+For single-wavelength calculations via `transfer()`, `T` is `Float64` (or the
+dual-number type when `transfer` is differentiated with ForwardDiff).
 For sweep calculations via `sweep_angle()` or `sweep_thickness()`, `T` is `Matrix{Float64}`.
 
 !!! note "Cross-polarization terms"

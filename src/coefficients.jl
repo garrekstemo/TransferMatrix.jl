@@ -35,8 +35,8 @@ function _circular_result(r, t, f_out1, f_out2, f_in_p, f_in_s)
     # (Using the transposed orientation is invisible for isotropic stacks —
     # their Jones matrices are diagonal — but breaks flux unitarity, and hence
     # the circular energy budget, for polarization-converting stacks.)
-    r_lin = SMatrix{2,2,ComplexF64}(r[1], r[2], r[4], r[3])  # [rpp rsp; rps rss]
-    t_lin = SMatrix{2,2,ComplexF64}(t[1], t[2], t[3], t[4])  # [tpp tsp; tps tss]
+    r_lin = SMatrix{2,2}(r[1], r[2], r[4], r[3])  # [rpp rsp; rps rss]
+    t_lin = SMatrix{2,2}(t[1], t[2], t[3], t[4])  # [tpp tsp; tps tss]
     r_c = _jones_to_circular(r_lin)
     t_c = _jones_to_circular(t_lin)
     Rc = abs2.(r_c)
@@ -45,7 +45,8 @@ function _circular_result(r, t, f_out1, f_out2, f_in_p, f_in_s)
     # χ = (1, ±i)/√2 (incident p/s modes carry no cross z-flux).
     f_in = (f_in_p + f_in_s) / 2
 
-    Tc = MMatrix{2,2,Float64}(undef)
+    RT = promote_type(real(eltype(t_c)), typeof(f_out1), typeof(f_out2), typeof(f_in))
+    Tc = MMatrix{2,2,RT}(undef)
     for j in 1:2
         a = t_lin * _C_CIRC[:, j]                 # substrate (p,s) amplitudes for input j (1=L, 2=R)
         w = abs2(t_c[1, j]) + abs2(t_c[2, j])     # = |a₁|² + |a₂|² (C is unitary)
@@ -54,8 +55,8 @@ function _circular_result(r, t, f_out1, f_out2, f_in_p, f_in_s)
             Tc[1, j] = T_tot * abs2(t_c[1, j]) / w
             Tc[2, j] = T_tot * abs2(t_c[2, j]) / w
         else
-            Tc[1, j] = 0.0
-            Tc[2, j] = 0.0
+            Tc[1, j] = zero(RT)
+            Tc[2, j] = zero(RT)
         end
     end
     # circular matrices are [out,in] ordered (L,R): [1,1]=LL [1,2]=LR [2,1]=RL [2,2]=RR

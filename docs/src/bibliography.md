@@ -12,7 +12,8 @@ All references used for writing TransferMatrix.jl.
 [6] W. Xu, L. T. Wood, and T. D. Golding, Optical Degeneracies in Anisotropic Layered Media: Treatment of Singularities in a 4×4 Matrix Formalism, Phys. Rev. B 61, 1740 (2000). \
 [7] Z.-M. Li, B. T. Sullivan, and R. R. Parsons, Use of the 4 × 4 Matrix Method in the Optics of Multilayer Magnetooptic Recording Media, Appl. Opt., AO 27, 1334 (1988). \
 [8] P. Yeh, Electromagnetic Propagation in Birefringent Layered Media, J. Opt. Soc. Am. 69, 742 (1979). \
-[9] D. W. Berreman, Optics in Stratified and Anisotropic Media: 4×4-Matrix Formulation, J. Opt. Soc. Am. 62, 502 (1972).
+[9] D. W. Berreman, Optics in Stratified and Anisotropic Media: 4×4-Matrix Formulation, J. Opt. Soc. Am. 62, 502 (1972). \
+[10] C. C. Katsidis and D. I. Siapkas, General Transfer-Matrix Method for Optical Multilayer Systems with Coherent, Partially Coherent, and Incoherent Interference, Appl. Opt. 41, 3978 (2002).
 
 ## 2D conductive sheets (TMDC monolayers)
 

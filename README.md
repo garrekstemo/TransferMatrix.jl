@@ -15,6 +15,8 @@ isotropic stacks and polarization-resolved results.
 - RefractiveIndex.jl integration plus custom dispersions
 - Field profiles and interface positions for visualization
 - Per-layer mode amplitudes, closed-form layer energy integrals, and complex r/t coefficients
+- Incoherent (thick) substrates and windows, added by intensity (Katsidis & Siapkas)
+- Differentiable with ForwardDiff for gradient-based fitting of thicknesses and indices
 - Anisotropic layers and cross-polarization available but still experimental
 
 ## Installation

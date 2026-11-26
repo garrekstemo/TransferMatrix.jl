@@ -10,6 +10,7 @@ makedocs(
                     "Tutorial" => "guide/tutorial.md",
                     "Anatomy of the Transfer Matrix" => "guide/transfer_matrix.md",
                     "Dispersion Models" => "guide/dispersion_models.md",
+                    "Fitting and Thick Substrates" => "guide/fitting.md",
                     "Physics Validation" => "guide/validation.md"
         ],
         "Examples" => Any[

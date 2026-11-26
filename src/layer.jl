@@ -29,7 +29,7 @@ With `using Unitful`, thickness may carry units and is normalized to μm:
 in μm, so μm remains the internal unit.
 
 `Layer` is parametric as `Layer{F,Mf,T}` where `F` is the dispersion function type, `Mf` is the
-permeability type (`Nothing` or a callable `λ -> SMatrix{3,3,ComplexF64}`), and `T` is the thickness type.
+permeability type (`Nothing` or a callable `λ -> SMatrix{3,3,<:Complex}`), and `T` is the thickness type.
 For anisotropic layers, `F` is a `Tuple` of three dispersion functions.
 
 # Examples
@@ -78,9 +78,13 @@ end
 
 # Normalize the `mu=` input to `nothing` or a callable λ -> SMatrix{3,3,ComplexF64}.
 _normalize_mu(::Nothing) = nothing
-_normalize_mu(m::Number) = let M = SMatrix{3,3,ComplexF64}(m*I); λ -> M end
-_normalize_mu(M::AbstractMatrix) = let Ms = SMatrix{3,3,ComplexF64}(M); λ -> Ms end
-_normalize_mu(f) = λ -> SMatrix{3,3,ComplexF64}(f(λ))
+_normalize_mu(m::Number) = let M = SMatrix{3,3,complex(float(typeof(m)))}(m*I); λ -> M end
+_normalize_mu(M::AbstractMatrix) = let Ms = _complex_smatrix3(M); λ -> Ms end
+_normalize_mu(f) = λ -> _complex_smatrix3(f(λ))
+
+# 3×3 complex SMatrix with the element type of `M` (ComplexF64 for Float64 input, a
+# complex dual number under ForwardDiff), so a fitted μ tensor stays differentiable.
+_complex_smatrix3(M) = SMatrix{3,3,complex(float(eltype(M)))}(M)
 
 # Isotropic constructor: material is any callable λ -> n(λ).
 # The Layer(::RefractiveMaterial, thickness) constructor lives in the RefractiveIndexExt
@@ -140,7 +144,7 @@ layer = Layer(no, no, ne, 0.5; euler=(π/6, π/2, 0))
 """
 function Layer(nx::F1, ny::F2, nz::F3, thickness::T; euler::NTuple{3,Real}=(0.0, 0.0, 0.0), mu=nothing) where {F1,F2,F3,T<:Real}
     thickness ≥ 0 || throw(DomainError("Layer thickness must be non-negative"))
-    φ, θ, ψ = Float64.(euler)
+    φ, θ, ψ = float.(promote(euler...))
     Layer((nx, ny, nz, φ, θ, ψ), _normalize_mu(mu), thickness)
 end
 
@@ -162,7 +166,7 @@ ismagnetic(layer::Layer) = layer.mu !== nothing
 """
     get_permeability(layer::Layer, λ)
 
-Return the 3×3 permeability tensor `SMatrix{3,3,ComplexF64}` for the layer at
+Return the 3×3 complex permeability tensor `SMatrix{3,3}` for the layer at
 wavelength `λ`, or `nothing` if the layer is non-magnetic.
 """
 get_permeability(layer::Layer, λ) = layer.mu === nothing ? nothing : layer.mu(λ)
@@ -274,9 +278,10 @@ callers that need z-coordinates (e.g., `efield`) must subtract the first layer t
 """
 function find_bounds(layers)
     n_layers = length(layers)
-    interface_positions = Vector{Float64}(undef, n_layers)
+    Td = float(mapreduce(l -> typeof(l.thickness), promote_type, layers; init=Float64))
+    interface_positions = Vector{Td}(undef, n_layers)
 
-    total_thickness = 0.0
+    total_thickness = zero(Td)
     for (i, layer) in enumerate(layers)
         total_thickness += layer.thickness
         interface_positions[i] = total_thickness
@@ -308,3 +313,82 @@ via the relation
 dielectric_constant(n_re::Real, n_im::Real) = (n_re + n_im * im)^2
 dielectric_constant(n::Complex) = n^2
 dielectric_constant(n::Real) = Complex(n^2)
+
+
+# ---------------------------------------------------------------------------
+# Number type of a calculation.
+#
+# Every propagation core works in one complex element type, `Complex{R}`, where R
+# is the promotion of the real types of λ, θ, the global μ, each layer's thickness,
+# refractive indices, Euler angles and permeability, and each sheet's conductivity.
+# For ordinary inputs R = Float64 (so the cores keep their ComplexF64 code paths);
+# under ForwardDiff R is a Dual, which is what lets gradients pass through.
+#
+# Refractive indices are the one input whose type is only known by evaluating the
+# dispersion function, which can be the most expensive step of a call. So `transfer`
+# first runs with the type of everything else (`_stack_realtype_static`), and each
+# function barrier that evaluates a dispersion checks that the value fits
+# (`_fits`). Only if one does not (a dual-valued index while everything else is
+# Float64, i.e. when fitting indices) is the point recomputed with the full type
+# (`_stack_realtype`), so ordinary calls evaluate each dispersion once.
+
+_realtype(::Type{T}) where {T<:Number} = real(T)
+_realtype(::Type{T}) where {T<:AbstractArray} = real(eltype(T))
+
+_mu_realtype(::Nothing, λ) = Bool
+_mu_realtype(f, λ) = _realtype(typeof(f(λ)))
+
+_euler_realtype(t::Tuple) = length(t) == 6 ? promote_type(map(typeof, t[4:6])...) : Bool
+_euler_realtype(_) = Bool
+
+_layer_static_realtype(layer::Layer{F,Mf,Td}, λ) where {F,Mf,Td} =
+    promote_type(Td, _euler_realtype(layer.dispersion), _mu_realtype(layer.mu, λ))
+
+_dispersion_realtype(f, λ) = _realtype(typeof(f(λ)))
+_dispersion_realtype(t::Tuple, λ) =
+    promote_type(_dispersion_realtype(t[1], λ), _dispersion_realtype(t[2], λ), _dispersion_realtype(t[3], λ))
+
+_layer_realtype(layer::Layer, λ) =
+    promote_type(_layer_static_realtype(layer, λ), _dispersion_realtype(layer.dispersion, λ))
+
+function _accumulate_realtype(f::F, λ, θ, μ, layers, sheets) where {F}
+    R = float(promote_type(_realtype(typeof(λ)), _realtype(typeof(θ)), _realtype(typeof(μ))))
+    for layer in layers
+        Rl = f(layer, λ)::DataType
+        Rl === R || (R = promote_type(R, Rl))
+    end
+    if sheets !== nothing
+        for sheet in values(sheets)
+            Rs = _realtype(typeof(sheet.conductivity(λ)))
+            Rs === R || (R = promote_type(R, Rs))
+        end
+    end
+    return R
+end
+
+# Real type of everything except the refractive indices (no dispersion evaluated).
+_stack_realtype_static(λ, θ, μ, layers, sheets=nothing) =
+    _accumulate_realtype(_layer_static_realtype, λ, θ, μ, layers, sheets)
+
+# Full real type of the calculation (evaluates every dispersion once).
+_stack_realtype(λ, θ, μ, layers, sheets=nothing) =
+    _accumulate_realtype(_layer_realtype, λ, θ, μ, layers, sheets)
+
+"""
+    _stack_ctype(λ, θ, μ, layers, sheets=nothing)
+
+Complex element type used by the propagation cores for this point: `ComplexF64` for
+ordinary inputs, `Complex{<:ForwardDiff.Dual}` when any input carries dual numbers.
+"""
+_stack_ctype(λ, θ, μ, layers, sheets=nothing) = Complex{_stack_realtype(λ, θ, μ, layers, sheets)}
+
+# Whether a value computed from a dispersion function can be stored in element type C.
+@inline function _fits(::Type{C}, x) where {C}
+    Rx = _realtype(typeof(x))
+    return Rx === real(C) || promote_type(real(C), Rx) === real(C)
+end
+@inline _fits(::Type{C}, x, y, z) where {C} = _fits(C, x) && _fits(C, y) && _fits(C, z)
+
+# Returned by a propagation core run with a too-narrow element type (see above).
+struct _Widen end
+const _WIDEN = _Widen()

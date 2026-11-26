@@ -5,7 +5,7 @@
     Sheet(nx, ny, d)
 
 A zero-thickness 2D conductive sheet (e.g. a TMDC monolayer) for the transfer
-matrix. The internal representation is a callable `λ -> SMatrix{2,2,ComplexF64}`
+matrix. The internal representation is a callable `λ -> SMatrix{2,2,<:Complex}`
 returning the **SI sheet conductivity tensor** `[σxx σxy; σyx σyy]` in Siemens.
 
 - `Sheet(σ)` — scalar isotropic conductivity (`σ::Number` or `σ(λ)->Number`),
@@ -30,8 +30,8 @@ end
 _rawsheet(f) = Sheet{typeof(f)}(f)
 
 # Internal: evaluate a component that may be a constant or a function of λ.
-_cval(x::Number, λ) = ComplexF64(x)
-_cval(f, λ) = ComplexF64(f(λ))
+_cval(x::Number, λ) = complex(float(x))
+_cval(f, λ) = complex(float(f(λ)))
 
 # Internal: turn an index spec into an n(λ) function. The
 # _index_fn(::RefractiveMaterial) method lives in the RefractiveIndexExt extension.
@@ -39,10 +39,10 @@ _index_fn(x::Number) = _ -> x
 _index_fn(f::Function) = f
 
 # Internal: SI scalar sheet conductivity from an index function and thickness d (μm).
-_sigma_from_index(nfun, d) = λ -> -im * (2π * c_0 / λ) * ε_0 * d * (ComplexF64(nfun(λ))^2 - 1)
+_sigma_from_index(nfun, d) = λ -> -im * (2π * c_0 / λ) * ε_0 * d * (complex(nfun(λ))^2 - 1)
 
 # Internal: wrap a scalar conductivity (constant or function) as a diagonal sheet.
-_diagonal_sheet(σ) = _rawsheet(λ -> (s = _cval(σ, λ); SMatrix{2,2,ComplexF64}(s, 0, 0, s)))
+_diagonal_sheet(σ) = _rawsheet(λ -> (s = _cval(σ, λ); SMatrix{2,2}(s, zero(s), zero(s), s)))
 
 # Scalar isotropic conductivity (Number or function returning a Number).
 Sheet(σ::Number) = _diagonal_sheet(σ)
@@ -50,7 +50,7 @@ Sheet(σ::Function) = _diagonal_sheet(σ)
 
 # Anisotropic tensor by component. SMatrix is column-major: (xx, yx, xy, yy).
 function Sheet(; xx, yy, xy = 0, yx = 0)
-    _rawsheet(λ -> SMatrix{2,2,ComplexF64}(_cval(xx, λ), _cval(yx, λ), _cval(xy, λ), _cval(yy, λ)))
+    _rawsheet(λ -> SMatrix{2,2}(promote(_cval(xx, λ), _cval(yx, λ), _cval(xy, λ), _cval(yy, λ))...))
 end
 
 # Index -> conductivity (isotropic). The Sheet(::RefractiveMaterial, d) method
@@ -61,7 +61,7 @@ Sheet(n::Function, d::Real) = _diagonal_sheet(_sigma_from_index(n, d))
 function Sheet(nx, ny, d::Real)
     σx = _sigma_from_index(_index_fn(nx), d)
     σy = _sigma_from_index(_index_fn(ny), d)
-    _rawsheet(λ -> SMatrix{2,2,ComplexF64}(σx(λ), 0, 0, σy(λ)))
+    _rawsheet(λ -> (a = σx(λ); b = σy(λ); SMatrix{2,2}(promote(a, zero(a), zero(b), b)...)))
 end
 
 """
@@ -76,10 +76,10 @@ as `Dᵢ⁻¹ G Dᵢ₊₁`. Tangential E (rows 1,2) is continuous; tangential H
 `Z₀` is applied here and nowhere else (see [`Sheet`](@ref)).
 """
 function sheet_matrix(sheet::Sheet, λ)
-    σ = sheet.conductivity(λ)          # SMatrix{2,2,ComplexF64}, SI Siemens
+    σ = sheet.conductivity(λ)          # complex SMatrix{2,2}, SI Siemens
     g = sqrt(μ_0 / ε_0) .* σ           # dimensionless; the ONLY Z₀ application
-    z = zero(ComplexF64)
-    o = one(ComplexF64)
+    z = zero(eltype(g))
+    o = one(eltype(g))
     return @SMatrix [
         o       z       z  z;
         z       o       z  z;

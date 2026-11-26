@@ -13,7 +13,10 @@ Return the diagonal complex dielectric tensor
 \\end{pmatrix}
 ```
 """
-dielectric_tensor(ε1, ε2, ε3) = Diagonal(SVector{3, ComplexF64}(ε1, ε2, ε3))
+function dielectric_tensor(ε1, ε2, ε3)
+    C = complex(float(promote_type(typeof(ε1), typeof(ε2), typeof(ε3))))
+    return Diagonal(SVector{3,C}(ε1, ε2, ε3))
+end
 
 
 """
@@ -68,7 +71,7 @@ Full 3×3 SMatrix (may have off-diagonal elements after rotation)
 function rotate_dielectric_tensor(ε_diag::Diagonal, R::SMatrix{3,3})
     # ε_lab = R * ε_crystal * R'
     # For diagonal ε, this is equivalent to: R * Diagonal(ε) * R'
-    ε_full = SMatrix{3,3,ComplexF64}(ε_diag)
+    ε_full = SMatrix{3,3}(ε_diag)
     return R * ε_full * R'
 end
 
@@ -80,7 +83,7 @@ This produces the diagonal permeability tensor,
 which is identical to the way we build the `dielectric_tensor`,
 and we include this function simply for completeness.
 """
-permeability_tensor(μ1, μ2, μ3) = Diagonal(SVector{3, ComplexF64}(μ1, μ2, μ3))
+permeability_tensor(μ1, μ2, μ3) = dielectric_tensor(μ1, μ2, μ3)
 
 
 """
@@ -101,7 +104,8 @@ package `exp(-iωt)` convention (validated against the `t_ps = -t_sp`
 non-reciprocity relation).
 """
 function gyrotropic_tensor(d, od; axis::Symbol=:z)
-    dC = ComplexF64(d); g = im * ComplexF64(od); o = one(ComplexF64); z = zero(ComplexF64)
+    C = complex(float(promote_type(typeof(d), typeof(od))))
+    dC = C(d); g = im * C(od); o = one(C); z = zero(C)
     if axis === :z
         return @SMatrix [dC g z; -g dC z; z z o]
     elseif axis === :x
@@ -132,12 +136,13 @@ Use as a layer permeability with `Layer(...; mu = λ -> polder_permeability(...)
 mapping wavelength to frequency as appropriate for your unit system.
 """
 function polder_permeability(; f0, fm, linewidth=0.0, axis::Symbol=:z)
-    f0c = ComplexF64(f0) - im*ComplexF64(linewidth)/2
-    fmC = ComplexF64(fm)
+    f0c = complex(float(f0)) - im*float(linewidth)/2
+    fmC = complex(float(fm))
     return function (f)
-        denom = f0c^2 - ComplexF64(f)^2
+        fC = complex(float(f))
+        denom = f0c^2 - fC^2
         μ = 1 + f0c*fmC/denom
-        κ = ComplexF64(f)*fmC/denom
+        κ = fC*fmC/denom
         return gyrotropic_tensor(μ, κ; axis=axis)
     end
 end
@@ -150,8 +155,9 @@ const _swap23 = @SMatrix [1.0 0 0 0; 0 0 1 0; 0 1 0 0; 0 0 0 1]
 # Rotation-aware dielectric tensor for a layer at wavelength λ. Shared by the
 # eigenmode path (`layer_matrices`) and the matrix-exponential path
 # (`layer_transfer_exp`) so ε construction lives in one place.
-function _layer_epsilon(layer, λ)
-    nx, ny, nz = get_refractive_indices(layer, λ)
+_layer_epsilon(layer, λ) = _layer_epsilon(layer, get_refractive_indices(layer, λ)...)
+
+function _layer_epsilon(layer, nx, ny, nz)
     ε_diag = dielectric_tensor(dielectric_constant(nx), dielectric_constant(ny), dielectric_constant(nz))
     φ, θ, ψ = get_euler_angles(layer)
     return (φ != 0.0 || θ != 0.0 || ψ != 0.0) ?
@@ -174,17 +180,17 @@ function layer_matrices(layer, λ, k_par, μ_i)
     ε = _layer_epsilon(layer, λ)
 
     if ismagnetic(layer)
-        μmat = get_permeability(layer, λ)                 # SMatrix{3,3,ComplexF64}
+        μmat = get_permeability(layer, λ)                 # complex SMatrix{3,3}
         C = construct_constitutive(ε, μmat)  # 6×6 constitutive matrix [ε ρ1; ρ2 μ]
         a = construct_a(k_par, C); Δ = construct_Δ(k_par, C, a)
-        q, S = calculate_q(Δ, a); q = ComplexF64.(q)
+        q, S = calculate_q(Δ, a); q = complex.(q)
         E_modes = calculate_E_modes_tensor(k_par, q, ε, μmat)
         D = dynamical_matrix(k_par, q, E_modes, μmat)
     else
         μ = permeability_tensor(μ_i, μ_i, μ_i)
         C = construct_constitutive(ε, μ)
         a = construct_a(k_par, C); Δ = construct_Δ(k_par, C, a)
-        q, S = calculate_q(Δ, a); q = ComplexF64.(q)
+        q, S = calculate_q(Δ, a); q = complex.(q)
         E_modes = calculate_E_modes(k_par, q, ε, μ_i)
         D = dynamical_matrix(k_par, q, E_modes, μ_i)
     end
@@ -218,8 +224,8 @@ Berreman, 1972, https://doi.org/10.1364/JOSA.62.000502
 Mackay & Lakhtakia, 2020, https://doi.org/10.1007/978-3-031-02022-3
 Higham, 2005, https://doi.org/10.1137/04061101X
 """
-function layer_transfer_exp(layer, λ, k_par, ω, μ_i)
-    ε = _layer_epsilon(layer, λ)
+function layer_transfer_exp(layer, λ, k_par, ω, μ_i, ns=get_refractive_indices(layer, λ))
+    ε = _layer_epsilon(layer, ns...)
     μ = ismagnetic(layer) ? get_permeability(layer, λ) : permeability_tensor(μ_i, μ_i, μ_i)
     C = construct_constitutive(ε, μ)
     a = construct_a(k_par, C)
@@ -239,9 +245,10 @@ end
 
 # Specialized method for isotropic materials without magnetoelectric coupling (ρ₁ = ρ₂ = 0)
 # This is the common case and avoids heap allocations from zeros() and hvcat
-function construct_constitutive(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}},
-                     μ::Diagonal{ComplexF64,SVector{3,ComplexF64}})
-    z = zero(ComplexF64)
+const _DiagC3 = Diagonal{<:Complex,<:SVector{3,<:Complex}}
+
+function construct_constitutive(ε::_DiagC3, μ::_DiagC3)
+    z = zero(promote_type(eltype(ε), eltype(μ)))
     return @SMatrix [
         ε[1,1] z z z z z;
         z ε[2,2] z z z z;
@@ -253,9 +260,8 @@ function construct_constitutive(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}},
 end
 
 # Specialized method for rotated anisotropic materials (full 3×3 dielectric tensor)
-function construct_constitutive(ε::SMatrix{3,3,ComplexF64},
-                     μ::Diagonal{ComplexF64,SVector{3,ComplexF64}})
-    z = zero(ComplexF64)
+function construct_constitutive(ε::SMatrix{3,3,<:Complex}, μ::_DiagC3)
+    z = zero(promote_type(eltype(ε), eltype(μ)))
     return @SMatrix [
         ε[1,1] ε[1,2] ε[1,3] z z z;
         ε[2,1] ε[2,2] ε[2,3] z z z;
@@ -267,8 +273,8 @@ function construct_constitutive(ε::SMatrix{3,3,ComplexF64},
 end
 
 # Full 3×3 ε AND full 3×3 μ (e.g. gyrotropic/gyromagnetic media, no magnetoelectric coupling)
-function construct_constitutive(ε::SMatrix{3,3,ComplexF64}, μ::SMatrix{3,3,ComplexF64})
-    z = zero(ComplexF64)
+function construct_constitutive(ε::SMatrix{3,3,<:Complex}, μ::SMatrix{3,3,<:Complex})
+    z = zero(promote_type(eltype(ε), eltype(μ)))
     return @SMatrix [
         ε[1,1] ε[1,2] ε[1,3] z z z;
         ε[2,1] ε[2,2] ε[2,3] z z z;
@@ -280,8 +286,8 @@ function construct_constitutive(ε::SMatrix{3,3,ComplexF64}, μ::SMatrix{3,3,Com
 end
 
 # Diagonal ε with a full μ tensor
-construct_constitutive(ε::Diagonal{ComplexF64,SVector{3,ComplexF64}}, μ::SMatrix{3,3,ComplexF64}) =
-    construct_constitutive(SMatrix{3,3,ComplexF64}(ε), μ)
+construct_constitutive(ε::_DiagC3, μ::SMatrix{3,3,<:Complex}) =
+    construct_constitutive(SMatrix{3,3}(ε), μ)
 
 
 """
@@ -450,7 +456,8 @@ Xu, et al., 2000, https://doi.org/10.1103/PhysRevB.61.1740
 """
 function calculate_E_modes(k_par, q, ε, μ)
 
-    E_modes = @MMatrix zeros(ComplexF64, 4, 3)
+    C = complex(float(promote_type(typeof(k_par), eltype(q), eltype(ε), typeof(μ))))
+    E_modes = @MMatrix zeros(C, 4, 3)
     E_modes[1,1] = 1
     E_modes[2,2] = 1
     E_modes[4,2] = 1
@@ -521,7 +528,10 @@ end
 
 
 # k̄ × v cross-product matrix for k̄ = (k_par, 0, q)
-_kcross(k_par, q) = SMatrix{3,3,ComplexF64}(0, q, 0,  -q, 0, k_par,  0, -k_par, 0)
+function _kcross(k_par, q)
+    C = complex(float(promote_type(typeof(k_par), typeof(q))))
+    return SMatrix{3,3,C}(0, q, 0,  -q, 0, k_par,  0, -k_par, 0)
+end
 
 
 """
@@ -617,13 +627,14 @@ Dynamical matrix for a tensor μ. Rows are `(Eₓ, Eᵧ, Hᵧ, −Hₓ)` per mod
 `H = μ⁻¹ (k̄ × E)`. Reduces to the scalar-μ method when `μ = μ·I`.
 """
 function dynamical_matrix(k_par, q, E_modes, μ::AbstractMatrix)
-    μinv = inv(SMatrix{3,3,ComplexF64}(μ))
+    μinv = inv(SMatrix{3,3}(μ))
+    C = complex(float(promote_type(typeof(k_par), eltype(q), eltype(E_modes), eltype(μinv))))
     cols = ntuple(4) do m
-        E = SVector{3,ComplexF64}(E_modes[m,1], E_modes[m,2], E_modes[m,3])
+        E = SVector{3,C}(E_modes[m,1], E_modes[m,2], E_modes[m,3])
         H = μinv * (_kcross(k_par, q[m]) * E)
-        SVector{4,ComplexF64}(E[1], E[2], H[2], -H[1])
+        SVector{4,C}(E[1], E[2], H[2], -H[1])
     end
-    return hcat(cols...)::SMatrix{4,4,ComplexF64}
+    return hcat(cols...)::SMatrix{4,4,C}
 end
 
 
