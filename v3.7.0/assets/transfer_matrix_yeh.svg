@@ -1,0 +1,60 @@
+<svg width="680" viewBox="0 0 680 400" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>How M's elements map onto Yeh's 2x2 matrix and the bound-mode (BSW) condition</title>
+<desc>In the isotropic limit the 4 by 4 matrix M is block-diagonal: the top-left 2x2 (rows and columns 1 and 2, the p forward and backward modes) and the bottom-right 2x2 (rows and columns 3 and 4, the s modes) are each Yeh's transfer matrix [[A,B],[C,D]]. The A element equals M11 for p and M33 for s; transmission is 1/A and reflection is C/A, so a zero of A marks a bound guided mode such as a Bloch surface wave. The off-diagonal blocks are zero unless the media are anisotropic or chiral.</desc>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .th { font-size: 14px; font-weight: 500; fill: #3D3D3A; }
+  .ts { font-size: 12px; font-weight: 400; fill: #6B6A64; }
+  .fig-bg { fill: #FFFFFF; stroke: #E6E4DD; stroke-width: 1; }
+  .box { fill: #F7F6F1; stroke: #D3D1C7; stroke-width: 0.5; }
+  .cell-amber { fill: #FAEEDA; stroke: #EF9F27; stroke-width: 0.5; }
+  .txt-amber { fill: #854F0B; }
+  .leader { stroke: #B4B2A9; stroke-width: 0.5; stroke-dasharray: 3 3; fill: none; }
+</style>
+
+<rect class="fig-bg" x="1" y="1" width="678" height="398" rx="14"/>
+
+<text class="th" x="40" y="34">Relation to Yeh&#8217;s 2&#215;2 transfer matrix</text>
+<text class="ts" x="40" y="54">Isotropic limit: M is block-diagonal; each diagonal 2&#215;2 is Yeh&#8217;s  [[A, B],[C, D]]</text>
+
+<text class="ts" x="206" y="84" text-anchor="middle">p+</text>
+<text class="ts" x="284" y="84" text-anchor="middle">p&#8722;</text>
+<text class="ts" x="362" y="84" text-anchor="middle">s+</text>
+<text class="ts" x="440" y="84" text-anchor="middle">s&#8722;</text>
+<text class="ts" x="158" y="125" text-anchor="end">p+</text>
+<text class="ts" x="158" y="181" text-anchor="end">p&#8722;</text>
+<text class="ts" x="158" y="237" text-anchor="end">s+</text>
+<text class="ts" x="158" y="293" text-anchor="end">s&#8722;</text>
+
+<rect class="cell-amber" x="170" y="96" width="72" height="50" rx="4"/><text class="th txt-amber" x="206" y="114" text-anchor="middle" dominant-baseline="central">M&#8321;&#8321;</text><text class="ts txt-amber" x="206" y="131" text-anchor="middle" dominant-baseline="central">= A</text>
+<rect class="box" x="248" y="96" width="72" height="50" rx="4"/><text class="th" x="284" y="114" text-anchor="middle" dominant-baseline="central">M&#8321;&#8322;</text><text class="ts" x="284" y="131" text-anchor="middle" dominant-baseline="central">= B</text>
+<rect class="box" x="326" y="96" width="72" height="50" rx="4"/><text class="ts" x="362" y="121" text-anchor="middle" dominant-baseline="central">0</text>
+<rect class="box" x="404" y="96" width="72" height="50" rx="4"/><text class="ts" x="440" y="121" text-anchor="middle" dominant-baseline="central">0</text>
+
+<rect class="box" x="170" y="152" width="72" height="50" rx="4"/><text class="th" x="206" y="170" text-anchor="middle" dominant-baseline="central">M&#8322;&#8321;</text><text class="ts" x="206" y="187" text-anchor="middle" dominant-baseline="central">= C</text>
+<rect class="box" x="248" y="152" width="72" height="50" rx="4"/><text class="th" x="284" y="170" text-anchor="middle" dominant-baseline="central">M&#8322;&#8322;</text><text class="ts" x="284" y="187" text-anchor="middle" dominant-baseline="central">= D</text>
+<rect class="box" x="326" y="152" width="72" height="50" rx="4"/><text class="ts" x="362" y="177" text-anchor="middle" dominant-baseline="central">0</text>
+<rect class="box" x="404" y="152" width="72" height="50" rx="4"/><text class="ts" x="440" y="177" text-anchor="middle" dominant-baseline="central">0</text>
+
+<rect class="box" x="170" y="208" width="72" height="50" rx="4"/><text class="ts" x="206" y="233" text-anchor="middle" dominant-baseline="central">0</text>
+<rect class="box" x="248" y="208" width="72" height="50" rx="4"/><text class="ts" x="284" y="233" text-anchor="middle" dominant-baseline="central">0</text>
+<rect class="cell-amber" x="326" y="208" width="72" height="50" rx="4"/><text class="th txt-amber" x="362" y="226" text-anchor="middle" dominant-baseline="central">M&#8323;&#8323;</text><text class="ts txt-amber" x="362" y="243" text-anchor="middle" dominant-baseline="central">= A</text>
+<rect class="box" x="404" y="208" width="72" height="50" rx="4"/><text class="th" x="440" y="226" text-anchor="middle" dominant-baseline="central">M&#8323;&#8324;</text><text class="ts" x="440" y="243" text-anchor="middle" dominant-baseline="central">= B</text>
+
+<rect class="box" x="170" y="264" width="72" height="50" rx="4"/><text class="ts" x="206" y="289" text-anchor="middle" dominant-baseline="central">0</text>
+<rect class="box" x="248" y="264" width="72" height="50" rx="4"/><text class="ts" x="284" y="289" text-anchor="middle" dominant-baseline="central">0</text>
+<rect class="box" x="326" y="264" width="72" height="50" rx="4"/><text class="th" x="362" y="282" text-anchor="middle" dominant-baseline="central">M&#8324;&#8323;</text><text class="ts" x="362" y="299" text-anchor="middle" dominant-baseline="central">= C</text>
+<rect class="box" x="404" y="264" width="72" height="50" rx="4"/><text class="th" x="440" y="282" text-anchor="middle" dominant-baseline="central">M&#8324;&#8324;</text><text class="ts" x="440" y="299" text-anchor="middle" dominant-baseline="central">= D</text>
+
+<rect x="166" y="92" width="158" height="114" rx="7" fill="none" stroke="#1D9E75" stroke-width="1.5"/>
+<rect x="322" y="204" width="158" height="114" rx="7" fill="none" stroke="#378ADD" stroke-width="1.5"/>
+<text class="ts" x="512" y="149">p block</text>
+<text class="ts" x="512" y="261">s block</text>
+<line class="leader" x1="324" y1="149" x2="506" y2="149"/>
+<line class="leader" x1="480" y1="261" x2="506" y2="261"/>
+
+<rect class="cell-amber" x="170" y="334" width="16" height="16" rx="3"/>
+<text class="th" x="194" y="342" dominant-baseline="central">A element (M&#8321;&#8321; for p, M&#8323;&#8323; for s):   t = 1/A,   r = C/A</text>
+<text class="ts" x="40" y="366">A &#8594; 0 (with fields evanescent on both sides) is a guided mode / Bloch surface wave</text>
+<text class="ts" x="40" y="386">Off-diagonal blocks (the 0 s) couple p &#8596; s &#8212; nonzero only for anisotropic / chiral media</text>
+</svg>
